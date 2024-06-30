@@ -1,0 +1,43 @@
+#include <termios.h>
+
+const char* SERVER_IP = "127.0.0.1"; // Replace with your server IP
+const int SERVER_PORT = 12345; // Replace with your server port
+
+// Function to send typing notification to the server
+void sendTypingNotification(int clientSocket) {
+    const char* typingMessage = "typing";
+    send(clientSocket, typingMessage, strlen(typingMessage), 0);
+}
+
+int main() {
+    struct termios oldSettings, newSettings;
+
+    // Set terminal to non-canonical mode to read input character by character
+    tcgetattr(STDIN_FILENO, &oldSettings);
+    newSettings = oldSettings;
+    newSettings.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newSettings);
+
+    //after server connected and stuff
+
+
+    // Loop indefinitely to detect keyboard input
+    while (true) {
+        // Check if a key is pressed
+        if (std::cin.rdbuf()->in_avail() > 0) {
+            // Read the character
+            char ch;
+            std::cin >> ch;
+
+            // Send typing notification to the server
+            sendTypingNotification(clientSocket);
+        }
+
+        // Add a short delay to reduce CPU usage
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    // Restore old terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldSettings);
+
+}
