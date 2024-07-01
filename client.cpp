@@ -23,7 +23,7 @@
 #include <boost/asio.hpp>
 #include <cstdlib>
 #include <termios.h>
-#include <cryptopp/rsa.h>
+#include "rsa.h"
 #include <cryptopp/osrng.h>
 #include <cryptopp/base64.h>
 #include <cryptopp/files.h>
