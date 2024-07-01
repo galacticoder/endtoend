@@ -18,7 +18,7 @@ using namespace std;
 struct Send {
     Send() = default;
     //std::vector<uint8_t> buffer = readFile(filePath); file path is a string to the file path
-    //std::string encodedData = base64Encode(buffer);
+    //std::string encodedData = b64EF(buffer);
     //sendBase64Data(clientSocket, encodedData);
     std::string b64EF(const std::vector<uint8_t>& data)
     {

@@ -303,16 +303,19 @@ void handleClient(int clientSocket)
 
     else
     {
-        {
-            lock_guard<mutex> lock(clientsMutex); //does noting idk wy its here
-            clientUsernames.push_back(userStr);
-        }
+        clientUsernames.push_back(userStr);
         // clientUsernames.push_back(userStr);
         cout << "username added to client vector usernames" << endl;
         cout << connectedClients[0] << endl;
         //send pub key
         updateActiveFile(clientUsernames.size());
         cout << "client SIZE: " << clientUsernames.size() << endl;
+
+        Send usersactive;
+        //send the active users txt file to client
+        std::vector<uint8_t> activeBuf = usersactive.readFile("usersActive.txt"); //file path is a string to the file path
+        std::string ed = usersactive.b64EF(activeBuf);
+        usersactive.sendBase64Data(clientSocket, ed);
 
         std::string joinMsg = fmt::format("{} has joined the chat", userStr);
         string lenOfUser;

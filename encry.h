@@ -12,6 +12,8 @@
 #include <cryptopp/secblock.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/filters.h>
+#include <filesystem>
+
 // #include <vector>
 
 
@@ -84,12 +86,39 @@ struct LoadKey {
 struct Enc {
     Enc() = default;
     string enc(RSA::PublicKey& pubkey, string& plain) {
-        AutoSeededRandomPool rng; //using diff rng for better randomness
-        string cipher;
-        RSAES_OAEP_SHA512_Encryptor e(pubkey); //make sure to push rsa.h or you get errors cuz its modified to sha512 instead of sha1 for better security
-        StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher))); //nested for better verification of both key loading
-        return cipher;
+        try {
+            AutoSeededRandomPool rng; //using diff rng for better randomness
+            string cipher;
+            RSAES_OAEP_SHA512_Encryptor e(pubkey); //make sure to push rsa.h or you get errors cuz its modified to sha512 instead of sha1 for better security
+            StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher))); //nested for better verification of both key loading
+            return cipher;
+        }
+        catch (const Exception& e) {
+            string pu = "user-keys/pub";
+            string pr = "user-keys/prv";
+            auto pubdel = std::filesystem::directory_iterator(pu);
+            int puddel = 0;
+            for (auto& puddel : pubdel)
+            {
+                if (puddel.is_regular_file())
+                {
+                    std::filesystem::remove(puddel);
+                }
+            }
+            auto prvdel = std::filesystem::directory_iterator(pr);
+            int prvdel2 = 0;
+            for (auto& prvdel2 : prvdel)
+            {
+                if (prvdel2.is_regular_file())
+                {
+                    std::filesystem::remove(prvdel2);
+                }
+            }
+            const string err = "error";
+            return err;
+        }
     }
+
     std::string Base64Encode(const std::string& input) {
         std::string encoded;
         StringSource(input, true, new Base64Encoder(new StringSink(encoded), false));

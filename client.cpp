@@ -152,7 +152,7 @@ int readActiveUsers() {
 }
 
 int main() {
-    char serverIp[30] = "127.0.0.1"; //if server is being served locally do not modify
+    char serverIp[30] = "192.168.0.38"; //if server is being served locally do not modify
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -165,12 +165,13 @@ int main() {
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(PORT);
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    // cout << serverIp;
+    serverAddress.sin_addr.s_addr = inet_addr(serverIp);
+
     if (inet_pton(AF_INET, serverIp, &serverAddress.sin_addr) <= 0) {
         std::cerr << "Invalid address / Address not supported" << std::endl;
         return 1;
     }
+    // cout << serverIp;
 
     if (connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
         std::cout << "Cannot connect to server\n";
@@ -207,21 +208,36 @@ int main() {
     keyLoader.loadPrv(pr, privateKey);
     keyLoader.loadPub(pu, publicKey);
 
+    Recieve recvActive;
+    std::string encodedData = recvActive.receiveBase64Data(clientSocket);
+    std::vector<uint8_t> decodedData = recvActive.base64Decode(encodedData);
+    recvActive.saveFile("usersActive.txt", decodedData);
+
     // sendFile(pu);
     Send sendtoserver;
     std::vector<uint8_t> fi = sendtoserver.readFile(pu); //file path is a string to the file path
-    std::string encodedData = sendtoserver.b64EF(fi);
+    std::string ed4 = sendtoserver.b64EF(fi);
     // cout << "Encoded data sending is: " << encodedData << endl;
-    sendtoserver.sendBase64Data(clientSocket, encodedData); //send encoded key
+    sendtoserver.sendBase64Data(clientSocket, ed4); //send encoded key
 
 
     // ssize_t pubname = recv(clientSocket, name, sizeof(name), 0);
 
+
+    //send this file from the server
     ifstream opent("usersActive.txt");
     string active;
-    getline(opent, active);
     int activeInt;
-    istringstream(active) >> activeInt;
+
+    if (opent.is_open()) {
+        getline(opent, active);
+        istringstream(active) >> activeInt;
+    }
+    else {
+        cout << "Could not open the usersActive.txt file to read" << endl;
+        close(clientSocket);
+        exit(1);
+    }
 
     // int last = (pub.find_last_of("-p")) - 2;
     // int lastS = (pub.find_last_of("/")) + 1;
