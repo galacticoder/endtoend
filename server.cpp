@@ -28,7 +28,7 @@
 
 // add certain length of username allow only
 
-// To run: g++ -o server server.cpp -lcryptopp -lfmt
+// To run: g++ -std=c++20 -o server server.cpp -lcryptopp -lfmt
 
 #define RED_TEXT "\033[31m"         // red text color
 #define GREEN_TEXT "\033[32m"       // green text color

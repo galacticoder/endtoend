@@ -41,9 +41,6 @@ using namespace std;
 using namespace CryptoPP;
 using boost::asio::ip::tcp;
 
-//try vec
-
-vector<unsigned char> encd;
 
 bool isPortOpen(const std::string& address, int port) {
     try {
@@ -155,7 +152,7 @@ int readActiveUsers() {
 }
 
 int main() {
-    string local = "127.0.0.1"; //if server is being served locally do not modify
+    char serverIp[30] = "127.0.0.1"; //if server is being served locally do not modify
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -169,8 +166,8 @@ int main() {
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(PORT);
     serverAddress.sin_addr.s_addr = INADDR_ANY;
-
-    if (inet_pton(AF_INET, "127.0.0.1", &serverAddress.sin_addr) <= 0) {
+    // cout << serverIp;
+    if (inet_pton(AF_INET, serverIp, &serverAddress.sin_addr) <= 0) {
         std::cerr << "Invalid address / Address not supported" << std::endl;
         return 1;
     }
@@ -424,7 +421,7 @@ int main() {
         // cout << "ciphertext length on client: " << cipherText.length();
 
         //need to send key, iv, and message with a pipe delimeter all at once because of data loss
-        bool serverReachable = isPortOpen(local, PORT);
+        bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             std::cout << "Server has been shutdown" << endl; //put in function
             close(clientSocket);
