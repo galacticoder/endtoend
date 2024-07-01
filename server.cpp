@@ -26,14 +26,6 @@
 #include <filesystem>
 #include "serverSendRecv.h"
 
-<<<<<<< HEAD
-// fix double message of user leaving chat later | fixed
-=======
-//when importing rsa encryption find out how your gonna make it between multipe people
-
-//To run: g++ -o server server.cpp -lcryptopp -lfmt
->>>>>>> c70d396333324645b9dcfafed6ae98e02bcb2984
-
 // add certain length of username allow only
 
 // To run: g++ -o server server.cpp -lcryptopp -lfmt
