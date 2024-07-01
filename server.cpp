@@ -331,7 +331,7 @@ void handleClient(int clientSocket)
         std::string encodedData = receiveBase64Data(clientSocket);
         cout << "done encoded data" << endl;
         std::vector<uint8_t> decodedData = base64Decode(encodedData);
-        string serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+        static const string serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
         cout << "gonna save file" << endl;
         saveFile(serverRecv, decodedData);
         cout << "recv" << endl;
@@ -339,8 +339,8 @@ void handleClient(int clientSocket)
 
 
         //file paths
-        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
-        string clientSavePathAs = fmt::format("client-saved-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
+        static string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
+        static string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
         // string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]); //file path of client 2 pub key | segmentation fault 
         // string client1toSavePathAs;
 
@@ -383,7 +383,7 @@ void handleClient(int clientSocket)
             }
             // string sec = fmt::format("keys-server/{}-pubkeyserver.der", clientUsernames[1]); //change userstr to new user without segmentation fault | fixed //second client sending the pub key to the first client
             if (clientUsernames.size() == 2) {
-                string client1toSavePathAs = fmt::format("server-recieved-client-keys/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
+                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
 
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
@@ -606,9 +606,9 @@ int main()
 {
     //delete all keys from key recieves in server
     auto dirIter = std::filesystem::directory_iterator("server-recieved-client-keys");
-    auto keyit = std::filesystem::directory_iterator("client-saved-from-server");
-    auto prvf = std::filesystem::directory_iterator("user-keys/prv");
-    auto prvp = std::filesystem::directory_iterator("user-keys/pub");
+    // auto keyit = std::filesystem::directory_iterator("client-saved-from-server");
+    // auto prvf = std::filesystem::directory_iterator("user-keys/prv");
+    // auto prvp = std::filesystem::directory_iterator("user-keys/pub");
     int fileCount = 0;
     int keyitcount = 0;
     int prvc = 0;
@@ -623,32 +623,32 @@ int main()
         }
     }
 
-    for (auto& i : keyit)
-    {
-        if (i.is_regular_file())
-        {
-            std::filesystem::remove(i);
-            ++keyitcount;
-        }
-    }
+    // for (auto& i : keyit)
+    // {
+    //     if (i.is_regular_file())
+    //     {
+    //         std::filesystem::remove(i);
+    //         ++keyitcount;
+    //     }
+    // }
 
-    for (auto& i : prvf)
-    {
-        if (i.is_regular_file())
-        {
-            std::filesystem::remove(i);
-            ++prvc;
-        }
-    }
+    // for (auto& i : prvf)
+    // {
+    //     if (i.is_regular_file())
+    //     {
+    //         std::filesystem::remove(i);
+    //         ++prvc;
+    //     }
+    // }
 
-    for (auto& i : prvp)
-    {
-        if (i.is_regular_file())
-        {
-            std::filesystem::remove(i);
-            ++prvcp;
-        }
-    }
+    // for (auto& i : prvp)
+    // {
+    //     if (i.is_regular_file())
+    //     {
+    //         std::filesystem::remove(i);
+    //         ++prvcp;
+    //     }
+    // }
 
     cout << "file count in server storage: " << fileCount + prvc + prvcp + keyitcount << endl;
     std::cout << "deleted all\n";

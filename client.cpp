@@ -88,6 +88,17 @@ bool containsOnlyASCII(const std::string& stringS) {
     return true;
 }
 
+static void delIt(const string& formatPath) {
+    int del1 = 0;
+    auto del2 = std::filesystem::directory_iterator(formatPath);
+    for (auto& del1 : del2) {
+        if (del1.is_regular_file()) {
+            std::filesystem::remove(del1);
+        }
+    }
+    cout << "User keys generated and sent from server have been deleted" << endl;
+}
+
 void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     char buffer[4096];
     while (true) {
@@ -152,7 +163,7 @@ int readActiveUsers() {
 }
 
 int main() {
-    char serverIp[30] = "192.168.0.38"; //if server is being served locally do not modify
+    char serverIp[30] = "192.168.0.38"; //if server is being served locally change to your loopback address
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -200,8 +211,10 @@ int main() {
 
     RSA::PrivateKey privateKey;
     RSA::PublicKey publicKey;
-    string pu = fmt::format("user-keys/pub/{}-pubkey.der", user);
-    string pr = fmt::format("user-keys/prv/{}-privkey.der", user);
+    static const string formatPath = "keys-from-server/";
+    static const string fpath = "your-keys/";
+    string pu = fmt::format("{}/{}-pubkey.der", fpath, user);
+    string pr = fmt::format("{}/{}-privkey.der", fpath, user);
     KeysMake keys(pr, pu); //generates our keys
     //load generated keys to make sure they can be accessed
     LoadKey keyLoader;
@@ -246,7 +259,6 @@ int main() {
 
     RSA::PublicKey receivedPublicKey;
 
-    string formatPath = "client-saved-from-server/";
 
     // Send sendtoserver;
     LoadKey loadp;
@@ -404,16 +416,8 @@ int main() {
             cout << "You have left the chat" << endl;
             send(clientSocket, message.c_str(), message.length(), 0);
             close(clientSocket);
-            auto pubdel = std::filesystem::directory_iterator(formatPath);
-            int puddel = 0;
-
-            for (auto& puddel : pubdel)
-            {
-                if (puddel.is_regular_file())
-                {
-                    std::filesystem::remove(puddel);
-                }
-            }
+            delIt(formatPath);
+            delIt(fpath);
             break;
         }
         else if (message.empty()) {
