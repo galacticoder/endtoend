@@ -84,7 +84,7 @@ bool isPav(int port)
     return available;
 }
 
-static std::vector<uint8_t> base64Decode(const std::string& encodedData)
+static vector<uint8_t> base64Decode(const std::string& encodedData)
 {
     std::vector<uint8_t> decoded;
     CryptoPP::StringSource ss(encodedData, true,
@@ -323,7 +323,7 @@ void handleClient(int clientSocket)
 
         const string only = "\nYou are the only user in this chat you cannot send messages until another user joins";
 
-        string pub = fmt::format("keys-server/{}-pubkeyserver.der", userStr);
+        // string pub = fmt::format("keys-server/{}-pubkeyserver.der", userStr);
 
         // recvServer(pub);
         //recieve the pub key file from the client and save it

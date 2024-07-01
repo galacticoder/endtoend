@@ -32,6 +32,8 @@
 #include <regex>
 #include <filesystem>
 
+//find a way to send the port file if possible
+
 //To run: g++ -o client client.cpp -lcryptopp -lfmt
 
 #define GREEN_TEXT "\033[32m" //green text color
@@ -40,6 +42,7 @@
 using namespace std;
 using namespace CryptoPP;
 using boost::asio::ip::tcp;
+using namespace filesystem;
 
 
 bool isPortOpen(const std::string& address, int port) {
@@ -153,6 +156,21 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     }
 }
 
+bool createDir(const string& dirName)
+{
+    if (!create_directories(dirName))
+    {
+        if (exists(dirName))
+        {
+            cout << fmt::format("The directory ({}) already exists", dirName) << endl;
+            return true;
+        }
+        cout << fmt::format("couldnt make directory: {}", dirName) << endl;
+        return false;
+    }
+    return true;
+}
+
 int readActiveUsers() {
     ifstream opent("usersActive.txt");
     string active;
@@ -213,8 +231,23 @@ int main() {
     RSA::PublicKey publicKey;
     static const string formatPath = "keys-from-server/";
     static const string fpath = "your-keys/";
-    string pu = fmt::format("{}/{}-pubkey.der", fpath, user);
-    string pr = fmt::format("{}/{}-privkey.der", fpath, user);
+
+    //check if directories exist if they dont then create them
+    if (!exists(formatPath)) {
+        createDir(formatPath);
+    }
+    // else {
+    //     delIt(formatPath);
+    // }
+    if (!exists(fpath)) {
+        createDir(fpath);
+    }
+    // else {
+    //     delIt(fpath);
+    // }
+
+    string pu = fmt::format("{}{}-pubkey.der", fpath, user);
+    string pr = fmt::format("{}{}-privkey.der", fpath, user);
     KeysMake keys(pr, pu); //generates our keys
     //load generated keys to make sure they can be accessed
     LoadKey keyLoader;
