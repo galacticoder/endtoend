@@ -91,7 +91,7 @@ bool containsOnlyASCII(const std::string& stringS) {
     return true;
 }
 
-static void delIt(string& formatPath) {
+static void delIt(const string& formatPath) {
     int del1 = 0;
     auto del2 = std::filesystem::directory_iterator(formatPath);
     int counter = 0;
@@ -101,12 +101,9 @@ static void delIt(string& formatPath) {
             counter++;
         }
     }
-    if (formatPath.back() == '/') {
-        formatPath.pop_back();
-    }
 
     if (counter == 0) {
-        cout << fmt::format("There was nothing to delete from {}", formatPath) << endl;
+        cout << fmt::format("There was nothing to delete from path '{}'", formatPath) << endl;
     }
     if (counter == 1) {
         cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatPath) << endl;
@@ -243,8 +240,8 @@ int main() {
 
     RSA::PrivateKey privateKey;
     RSA::PublicKey publicKey;
-    static string formatPath = "keys-from-server/";
-    static string fpath = "your-keys/";
+    static const string formatPath = "keys-from-server/";
+    static const string fpath = "your-keys/";
 
     //check if directories exist if they dont then create them
     if (!exists(formatPath)) {
