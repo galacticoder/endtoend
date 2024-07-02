@@ -30,10 +30,10 @@
 
 // To run: g++ -std=c++20 -o server server.cpp -lcryptopp -lfmt
 
-#define RED_TEXT "\033[31m"         // red text color
-#define GREEN_TEXT "\033[32m"       // green text color
+#define RED_TEXT "\033[31m" // red text color
+#define GREEN_TEXT "\033[32m" // green text color
 #define BRIGHT_BLUE_TEXT "\033[94m" // bright blue text color
-#define RESET_TEXT "\033[0m"        // reset color to default
+#define RESET_TEXT "\033[0m" // reset color to default
 
 using boost::asio::ip::tcp;
 
@@ -84,54 +84,6 @@ bool isPav(int port)
     return available;
 }
 
-static vector<uint8_t> base64Decode(const std::string& encodedData)
-{
-    std::vector<uint8_t> decoded;
-    CryptoPP::StringSource ss(encodedData, true,
-        new CryptoPP::Base64Decoder(
-            new CryptoPP::VectorSink(decoded)));
-    return decoded;
-}
-
-static void saveFile(const std::string& filePath, const std::vector<uint8_t>& buffer)
-{
-    std::ofstream file(filePath, std::ios::binary);
-    if (!file.is_open())
-    {
-        throw std::runtime_error("Could not open file to write");
-    }
-
-    file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-    if (!file)
-    {
-        throw std::runtime_error("Error writing to file");
-    }
-}
-static std::string receiveBase64Data(int clientSocket)
-{
-    std::vector<char> buffer(4096);
-    std::string receivedData;
-    ssize_t bytesRead = recv(clientSocket, buffer.data(), buffer.size(), 0);
-
-    while (bytesRead > 0) //its gonna keep appending without a stop condition
-    {
-        cout << "Bytes read: " << bytesRead << endl;
-        receivedData.append(buffer.data(), bytesRead);
-        if (receivedData.size() == bytesRead) {
-            break;
-        }
-    }
-    cout << "RECIEVED DATA: " << receivedData.size() << endl;
-    cout << "BYTES READ: " << bytesRead << endl;
-
-    if (bytesRead == -1)
-    {
-        throw std::runtime_error("Error receiving data");
-    }
-
-    return receivedData;
-}
-
 void broadcastMessage(const string& message, int senderSocket = -1)
 {
     lock_guard<mutex> lock(clientsMutex);
@@ -146,20 +98,20 @@ void broadcastMessage(const string& message, int senderSocket = -1)
 
 // void broadcastFile(string& filename, int senderSocket = -1)
 // {
-//     {
-//         lock_guard<mutex> lock(clientsMutex);
-//         for (int clientSocket : connectedClients)
-//         {
-//             if (clientSocket == senderSocket) {
-//                 continue;
-//             }
-//             else if (clientSocket != senderSocket)
-//             {
-//                 //send file to all clients but the sender
-//                 sendFile(filename);
-//             }
-//         }
-//     }
+// {
+// lock_guard<mutex> lock(clientsMutex);
+// for (int clientSocket : connectedClients)
+// {
+// if (clientSocket == senderSocket) {
+// continue;
+// }
+// else if (clientSocket != senderSocket)
+// {
+// //send file to all clients but the sender
+// sendFile(filename);
+// }
+// }
+// }
 // }
 
 void updatePort(int PORT) {
@@ -204,17 +156,17 @@ string countUsernames(string clientsNamesStr)
 }
 
 // int showfp() {
-//     int PORT;
-//     string portfile = "FILEPORT.TXT";
-//     ifstream fileport(portfile);
-//     if (!fileport.is_open()) {
-//         cerr << "Could not open port file" << endl;
-//         return 0;
-//     }
-//     string PORTSTR;
-//     getline(fileport, PORTSTR);
-//     istringstream(PORTSTR) >> PORT;
-//     return PORT;
+// int PORT;
+// string portfile = "FILEPORT.TXT";
+// ifstream fileport(portfile);
+// if (!fileport.is_open()) {
+// cerr << "Could not open port file" << endl;
+// return 0;
+// }
+// string PORTSTR;
+// getline(fileport, PORTSTR);
+// istringstream(PORTSTR) >> PORT;
+// return PORT;
 // }
 
 void updateActiveFile(auto data) {
@@ -284,7 +236,7 @@ void handleClient(int clientSocket)
                 // std::lock_guard<std::mutex> lock(clientsMutex);
 
                 // for(int i=clientsNamesStr.length();i<0;i--){
-                //     if(clientsNamesStr.find())
+                // if(clientsNamesStr.find())
                 // }
 
                 close(clientSocket);
@@ -323,19 +275,40 @@ void handleClient(int clientSocket)
 
         const string only = "\nYou are the only user in this chat you cannot send messages until another user joins";
 
-        // string pub = fmt::format("keys-server/{}-pubkeyserver.der", userStr);
+        string pub = fmt::format("keys-server/{}-pubkeyserver.der", userStr);
 
         // recvServer(pub);
         //recieve the pub key file from the client and save it
+        Recieve pubrecvserver;
+
+        static string serverRecv;
+
+        if (clientUsernames.size() == 1) {
+            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+        }
+        else if (clientUsernames.size() > 1) {
+            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+        }
         cout << "starting encoded data" << endl;
-        std::string encodedData = receiveBase64Data(clientSocket);
+        std::string encodedData = pubrecvserver.receiveBase64Data(clientSocket);
         cout << "done encoded data" << endl;
-        std::vector<uint8_t> decodedData = base64Decode(encodedData);
-        static const string serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+        std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
+        cout << "SERVERECV PATH: " << serverRecv << endl;
         cout << "gonna save file" << endl;
-        saveFile(serverRecv, decodedData);
+        // std::ofstream pubcheck(serverRecv, std::ios::binary);
+        cout << "decoded writing: " << decodedData.data() << endl;
+        pubrecvserver.saveFile(serverRecv, decodedData);
+        // if (!pubcheck.is_open())
+        // {
+        // throw std::runtime_error("Could not open file to write");
+        // }
+        // else{
+        // cout << "KEY FILE RECIEVED OPENED" << endl;
+        // pubcheck.close();
+        // }
+
         cout << "recv" << endl;
-        cout << "Encoded data recieved is: " << encodedData << endl;
+        cout << "Encoded key: " << encodedData << endl;
 
 
         //file paths
@@ -393,7 +366,7 @@ void handleClient(int clientSocket)
             sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
             // sendFile(sec);
             string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-            std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path
+            std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
             std::string encodedDataClient = sendtoclient.b64EF(fi2);
             sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
             cout << "file to CLIENT 1 SENT" << endl;
@@ -410,7 +383,7 @@ void handleClient(int clientSocket)
 
         // string newSecSend = fmt::format("keys-server/{}-pubkeyserver.der", clientUsernames[1]);
         // //check if port file server was on is still on if so send the file to it
-        // int PORT;
+        // int PORT; 
         std::cout << "for join" << endl;
         for (int i = 0; i < clientUsernames.size(); i++)
         {
@@ -438,8 +411,8 @@ void handleClient(int clientSocket)
         // sleep(1); //actually no need for chrono just use sleep
         // ifstream fileport(portfile);
         // if (!fileport.is_open()) {
-        //     cerr << "Could not open port file" << endl;
-        //     return;
+        // cerr << "Could not open port file" << endl;
+        // return;
         // }
         // string PORTSTR;
         // getline(fileport, PORTSTR);
@@ -454,46 +427,46 @@ void handleClient(int clientSocket)
         // // cout << fmt::format("pOPEN 1: {}", pOpen) << endl;
         // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
         // if (sendFile(newSecSend) == false) {
-        //     updatePort(PORT - 1); // check a different
-        //     int newp = showfp();
-        //     cout << "checking port " << newp << endl;
-        //     cout << fmt::format("pOPEN 2: {}", newp) << endl;
-        //     if (sendFile(newSecSend) == false) { //if open check second port back
-        //         cout << fmt::format("file server is not open on port {}", newp) << endl;
-        //     }
-        //     else {
-        //         // updatePort(PORT );
-        //         cout << "file to CLIENT 1 SENT (A2) on port " << newp << endl;
-        //         //send file to client that has their opened port 
-        //     }
+        // updatePort(PORT - 1); // check a different
+        // int newp = showfp();
+        // cout << "checking port " << newp << endl;
+        // cout << fmt::format("pOPEN 2: {}", newp) << endl;
+        // if (sendFile(newSecSend) == false) { //if open check second port back
+        // cout << fmt::format("file server is not open on port {}", newp) << endl;
         // }
         // else {
-        //     cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
-        //     // send file to client that has their opened port
+        // // updatePort(PORT );
+        // cout << "file to CLIENT 1 SENT (A2) on port " << newp << endl;
+        // //send file to client that has their opened port 
+        // }
         // }
         // else {
-        //     // updatePort(PORT + 1);
-        //     // //send file to client that has their opened port
-        //     // cout << "SENDING TO CLIENT (A3)" << endl;
-        //     // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-        //     // sendFile(newSecSend);
-        //     cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
+        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
+        // // send file to client that has their opened port
         // }
-    // }
+        // else {
+        // // updatePort(PORT + 1);
+        // // //send file to client that has their opened port
+        // // cout << "SENDING TO CLIENT (A3)" << endl;
+        // // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+        // // sendFile(newSecSend);
+        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
+        // }
+        // }
 
-    // recvServer(pub);
+        // recvServer(pub);
 
 
 
-    // string userName = userStr;
+        // string userName = userStr;
 
-    // string some;
+        // string some;
 
-    // int counterUsers = 0;
-    // thread t1([&]() {
-    // });
-    // t1.join(); 
-    // check if username already exists if it does then kick them
+        // int counterUsers = 0;
+        // thread t1([&]() {
+        // });
+        // t1.join(); 
+        // check if username already exists if it does then kick them
 
         // broadcastMessage(joinMsg, clientSocket);
 
@@ -510,7 +483,7 @@ void handleClient(int clientSocket)
             //gonna iterate in infinitly
 
             // if (clientUsernames.size() > 1) {
-            //     send(clientSocket, only.c_str(), only.length(), 0);
+            // send(clientSocket, only.c_str(), only.length(), 0);
 
             // }
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
@@ -567,7 +540,7 @@ void handleClient(int clientSocket)
                 std::string cipherText = receivedData; //fix server shutdown
 
                 // string newenc = benc(newdec);
-                // cout << "mem addr of recieveddata:  " << &receivedData << endl;
+                // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
                 if (!cipherText.empty()) //when sneing somehow losig data when sending | fixed
                 {
@@ -625,29 +598,29 @@ int main()
 
     // for (auto& i : keyit)
     // {
-    //     if (i.is_regular_file())
-    //     {
-    //         std::filesystem::remove(i);
-    //         ++keyitcount;
-    //     }
+    // if (i.is_regular_file())
+    // {
+    // std::filesystem::remove(i);
+    // ++keyitcount;
+    // }
     // }
 
     // for (auto& i : prvf)
     // {
-    //     if (i.is_regular_file())
-    //     {
-    //         std::filesystem::remove(i);
-    //         ++prvc;
-    //     }
+    // if (i.is_regular_file())
+    // {
+    // std::filesystem::remove(i);
+    // ++prvc;
+    // }
     // }
 
     // for (auto& i : prvp)
     // {
-    //     if (i.is_regular_file())
-    //     {
-    //         std::filesystem::remove(i);
-    //         ++prvcp;
-    //     }
+    // if (i.is_regular_file())
+    // {
+    // std::filesystem::remove(i);
+    // ++prvcp;
+    // }
     // }
 
     cout << "file count in server storage: " << fileCount + prvc + prvcp + keyitcount << endl;
@@ -724,11 +697,11 @@ int main()
 
             // for (auto& entry : dirIter)
             // {
-            //     if (entry.is_regular_file())
-            //     {
-            //         std::filesystem::remove(entry);
-            //         ++fileCount;
-            //     }
+            // if (entry.is_regular_file())
+            // {
+            // std::filesystem::remove(entry);
+            // ++fileCount;
+            // }
             // }
             // cout << "file count is: " << fileCount << endl;
 

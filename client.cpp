@@ -99,7 +99,7 @@ static void delIt(const string& formatPath) {
             std::filesystem::remove(del1);
         }
     }
-    cout << "User keys generated and sent from server have been deleted" << endl;
+    cout << fmt::format("Keys in filepath ({}) have been deleted", formatPath) << endl;
 }
 
 void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
@@ -261,10 +261,14 @@ int main() {
 
     // sendFile(pu);
     Send sendtoserver;
-    std::vector<uint8_t> fi = sendtoserver.readFile(pu); //file path is a string to the file path
-    std::string ed4 = sendtoserver.b64EF(fi);
-    // cout << "Encoded data sending is: " << encodedData << endl;
-    sendtoserver.sendBase64Data(clientSocket, ed4); //send encoded key
+    if (is_regular_file(pu)) {
+        std::vector<uint8_t> fi = sendtoserver.readFile(pu); //file path is a string to the file path
+        std::string ed4 = sendtoserver.b64EF(fi);
+        cout << fmt::format("Sending public key ({}) to server: {}", pu, ed4) << endl;
+        // cout << "Encoded data sending is: " << encodedData << endl;
+        sendtoserver.sendBase64Data(clientSocket, ed4); //send encoded key
+        cout << "Public key sent to server" << endl;
+    }
 
 
     // ssize_t pubname = recv(clientSocket, name, sizeof(name), 0);
@@ -314,9 +318,9 @@ int main() {
 
         cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
         // recvServer(pub);
-        std::string encodedData = recievePub.receiveBase64Data(clientSocket);
-        std::vector<uint8_t> decodedData = recievePub.base64Decode(encodedData);
-        recievePub.saveFile(pub, decodedData);
+        std::string ec = recievePub.receiveBase64Data(clientSocket);
+        std::vector<uint8_t> dc = recievePub.base64Decode(ec);
+        recievePub.saveFile(pub, dc);
 
         //change to recieve 
         // cout << fmt::format("recieved filename: {}", pub) << endl;
@@ -445,12 +449,13 @@ int main() {
         std::cout << "\r"; //delete
         std::cout << "\033[K"; //from start mixed up on line 128
         //end
-        if (message == "quit") {
+        if (message == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat" << endl;
             send(clientSocket, message.c_str(), message.length(), 0);
             close(clientSocket);
             delIt(formatPath);
             delIt(fpath);
+
             break;
         }
         else if (message.empty()) {

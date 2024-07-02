@@ -92,14 +92,20 @@ struct Recieve {
     }
     std::string receiveBase64Data(int clientSocket)
     {
-        std::vector<char> buffer(1024);
+        std::vector<char> buffer(4096);
         std::string receivedData;
-        ssize_t bytesRead;
+        ssize_t bytesRead = recv(clientSocket, buffer.data(), buffer.size(), 0);
 
-        while ((bytesRead = recv(clientSocket, buffer.data(), buffer.size(), 0)) > 0)
+        while (bytesRead > 0) //its gonna keep appending without a stop condition
         {
+            cout << "Bytes read: " << bytesRead << endl;
             receivedData.append(buffer.data(), bytesRead);
+            if (receivedData.size() == bytesRead) {
+                break;
+            }
         }
+        cout << "RECIEVED DATA: " << receivedData.size() << endl;
+        cout << "BYTES READ: " << bytesRead << endl;
 
         if (bytesRead == -1)
         {
