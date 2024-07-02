@@ -460,7 +460,7 @@ int main() {
         std::cout << "\r"; //delete
         std::cout << "\033[K"; //from start mixed up on line 128
         //end
-        if (message == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
+        if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat" << endl;
             // send(clientSocket, message.c_str(), message.length(), 0);
             close(clientSocket);
