@@ -156,7 +156,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     }
 }
 
-bool createDir(const string& dirName)
+static bool createDir(const string& dirName)
 {
     if (!create_directories(dirName))
     {

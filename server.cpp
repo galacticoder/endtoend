@@ -40,6 +40,8 @@ using boost::asio::ip::tcp;
 using namespace std;
 using namespace CryptoPP;
 using namespace std::chrono;
+using namespace filesystem;
+
 
 vector<int> connectedClients;
 vector<int> uids;
@@ -82,6 +84,42 @@ bool isPav(int port)
 
     close(pavtempsock);
     return available;
+}
+
+static void delIt(const string& formatPath) {
+    int del1 = 0;
+    auto del2 = std::filesystem::directory_iterator(formatPath);
+    int counter = 0;
+    for (auto& del1 : del2) {
+        if (del1.is_regular_file()) {
+            std::filesystem::remove(del1);
+            counter++;
+        }
+    }
+    if (counter == 0) {
+        cout << fmt::format("There was nothing to delete from {}", formatPath) << endl;
+    }
+    if (counter == 1) {
+        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatPath) << endl;
+    }
+    else if (counter > 1) {
+        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatPath) << endl;
+    }
+}
+
+static bool createDir(const string& dirName)
+{
+    if (!create_directories(dirName))
+    {
+        if (exists(dirName))
+        {
+            cout << fmt::format("The directory ({}) already exists", dirName) << endl;
+            return true;
+        }
+        cout << fmt::format("couldnt make directory: {}", dirName) << endl;
+        return false;
+    }
+    return true;
 }
 
 void broadcastMessage(const string& message, int senderSocket = -1)
@@ -183,8 +221,7 @@ void updateActiveFile(auto data) {
     }
 }
 
-void handleClient(int clientSocket)
-{
+void handleClient(int clientSocket, int serverSocket) {
     string clientsNamesStr = "";
     {
         lock_guard<mutex> lock(clientsMutex);
@@ -515,17 +552,22 @@ void handleClient(int clientSocket)
                 std::cout << "------------" << endl;
                 // add if statment if useerrname of user isnt in vector twice
                 // string lenOfUser;
-                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr)
-                {
+                if (clientUsernames.size() < 1) {
+                    close(serverSocket);
+                    delIt("server-recieved-client-keys");
+                    exit(1);
+                }
+
+                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
                     updateActiveFile(clientUsernames.size());
                     broadcastMessage(exitMsg, clientSocket);
                 }
-                else
-                {
+                else {
                     // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
                     std::cout << "Disconnected client with same username" << endl;
                     close(clientSocket);
                 }
+
                 lenOfUser.clear();
                 // last execution of username exists
             }
@@ -575,58 +617,16 @@ void handleClient(int clientSocket)
     }
 }
 
-int main()
-{
-    //delete all keys from key recieves in server
-    auto dirIter = std::filesystem::directory_iterator("server-recieved-client-keys");
-    // auto keyit = std::filesystem::directory_iterator("client-saved-from-server");
-    // auto prvf = std::filesystem::directory_iterator("user-keys/prv");
-    // auto prvp = std::filesystem::directory_iterator("user-keys/pub");
-    int fileCount = 0;
-    int keyitcount = 0;
-    int prvc = 0;
-    int prvcp = 0;
-
-    for (auto& entry : dirIter)
-    {
-        if (entry.is_regular_file())
-        {
-            std::filesystem::remove(entry);
-            ++fileCount;
-        }
+int main() {
+    static const string path = "server-recieved-client-keys";
+    if (!exists(path)) {
+        createDir(path);
+    }
+    else {
+        delIt(path);
     }
 
-    // for (auto& i : keyit)
-    // {
-    // if (i.is_regular_file())
-    // {
-    // std::filesystem::remove(i);
-    // ++keyitcount;
-    // }
-    // }
-
-    // for (auto& i : prvf)
-    // {
-    // if (i.is_regular_file())
-    // {
-    // std::filesystem::remove(i);
-    // ++prvc;
-    // }
-    // }
-
-    // for (auto& i : prvp)
-    // {
-    // if (i.is_regular_file())
-    // {
-    // std::filesystem::remove(i);
-    // ++prvcp;
-    // }
-    // }
-
-    cout << "file count in server storage: " << fileCount + prvc + prvcp + keyitcount << endl;
-    std::cout << "deleted all\n";
-
-    unsigned short PORT = 8080;
+    unsigned short PORT = 8080; //defualt port is set at 8080
 
     thread t1([&]()
         {
@@ -688,7 +688,7 @@ int main()
                 socklen_t clientLen = sizeof(clientAddress);
                 int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
 
-                std::thread(handleClient, clientSocket).detach();
+                std::thread(handleClient, clientSocket, serverSocket).detach();
             }
 
             //delete all keys from key recieves in server
