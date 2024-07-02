@@ -135,6 +135,36 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
+void broadcastFile(const string& filepath, const string& username, int senderSocket = -1)
+{
+    lock_guard<mutex> lock(clientsMutex);
+    for (int clientSocket : connectedClients)
+    {
+        if (clientSocket != senderSocket)
+        {
+            Send sendtoclient;
+            static const string message = fmt::format("|{} has sent you a file named '{}' would you like to recieve it?(y/n): ");
+            send(clientSocket, message.c_str(), message.length(), 0);
+
+            char rep[4] = { 0 };
+            ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
+            rep[btr] = '\0';
+            std::string reply(rep);
+
+            if (reply == "y") {
+                std::vector<uint8_t> fi2 = sendtoclient.readFile(filepath); //file path is a string to the file path //error when reading the file
+                std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+            }
+            else {
+                static const string no = "The user did not accept the file you have sent\n";
+                send(senderSocket, no.c_str(), no.length(), 0);
+            }
+
+        }
+    }
+}
+
 // void broadcastFile(string& filename, int senderSocket = -1)
 // {
 // {
@@ -584,6 +614,10 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 // string newenc = benc(newdec);
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
+
+                if (cipherText.substr(0, 8) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
+                    broadcastFile(cipherText.substr(9 + 1), userStr, clientSocket);
+                }
 
                 if (!cipherText.empty()) //when sneing somehow losig data when sending | fixed
                 {

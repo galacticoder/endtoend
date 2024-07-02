@@ -4,23 +4,8 @@
 using namespace std;
 using namespace filesystem;
 
-bool createDir(const string& dirName)
-{
-    if (!create_directories(dirName))
-    {
-        if (exists(dirName))
-        {
-            cout << "The directory already exists" << endl;
-            return true;
-        }
-        cout << "couldnt make directory" << endl;
-        return false;
-    }
-    return true;
-}
-
 int main() {
-
-    createDir("lahkjdjhd");
+    string some = "|user1 has sent you a file named 'somehting.txt' would you like to recieve it?(y/n): ";
+    cout << some.substr(1, some.length() - 1);
     return 0;
 }

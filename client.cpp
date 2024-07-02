@@ -34,6 +34,8 @@
 
 //find a way to send the port file if possible
 
+//try addig file sending whewn the client starts the message off with /sendfile {filepath} and let client 2 get a mesage this user is trying to send you a file would you like to recieve it or not? if not then dont recieve is yes then recieve it also maybe add a file view feature where you can open the file to see whats in it and you can accept the file later on with /acceptfile {thefilename that was given} if no args provided then accept the last file sent
+
 //To run: g++ -o client client.cpp -lcryptopp -lfmt
 
 #define GREEN_TEXT "\033[32m" //green text color
@@ -124,6 +126,13 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             //     std::cout << "\r\033[K" << std::flush; //clear line
             //     std::cout << "\r\033[K" << "Another user is typing..." << std::flush;
             // }
+            if (receivedMessage[0] == '|') { //were going to treat this as a file accept reply message
+                receivedMessage.substr(1, receivedMessage.length() - 1);
+                string reply;
+                getline(cin, reply);
+                send(clientSocket, reply.c_str(), sizeof(reply), 0); //sending back the reply
+            }
+
             string decodedMessage;
             if (bytesReceived < 500) {
                 cout << receivedMessage << endl;
@@ -350,10 +359,10 @@ int main() {
         if (loadp.loadPub(pub, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("--You have joined the chat as {}- 1 other user in chat - \n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat properly type 'quit' - \n", user, activeInt) << RESET_TEXT;
             }
             else {
-                cout << GREEN_TEXT << fmt::format("--You have joined the chat as {}- {} users in chat - \n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
             }
 
             // const string conn = "1";
@@ -431,10 +440,10 @@ int main() {
         if (loadp.loadPub(secKey, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("--You have joined the chat as {}- 1 other user in chat - \n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat -  To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
             }
             else {
-                cout << GREEN_TEXT << fmt::format("--You have joined the chat as {}- {} users in chat - \n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
             }
             // const string conn = "1";
             // send(clientSocket, conn.c_str(), conn.length(), 0);
@@ -462,11 +471,14 @@ int main() {
         //end
         if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat" << endl;
-            // send(clientSocket, message.c_str(), message.length(), 0);
             close(clientSocket);
             delIt(formatPath);
             delIt(fpath);
             break;
+        }
+        //use t_w first before sending the message
+        else if (message.substr(0, 8) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
+            send(clientSocket, message.c_str(), message.length(), 0);
         }
         else if (message.empty()) {
             continue; //skip empty messages
