@@ -86,7 +86,7 @@ bool isPav(int port)
     return available;
 }
 
-static void delIt(const string& formatPath) {
+static void delIt(string& formatPath) {
     int del1 = 0;
     auto del2 = std::filesystem::directory_iterator(formatPath);
     int counter = 0;
@@ -96,6 +96,10 @@ static void delIt(const string& formatPath) {
             counter++;
         }
     }
+    if (formatPath.back() == '/') {
+        formatPath.pop_back();
+    }
+
     if (counter == 0) {
         cout << fmt::format("There was nothing to delete from {}", formatPath) << endl;
     }
@@ -554,7 +558,8 @@ void handleClient(int clientSocket, int serverSocket) {
                 // string lenOfUser;
                 if (clientUsernames.size() < 1) {
                     close(serverSocket);
-                    delIt("server-recieved-client-keys");
+                    static string path = "server-recieved-client-keys";
+                    delIt(path);
                     exit(1);
                 }
 
@@ -618,7 +623,7 @@ void handleClient(int clientSocket, int serverSocket) {
 }
 
 int main() {
-    static const string path = "server-recieved-client-keys";
+    static string path = "server-recieved-client-keys";
     if (!exists(path)) {
         createDir(path);
     }
