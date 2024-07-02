@@ -451,7 +451,7 @@ int main() {
         //end
         if (message == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat" << endl;
-            send(clientSocket, message.c_str(), message.length(), 0);
+            // send(clientSocket, message.c_str(), message.length(), 0);
             close(clientSocket);
             delIt(formatPath);
             delIt(fpath);
