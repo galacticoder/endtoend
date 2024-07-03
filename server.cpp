@@ -153,6 +153,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
             ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
             rep[btr] = '\0';
             std::string reply(rep);
+            cout << fmt::format("USER REPLIED '{}'", reply) << endl;
 
             if (reply == "y") {
                 std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
