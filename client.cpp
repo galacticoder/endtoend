@@ -494,7 +494,7 @@ int main() {
             continue; //skip empty messages
         }
         message = t_w(message);
-        cout << "substringed is: " << message.substr(0, 8) << endl;
+        cout << "substringed is: " << message.substr(0, 8 + 1) << endl;
         if (message.substr(0, 8 + 1) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
             if (is_regular_file(message.substr(8 + 2, message.length() - 1))) { //add encryption to the file before sending
                 cout << "Sending file waiting for user to reply" << endl;

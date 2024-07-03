@@ -81,6 +81,7 @@ struct Recieve {
         std::ofstream file(filePath, std::ios::binary);
         if (!file.is_open())
         {
+            cout << "couldnt open " << filePath << endl;
             throw std::runtime_error("Could not open file to write");
         }
 
