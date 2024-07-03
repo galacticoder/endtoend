@@ -135,7 +135,7 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
-void broadcastFile(const string& filepath, const string& username, int senderSocket = -1)
+void broadcastFile(const string& filepath, const string& serverpath, const string& username, int senderSocket = -1)
 {
     lock_guard<mutex> lock(clientsMutex);
     for (int clientSocket : connectedClients)
@@ -153,7 +153,7 @@ void broadcastFile(const string& filepath, const string& username, int senderSoc
             std::string reply(rep);
 
             if (reply == "y") {
-                std::vector<uint8_t> fi2 = sendtoclient.readFile(filepath); //file path is a string to the file path //error when reading the file
+                std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
                 std::string encodedDataClient = sendtoclient.b64EF(fi2);
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
             }
@@ -617,7 +617,15 @@ void handleClient(int clientSocket, int serverSocket) {
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
                 if (cipherText.substr(0, 8) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
-                    broadcastFile(cipherText.substr(9 + 1), userStr, clientSocket);
+                    if (!filesystem::exists("server-recieved-files")) {
+                        createDir("server-recieved-files");
+                    }
+                    Recieve cl;
+                    std::string encodedData = cl.receiveBase64Data(clientSocket);
+                    std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
+                    cl.saveFile("server-recieved-files", decodedData);
+
+                    broadcastFile(cipherText.substr(9 + 1), "server-recieved-files", userStr, clientSocket);
                 }
 
                 if (!cipherText.empty()) //when sneing somehow losig data when sending | fixed
