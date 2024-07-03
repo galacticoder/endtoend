@@ -621,11 +621,12 @@ void handleClient(int clientSocket, int serverSocket) {
                         createDir("server-recieved-files");
                     }
                     Recieve cl;
+                    static string fpFormatted = fmt::format("server-recieved-files/{}", cipherText.substr(8 + 2, cipherText.length() - 1));
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
                     std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
-                    cl.saveFile("server-recieved-files", decodedData);
+                    cl.saveFile(fmt::format(fpFormatted, fpFormatted), decodedData);
 
-                    broadcastFile(cipherText.substr(9 + 1), "server-recieved-files", userStr, clientSocket);
+                    broadcastFile(cipherText.substr(9 + 1), fpFormatted, userStr, clientSocket);
                 }
 
                 if (!cipherText.empty()) //when sneing somehow losig data when sending | fixed
