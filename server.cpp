@@ -162,6 +162,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
                 std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
                 std::string encodedDataClient = sendtoclient.b64EF(fi2);
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+                cout << "file sent to user" << endl;
                 break;
             }
             else {

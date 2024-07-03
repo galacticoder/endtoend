@@ -131,7 +131,8 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 cout << receivedMessage;
                 string reply;
                 getline(cin, reply);
-                send(clientSocket, reply.c_str(), sizeof(reply), 0); //sending back the reply
+                // cout << "reply is: " << reply << endl;
+                send(clientSocket, reply.c_str(), reply.length(), 0); //sending back the reply
                 if (reply == "y") {
                     static string filepathSave = "usersentfile.txt";
                     Recieve recvFile;
@@ -184,7 +185,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             catch (const CryptoPP::Exception& e) {
                 // If decryption fails, it may not be an encrypted message
                 cout << "Failed to decrypt message: " << e.what() << endl;
-                // cout << decodedMessage << endl;
+                cout << decodedMessage << endl;
             }
         }
     }
@@ -495,11 +496,15 @@ int main() {
             continue; //skip empty messages
         }
         message = t_w(message);
-        cout << "substringed is: " << message.substr(0, 8 + 1) << endl;
+        // cout << "substringed is: " << message.substr(0, 8 + 1) << endl;
         if (message.substr(0, 8 + 1) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
             if (is_regular_file(message.substr(8 + 2, message.length() - 1))) { //add encryption to the file before sending
                 cout << "Sending file waiting for user to reply" << endl;
-                send(clientSocket, message.c_str(), message.length(), 0);
+                send(clientSocket, message.c_str(), message.length(), 0); //send the file too
+                Send sendfile;
+                std::vector<uint8_t> buffer = sendfile.readFile(message.substr(8 + 2, message.length() - 1)); //file path is a string to the file path
+                std::string encodedData = sendfile.b64EF(buffer);
+                sendfile.sendBase64Data(clientSocket, encodedData);
             }
             else {
                 cout << "This file does not exist cannot send" << endl;
@@ -532,30 +537,32 @@ int main() {
             exit(true);
         }
         else {
-            send(clientSocket, newenc.c_str(), newenc.length(), 0);
-            auto now = std::chrono::system_clock::now();
-            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-            std::tm* localTime = std::localtime(&currentTime);
+            if (message.substr(0, 8 + 1) != "/sendfile") {
+                send(clientSocket, newenc.c_str(), newenc.length(), 0);
+                auto now = std::chrono::system_clock::now();
+                std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+                std::tm* localTime = std::localtime(&currentTime);
 
-            bool isPM = localTime->tm_hour >= 12;
-            string stringFormatTime = asctime(localTime);
+                bool isPM = localTime->tm_hour >= 12;
+                string stringFormatTime = asctime(localTime);
 
-            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+                int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
 
-            stringstream ss;
-            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-            string formattedTime = ss.str();
+                stringstream ss;
+                ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+                string formattedTime = ss.str();
 
-            std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-            std::smatch match;
-            if (regex_search(stringFormatTime, match, time_pattern))
-            {
-                string str = match.str(0);
-                size_t pos = stringFormatTime.find(str);
-                stringFormatTime.replace(pos, str.length(), formattedTime);
+                std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+                std::smatch match;
+                if (regex_search(stringFormatTime, match, time_pattern))
+                {
+                    string str = match.str(0);
+                    size_t pos = stringFormatTime.find(str);
+                    stringFormatTime.replace(pos, str.length(), formattedTime);
+                }
+                // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
+                std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
             }
-            // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-            std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
             // cout << cipherText << endl;
         }
     }
