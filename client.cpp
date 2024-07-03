@@ -184,8 +184,8 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             }
             catch (const CryptoPP::Exception& e) {
                 // If decryption fails, it may not be an encrypted message
-                cout << "Failed to decrypt message: " << e.what() << endl;
-                cout << decodedMessage << endl;
+                // cout << "Failed to decrypt message: " << e.what() << endl;
+                // cout << decodedMessage << endl;
             }
         }
     }

@@ -141,6 +141,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
     cout << "starting to broadcast FILE" << endl;
     for (int clientSocket : connectedClients)
     {
+        cout << "connected clients are " << connectedClients[clientSocket];
         if (clientSocket != senderSocket)
         {
             Send sendtoclient;
