@@ -165,14 +165,14 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
                 cout << "file sent to user" << endl;
                 static const string yes = "User has accepted your file. File has been sent to user";
                 send(senderSocket, yes.c_str(), yes.length(), 0);
-                continue;
+                // continue;
                 // break;
             }
             else {
                 static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                 send(senderSocket, no.c_str(), no.length(), 0);
                 // break;
-                continue;
+                // continue;
             }
 
         }
