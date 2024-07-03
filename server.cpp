@@ -138,6 +138,7 @@ void broadcastMessage(const string& message, int senderSocket = -1)
 void broadcastFile(string& filepath, string& serverpath, const string& username, int senderSocket = -1)
 {
     lock_guard<mutex> lock(clientsMutex);
+    cout << "starting to broadcast FILE" << endl;
     for (int clientSocket : connectedClients)
     {
         if (clientSocket != senderSocket)
@@ -146,6 +147,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
             static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
             static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
             send(clientSocket, message.c_str(), message.length(), 0);
+            cout << "sent message" << endl;
 
             char rep[4] = { 0 };
             ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
