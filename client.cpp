@@ -490,7 +490,12 @@ int main() {
             break;
         }
         //use t_w first before sending the message
-        else if (message.substr(0, 8) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
+        else if (message.empty()) {
+            continue; //skip empty messages
+        }
+        message = t_w(message);
+        cout << "substringed is: " << message.substr(0, 8) << endl;
+        if (message.substr(0, 8 + 1) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
             if (is_regular_file(message.substr(8 + 2, message.length() - 1))) { //add encryption to the file before sending
                 cout << "Sending file waiting for user to reply" << endl;
                 send(clientSocket, message.c_str(), message.length(), 0);
@@ -499,10 +504,7 @@ int main() {
                 cout << "This file does not exist cannot send" << endl;
             }
         }
-        else if (message.empty()) {
-            continue; //skip empty messages
-        }
-        message = t_w(message);
+
         // if (message == "quit") {
         //     //delete pub files directory after leaving the chat 
 

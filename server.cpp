@@ -616,7 +616,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 // string newenc = benc(newdec);
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
-                if (cipherText.substr(0, 8) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
+                if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
                     if (!filesystem::exists("server-recieved-files")) {
                         createDir("server-recieved-files");
                     }
