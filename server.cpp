@@ -144,26 +144,21 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
         if (clientSocket != senderSocket)
         {
             Send sendtoclient;
-            string reply2;
-            thread threadWait([&]()
-                {
-                    static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
-                    static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
-                    send(clientSocket, message.c_str(), message.length(), 0);
-                    cout << "sent message" << endl;
+            static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+            static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
+            send(clientSocket, message.c_str(), message.length(), 0);
+            cout << "sent message" << endl;
 
-                    char rep[4] = { 0 };
-                    ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
-                    rep[btr] = '\0';
-                    std::string reply(rep);
-                    reply2 = reply;
-                });
+            sleep(2);
+            char rep[4] = { 0 };
+            ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
+            rep[btr] = '\0';
+            std::string reply(rep);
 
-            threadWait.join();
 
-            cout << fmt::format("USER REPLIED '{}'", reply2) << endl;
+            cout << fmt::format("USER REPLIED '{}'", reply) << endl;
 
-            if (reply2 == "y") {
+            if (reply == "y") {
                 std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
                 std::string encodedDataClient = sendtoclient.b64EF(fi2);
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
