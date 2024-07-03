@@ -144,14 +144,14 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
         if (clientSocket != senderSocket)
         {
             Send sendtoclient;
-            static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
-            static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
-            send(clientSocket, message.c_str(), message.length(), 0);
-            cout << "sent message" << endl;
-
             string reply2;
             thread threadWait([&]()
                 {
+                    static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+                    static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
+                    send(clientSocket, message.c_str(), message.length(), 0);
+                    cout << "sent message" << endl;
+
                     char rep[4] = { 0 };
                     ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
                     rep[btr] = '\0';
@@ -630,7 +630,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
                 if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
-                    if (!filesystem::exists("server-recieved-files")) {
+                    if (!filesystem::exists("server-recieved-files")) { //the user reply is recieved here
                         createDir("server-recieved-files");
                     }
                     Recieve cl;
