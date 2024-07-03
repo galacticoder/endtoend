@@ -127,7 +127,8 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             //     std::cout << "\r\033[K" << "Another user is typing..." << std::flush;
             // }
             if (receivedMessage[0] == '|') { //were going to treat this as a file accept reply message
-                receivedMessage.substr(1, receivedMessage.length() - 1);
+                receivedMessage = receivedMessage.substr(1, receivedMessage.length() - 1);
+                cout << receivedMessage;
                 string reply;
                 getline(cin, reply);
                 send(clientSocket, reply.c_str(), sizeof(reply), 0); //sending back the reply
