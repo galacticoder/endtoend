@@ -135,7 +135,7 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
-void broadcastFile(const string& filepath, const string& serverpath, const string& username, int senderSocket = -1)
+void broadcastFile(const string& filepath, string& serverpath, const string& username, int senderSocket = -1)
 {
     lock_guard<mutex> lock(clientsMutex);
     for (int clientSocket : connectedClients)
