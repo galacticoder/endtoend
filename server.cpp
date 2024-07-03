@@ -142,8 +142,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
     for (int clientSocket : connectedClients)
     {
         cout << "connected clients are " << connectedClients[clientSocket];
-        if (clientSocket != senderSocket)
-        {
+        if (clientSocket != senderSocket) {
             Send sendtoclient;
             static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
             static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
@@ -166,12 +165,12 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
                 cout << "file sent to user" << endl;
                 static const string yes = "User has accepted your file. File has been sent to user";
                 send(senderSocket, yes.c_str(), yes.length(), 0);
-                break;
+                // break;
             }
             else {
                 static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                 send(senderSocket, no.c_str(), no.length(), 0);
-                break;
+                // break;
             }
 
         }

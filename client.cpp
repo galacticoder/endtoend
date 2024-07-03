@@ -132,7 +132,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 string reply;
                 getline(cin, reply);
                 // cout << "reply is: " << reply << endl;
-                send(clientSocket, reply.c_str(), reply.length(), 0); //sending back the reply
+                send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
                 if (reply == "y") {
                     static string filepathSave = "usersentfile.txt";
                     Recieve recvFile;
