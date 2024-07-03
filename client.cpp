@@ -131,6 +131,19 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 string reply;
                 getline(cin, reply);
                 send(clientSocket, reply.c_str(), sizeof(reply), 0); //sending back the reply
+                if (reply == "y") {
+                    static string filepathSave = "usersentfile.txt";
+                    Recieve recvFile;
+                    std::string encodedData = recvFile.receiveBase64Data(clientSocket);
+                    std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
+                    recvFile.saveFile(filepathSave, decodedData);
+                    if (is_regular_file(filepathSave)) { //if file exists
+                        cout << "You have saved the file username has sent" << endl;
+                    }
+                    else {
+                        cout << "File could not be saved" << endl;
+                    }
+                }
             }
 
             string decodedMessage;
@@ -415,13 +428,13 @@ int main() {
         // cout << "stage 2 complete" << endl;
         // cout << "stage 3 complete" << endl;
 
-        std::ifstream file(secKey, std::ios::binary);
-        if (file.is_open()) {
+        // std::ifstream file(secKey, std::ios::binary);
+        if (is_regular_file(secKey)) {
             cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
-            file.close();
+            // file.close();
         }
         else {
-            cout << "Public key file recieved cannot be opened or does not exist" << endl;
+            cout << "Public key file does not exist" << endl;
         }
 
 
@@ -478,7 +491,13 @@ int main() {
         }
         //use t_w first before sending the message
         else if (message.substr(0, 8) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
-            send(clientSocket, message.c_str(), message.length(), 0);
+            if (is_regular_file(message.substr(8 + 2, message.length() - 1))) {
+                cout << "Sending file waiting for user to reply" << endl;
+                send(clientSocket, message.c_str(), message.length(), 0);
+            }
+            else {
+                cout << "This file does not exist cannot send" << endl;
+            }
         }
         else if (message.empty()) {
             continue; //skip empty messages

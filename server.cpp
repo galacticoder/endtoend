@@ -143,7 +143,8 @@ void broadcastFile(const string& filepath, const string& username, int senderSoc
         if (clientSocket != senderSocket)
         {
             Send sendtoclient;
-            static const string message = fmt::format("|{} has sent you a file named '{}' would you like to recieve it?(y/n): ");
+            static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+            static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
             send(clientSocket, message.c_str(), message.length(), 0);
 
             char rep[4] = { 0 };
@@ -157,7 +158,7 @@ void broadcastFile(const string& filepath, const string& username, int senderSoc
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
             }
             else {
-                static const string no = "The user did not accept the file you have sent\n";
+                static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                 send(senderSocket, no.c_str(), no.length(), 0);
             }
 

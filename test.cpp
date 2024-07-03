@@ -5,7 +5,8 @@ using namespace std;
 using namespace filesystem;
 
 int main() {
-    string some = "|user1 has sent you a file named 'somehting.txt' would you like to recieve it?(y/n): ";
-    cout << some.substr(1, some.length() - 1);
+    string filepath = "/sendfile jdsfhfjdn.dfsdfsfd";
+    string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+    cout << fpFormatted;
     return 0;
 }
