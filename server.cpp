@@ -149,13 +149,21 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
             send(clientSocket, message.c_str(), message.length(), 0);
             cout << "sent message" << endl;
 
-            char rep[4] = { 0 };
-            ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
-            rep[btr] = '\0';
-            std::string reply(rep);
-            cout << fmt::format("USER REPLIED '{}'", reply) << endl;
+            string reply2;
+            thread threadWait([&]()
+                {
+                    char rep[4] = { 0 };
+                    ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
+                    rep[btr] = '\0';
+                    std::string reply(rep);
+                    reply2 = reply;
+                });
 
-            if (reply == "y") {
+            threadWait.join();
+
+            cout << fmt::format("USER REPLIED '{}'", reply2) << endl;
+
+            if (reply2 == "y") {
                 std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
                 std::string encodedDataClient = sendtoclient.b64EF(fi2);
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
