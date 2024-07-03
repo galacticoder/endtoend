@@ -135,7 +135,7 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
-void broadcastFile(const string& filepath, string& serverpath, const string& username, int senderSocket = -1)
+void broadcastFile(string& filepath, string& serverpath, const string& username, int senderSocket = -1)
 {
     lock_guard<mutex> lock(clientsMutex);
     for (int clientSocket : connectedClients)
@@ -621,12 +621,15 @@ void handleClient(int clientSocket, int serverSocket) {
                         createDir("server-recieved-files");
                     }
                     Recieve cl;
-                    static string fpFormatted = fmt::format("server-recieved-files/{}", cipherText.substr(8 + 2, cipherText.length() - 1));
+
+                    string clfile = cipherText.substr(8 + 2, cipherText.length() - 1);
+                    static string fpFormatted = fmt::format("server-recieved-files/{}", clfile);
+
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
                     std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
-                    cl.saveFile(fmt::format(fpFormatted, fpFormatted), decodedData);
+                    cl.saveFile(fpFormatted, decodedData);
 
-                    broadcastFile(cipherText.substr(9 + 1), fpFormatted, userStr, clientSocket);
+                    broadcastFile(clfile, fpFormatted, userStr, clientSocket);
                 }
 
                 if (!cipherText.empty()) //when sneing somehow losig data when sending | fixed
