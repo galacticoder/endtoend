@@ -185,7 +185,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
                 cout << "sent message" << endl;
 
                 sleep(2);
-                char rep[4] = { 0 };
+                char rep[10000] = { 0 };
                 ssize_t btr = recv(clSock, rep, sizeof(rep) - 1, 0);
                 rep[btr] = '\0';
                 std::string reply(rep);

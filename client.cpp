@@ -141,9 +141,11 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                     recvFile.saveFile(filepathSave, decodedData);
                     if (is_regular_file(filepathSave)) { //if file exists
                         cout << "You have saved the file username has sent" << endl;
+                        continue;
                     }
                     else {
                         cout << "File could not be saved" << endl;
+                        continue;
                     }
                 }
             }
