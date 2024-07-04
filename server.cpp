@@ -175,7 +175,7 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
                 cout << "it again" << endl;
                 ++it;
                 static string secondcl = it->first;
-                static const int clSock = it->second;
+                static int clSock = it->second;
                 cout << "it done" << endl;
 
                 Send sendtoclient;
