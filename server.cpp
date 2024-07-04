@@ -25,10 +25,31 @@
 #include <unistd.h>
 #include <filesystem>
 #include "serverSendRecv.h"
+#include <map>
 
 // add certain length of username allow only
 
 // To run: g++ -std=c++20 -o server server.cpp -lcryptopp -lfmt
+
+//std::vector<std::vector<int>> userandclsocket
+
+map<string, int> userAndClSocket;
+
+// // Insert some values into the map
+// mp["one"] = 1;
+// mp["two"] = 2;
+// mp["three"] = 3;
+
+// // Get an iterator pointing to the first element in the
+// // map
+// map<string, int>::iterator it = mp.begin();
+
+// // Iterate through the map and print the elements
+// while (it != mp.end()) {
+//     cout << "Key: " << it->first
+//          << ", Value: " << it->second << endl;
+//     ++it;
+// }
 
 #define RED_TEXT "\033[31m" // red text color
 #define GREEN_TEXT "\033[32m" // green text color
@@ -137,46 +158,93 @@ void broadcastMessage(const string& message, int senderSocket = -1)
 
 void broadcastFile(string& filepath, string& serverpath, const string& username, int senderSocket = -1)
 {
-    lock_guard<mutex> lock(clientsMutex);
-    cout << "starting to broadcast FILE" << endl;
-    for (int clientSocket : connectedClients)
     {
-        cout << "connected clients are " << connectedClients[clientSocket];
-        if (clientSocket != senderSocket) {
-            Send sendtoclient;
-            static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
-            static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
-            send(clientSocket, message.c_str(), message.length(), 0);
-            cout << "sent message" << endl;
-
-            sleep(2);
-            char rep[4] = { 0 };
-            ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
-            rep[btr] = '\0';
-            std::string reply(rep);
-
-
-            cout << fmt::format("USER REPLIED '{}'", reply) << endl;
-
-            if (reply == "y") {
-                std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
-                std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
-                cout << "file sent to user" << endl;
-                static const string yes = "User has accepted your file. File has been sent to user";
-                send(senderSocket, yes.c_str(), yes.length(), 0);
-                // continue;
-                // break;
-            }
-            else {
-                static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
-                send(senderSocket, no.c_str(), no.length(), 0);
-                // break;
-                // continue;
-            }
-
-        }
+        lock_guard<mutex> lock(clientsMutex);
+        cout << "starting to broadcast FILE" << endl;
     }
+
+    map<string, int>::iterator it = userAndClSocket.begin();
+
+    // Iterate through the map and print the elements
+
+    while (true) {
+        cout << "Key: " << it->first << ", Value: " << it->second << endl;
+        if (it->first == username + "1" || it->first == username + "0") {
+            static string appended = it->first;
+            if (appended.back() == '1' || appended.back() == '0') { //this means the second client is trying to send a file to the first
+                ++it;
+                static string secondcl = it->first;
+                static const int clSock = it->second;
+
+                Send sendtoclient;
+                static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+                static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
+                send(clSock, message.c_str(), message.length(), 0);
+                cout << "sent message" << endl;
+
+                sleep(2);
+                char rep[4] = { 0 };
+                ssize_t btr = recv(clSock, rep, sizeof(rep) - 1, 0);
+                rep[btr] = '\0';
+                std::string reply(rep);
+
+
+                cout << fmt::format("USER REPLIED '{}'", reply) << endl;
+
+                if (reply == "y") {
+                    std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
+                    std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                    sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
+                    cout << "file sent to user" << endl;
+                    static const string yes = "User has accepted your file. File has been sent to user";
+                    send(senderSocket, yes.c_str(), yes.length(), 0);
+                    // continue;
+                    break;
+                }
+                else {
+                    static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
+                    send(senderSocket, no.c_str(), no.length(), 0);
+                    break;
+                    // continue;
+                }
+            }
+            // break;
+        }
+        ++it;
+    }
+
+    // cout << "connected clients are " << connectedClients[];
+    // Send sendtoclient;
+    // static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
+    // static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
+    // send(clientSocket, message.c_str(), message.length(), 0);
+    // cout << "sent message" << endl;
+
+    // sleep(2);
+    // char rep[4] = { 0 };
+    // ssize_t btr = recv(clientSocket, rep, sizeof(rep) - 1, 0);
+    // rep[btr] = '\0';
+    // std::string reply(rep);
+
+
+    // cout << fmt::format("USER REPLIED '{}'", reply) << endl;
+
+    // if (reply == "y") {
+    //     std::vector<uint8_t> fi2 = sendtoclient.readFile(serverpath); //file path is a string to the file path //error when reading the file
+    //     std::string encodedDataClient = sendtoclient.b64EF(fi2);
+    //     sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+    //     cout << "file sent to user" << endl;
+    //     static const string yes = "User has accepted your file. File has been sent to user";
+    //     send(senderSocket, yes.c_str(), yes.length(), 0);
+    //     // continue;
+    //     // break;
+    // }
+    // else {
+    //     static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
+    //     send(senderSocket, no.c_str(), no.length(), 0);
+    //     // break;
+    //     // continue;
+    // }
 }
 
 // void broadcastFile(string& filename, int senderSocket = -1)
@@ -337,12 +405,13 @@ void handleClient(int clientSocket, int serverSocket) {
 
     else
     {
-        clientUsernames.push_back(userStr);
+        clientUsernames.push_back(userStr); //first user index is 0 and the size is going to be 1 right here
         // clientUsernames.push_back(userStr);
         cout << "username added to client vector usernames" << endl;
         cout << connectedClients[0] << endl;
         //send pub key
         updateActiveFile(clientUsernames.size());
+        userAndClSocket[userStr + to_string(clientUsernames.size() - 1)] = clientSocket; //clientUsernames.size() - 1 should give us the index of the user that just joined the index for user 1 would be 0
         cout << "client SIZE: " << clientUsernames.size() << endl;
 
         Send usersactive;
