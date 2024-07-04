@@ -172,9 +172,11 @@ void broadcastFile(string& filepath, string& serverpath, const string& username,
         if (it->first == username + "1" || it->first == username + "0") {
             static string appended = it->first;
             if (appended.back() == '1' || appended.back() == '0') { //this means the second client is trying to send a file to the first
+                cout << "it again" << endl;
                 ++it;
                 static string secondcl = it->first;
                 static const int clSock = it->second;
+                cout << "it done" << endl;
 
                 Send sendtoclient;
                 static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
