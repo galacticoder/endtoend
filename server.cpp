@@ -665,65 +665,61 @@ void handleClient(int clientSocket, int serverSocket) {
                     // cipherText.clear();
 
                     //find a way to skip the cipher text it recieves first
-                    bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-                    cout << "RECVING: " << bytesReceived << endl;
-                    if (bytesReceived > 0) {
-                        buffer[bytesReceived] = '\0';
-                        cipherText = buffer;
-                        std::cout << "reply: " << cipherText << std::endl;
+
+                    cout << "RECVDTA: " << receivedData << endl;
 
 
-                        if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
-                            cout << "cipher was y" << endl;
-                            std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
-                            std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                            sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
-                            cout << "file sent to user" << endl;
-                            static const string yes = "User has accepted your file. File has been sent to user";
-                            send(senderSocket, yes.c_str(), yes.length(), 0);
-                        }
-                        else if (cipherText == "n") {
-                            cout << "cipher was n" << endl;
-                            static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
-                            send(senderSocket, no.c_str(), no.length(), 0);
-                        }
-                        else {
-                            cout << "cipher text wasnt an option" << endl;
-                            cout << "reply was: " << cipherText << endl;
-                        }
+                    if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
+                        cout << "cipher was y" << endl;
+                        std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
+                        std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                        sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
+                        cout << "file sent to user" << endl;
+                        static const string yes = "User has accepted your file. File has been sent to user";
+                        send(senderSocket, yes.c_str(), yes.length(), 0);
                     }
-                }
-
-                else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
-                    // cout << "cipher: " << cipherText << endl;;
-                    //time
-                    auto now = std::chrono::system_clock::now();
-                    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-                    std::tm* localTime = std::localtime(&currentTime);
-
-                    bool isPM = localTime->tm_hour >= 12;
-                    string stringFormatTime = asctime(localTime);
-
-                    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-                    stringstream ss;
-                    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-                    string formattedTime = ss.str();
-
-                    std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-                    std::smatch match;
-                    if (regex_search(stringFormatTime, match, time_pattern))
-                    {
-                        string str = match.str(0);
-                        size_t pos = stringFormatTime.find(str);
-                        stringFormatTime.replace(pos, str.length(), formattedTime);
+                    else if (cipherText == "n") {
+                        cout << "cipher was n" << endl;
+                        static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
+                        send(senderSocket, no.c_str(), no.length(), 0);
                     }
-                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                    broadcastMessage(formattedCipher, clientSocket);
+                    else {
+                        cout << "cipher text wasnt an option" << endl;
+                        cout << "reply was: " << cipherText << endl;
+                    }
                 }
             }
+
+        else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
+            // cout << "cipher: " << cipherText << endl;;
+            //time
+            auto now = std::chrono::system_clock::now();
+            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+            std::tm* localTime = std::localtime(&currentTime);
+
+            bool isPM = localTime->tm_hour >= 12;
+            string stringFormatTime = asctime(localTime);
+
+            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+            stringstream ss;
+            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+            string formattedTime = ss.str();
+
+            std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+            std::smatch match;
+            if (regex_search(stringFormatTime, match, time_pattern))
+            {
+                string str = match.str(0);
+                size_t pos = stringFormatTime.find(str);
+                stringFormatTime.replace(pos, str.length(), formattedTime);
+            }
+            string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+            broadcastMessage(formattedCipher, clientSocket);
+        }
         }
     }
+}
 }
 
 int main() {
