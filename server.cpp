@@ -666,7 +666,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     //find a way to skip the cipher text it recieves first
 
-                    ssize_t btr = (clientSocket, buffer, sizeof(buffer) - 1, 0);
+                    ssize_t btr = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
 
                     cout << "RECVDTA: " << btr << endl;
 
