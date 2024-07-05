@@ -643,6 +643,12 @@ void handleClient(int clientSocket, int serverSocket) {
                 // string newenc = benc(newdec);
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
+                static string fpFormatted = "";
+                short int senderSockIndex2 = 0;
+                static int senderSocket = connectedClients[senderSockIndex2];
+                short int clSock2 = 0;
+
+
                 if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
                     if (!filesystem::exists("server-recieved-files")) { //the user reply is recieved here
                         createDir("server-recieved-files");
@@ -651,6 +657,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     string clfile = cipherText.substr(8 + 2, cipherText.length() - 1);
                     static string fpFormatted = fmt::format("server-recieved-files/{}", clfile);
+                    fpFormatted.append(fpFormatted);
 
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
                     std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
@@ -658,37 +665,26 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     short int senderSockIndex;
                     short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-
-                    cout << "SENDERSOCKINDEXIS: " << senderSockIndex << endl;
-                    static int senderSocket = connectedClients[senderSockIndex];
+                    senderSockIndex2 += senderSockIndex;
+                    clSock2 += clSock;
 
                     // cipherText.clear();
+                    cout << "DONE WITH SEND MESSAGE" << endl;
+                }
 
-                    //find a way to skip the cipher text it recieves first
-
-                    ssize_t btr = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-
-                    cout << "RECVDTA: " << btr << endl;
-
-
-                    if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
-                        cout << "cipher was y" << endl;
-                        std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
-                        std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                        sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
-                        cout << "file sent to user" << endl;
-                        static const string yes = "User has accepted your file. File has been sent to user";
-                        send(senderSocket, yes.c_str(), yes.length(), 0);
-                    }
-                    else if (cipherText == "n") {
-                        cout << "cipher was n" << endl;
-                        static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
-                        send(senderSocket, no.c_str(), no.length(), 0);
-                    }
-                    else {
-                        cout << "cipher text wasnt an option" << endl;
-                        cout << "reply was: " << cipherText << endl;
-                    }
+                if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
+                    cout << "cipher was y" << endl;
+                    std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
+                    std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                    sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
+                    cout << "file sent to user" << endl;
+                    static const string yes = "User has accepted your file. File has been sent to user";
+                    send(senderSocket, yes.c_str(), yes.length(), 0);
+                }
+                else if (cipherText == "n") {
+                    cout << "cipher was n" << endl;
+                    static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
+                    send(senderSocket, no.c_str(), no.length(), 0);
                 }
 
                 else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
