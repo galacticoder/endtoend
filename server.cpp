@@ -664,6 +664,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
 
                     if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
+                        cout << "cipher was y" << endl;
                         std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
                         std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
@@ -672,6 +673,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         send(senderSocket, yes.c_str(), yes.length(), 0);
                     }
                     else if (cipherText == "n") {
+                        cout << "cipher was n" << endl;
                         static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                         send(senderSocket, no.c_str(), no.length(), 0);
                     }
