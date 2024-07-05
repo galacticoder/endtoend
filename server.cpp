@@ -676,7 +676,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     cout << "cipher was y" << endl;
                     std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
                     std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                    sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
+                    sendtoclient.sendBase64Data(clSock2, encodedDataClient); //send encoded key
                     cout << "file sent to user" << endl;
                     static const string yes = "User has accepted your file. File has been sent to user";
                     send(senderSocket, yes.c_str(), yes.length(), 0);
