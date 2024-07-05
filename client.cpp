@@ -130,7 +130,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 receivedMessage = receivedMessage.substr(1, receivedMessage.length() - 1);
                 cout << receivedMessage;
                 string reply;
-                getline(cin, reply);
+                getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
                 // cout << "reply is: " << reply << endl;
                 send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
                 if (reply == "y") {
