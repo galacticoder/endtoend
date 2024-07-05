@@ -666,7 +666,9 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     //find a way to skip the cipher text it recieves first
 
-                    cout << "RECVDTA: " << recv(clientSocket, buffer, sizeof(buffer) - 1, 0) << endl;
+                    ssize_t btr = (clientSocket, buffer, sizeof(buffer) - 1, 0);
+
+                    cout << "RECVDTA: " << btr << endl;
 
 
                     if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
