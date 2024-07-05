@@ -666,10 +666,11 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     //find a way to skip the cipher text it recieves first
                     bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+                    cout << "RECVING: " << bytesReceived << endl;
                     if (bytesReceived > 0) {
                         buffer[bytesReceived] = '\0';
                         cipherText = buffer;
-                        std::cout << "reply " << cipherText << std::endl;
+                        std::cout << "reply: " << cipherText << std::endl;
 
 
                         if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
