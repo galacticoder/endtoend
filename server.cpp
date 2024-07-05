@@ -664,32 +664,32 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     // cipherText.clear();
 
-                    while (true) {
-                        std::this_thread::sleep_for(std::chrono::seconds(2));
-                        if (cipherText == "y" || cipherText == "n") {
-                            break;
+                    //find a way to skip the cipher text it recieves first
+                    bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+                    if (bytesReceived > 0) {
+                        buffer[bytesReceived] = '\0';
+                        cipherText = buffer;
+                        std::cout << "reply " << cipherText << std::endl;
+
+
+                        if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
+                            cout << "cipher was y" << endl;
+                            std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
+                            std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                            sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
+                            cout << "file sent to user" << endl;
+                            static const string yes = "User has accepted your file. File has been sent to user";
+                            send(senderSocket, yes.c_str(), yes.length(), 0);
                         }
-                    }
-                    cout << "cipher text equaled something continuing" << endl;
-
-
-                    if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
-                        cout << "cipher was y" << endl;
-                        std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
-                        std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                        sendtoclient.sendBase64Data(clSock, encodedDataClient); //send encoded key
-                        cout << "file sent to user" << endl;
-                        static const string yes = "User has accepted your file. File has been sent to user";
-                        send(senderSocket, yes.c_str(), yes.length(), 0);
-                    }
-                    else if (cipherText == "n") {
-                        cout << "cipher was n" << endl;
-                        static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
-                        send(senderSocket, no.c_str(), no.length(), 0);
-                    }
-                    else {
-                        cout << "cipher text wasnt an option" << endl;
-                        cout << "reply was: " << cipherText << endl;
+                        else if (cipherText == "n") {
+                            cout << "cipher was n" << endl;
+                            static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
+                            send(senderSocket, no.c_str(), no.length(), 0);
+                        }
+                        else {
+                            cout << "cipher text wasnt an option" << endl;
+                            cout << "reply was: " << cipherText << endl;
+                        }
                     }
                 }
 
