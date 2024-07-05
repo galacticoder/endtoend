@@ -643,7 +643,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 // string newenc = benc(newdec);
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
-                static string fpFormatted = "";
+                static string fpFormatted2 = "";
                 short int senderSockIndex2 = 0;
                 static int senderSocket = connectedClients[senderSockIndex2];
                 short int clSock2 = 0;
@@ -657,7 +657,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     string clfile = cipherText.substr(8 + 2, cipherText.length() - 1);
                     static string fpFormatted = fmt::format("server-recieved-files/{}", clfile);
-                    fpFormatted.append(fpFormatted);
+                    fpFormatted2.append(fpFormatted);
 
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
                     std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
@@ -674,7 +674,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                     cout << "cipher was y" << endl;
-                    std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
+                    std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
                     std::string encodedDataClient = sendtoclient.b64EF(fi2);
                     sendtoclient.sendBase64Data(clSock2, encodedDataClient); //send encoded key
                     cout << "file sent to user" << endl;
