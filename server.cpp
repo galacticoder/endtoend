@@ -688,38 +688,37 @@ void handleClient(int clientSocket, int serverSocket) {
                         cout << "reply was: " << cipherText << endl;
                     }
                 }
+
+                else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
+                    // cout << "cipher: " << cipherText << endl;;
+                    //time
+                    auto now = std::chrono::system_clock::now();
+                    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+                    std::tm* localTime = std::localtime(&currentTime);
+
+                    bool isPM = localTime->tm_hour >= 12;
+                    string stringFormatTime = asctime(localTime);
+
+                    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+                    stringstream ss;
+                    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+                    string formattedTime = ss.str();
+
+                    std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+                    std::smatch match;
+                    if (regex_search(stringFormatTime, match, time_pattern))
+                    {
+                        string str = match.str(0);
+                        size_t pos = stringFormatTime.find(str);
+                        stringFormatTime.replace(pos, str.length(), formattedTime);
+                    }
+                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                    broadcastMessage(formattedCipher, clientSocket);
+                }
             }
-
-        else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
-            // cout << "cipher: " << cipherText << endl;;
-            //time
-            auto now = std::chrono::system_clock::now();
-            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-            std::tm* localTime = std::localtime(&currentTime);
-
-            bool isPM = localTime->tm_hour >= 12;
-            string stringFormatTime = asctime(localTime);
-
-            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-            stringstream ss;
-            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-            string formattedTime = ss.str();
-
-            std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-            std::smatch match;
-            if (regex_search(stringFormatTime, match, time_pattern))
-            {
-                string str = match.str(0);
-                size_t pos = stringFormatTime.find(str);
-                stringFormatTime.replace(pos, str.length(), formattedTime);
-            }
-            string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-            broadcastMessage(formattedCipher, clientSocket);
-        }
         }
     }
-}
 }
 
 int main() {
