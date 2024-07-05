@@ -662,8 +662,14 @@ void handleClient(int clientSocket, int serverSocket) {
                     cout << "SENDERSOCKINDEXIS: " << senderSockIndex << endl;
                     static int senderSocket = connectedClients[senderSockIndex];
 
+                    // cipherText.clear();
 
-                    if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
+                    char rep[1024] = { 0 };
+                    ssize_t btr = recv(clSock, rep, sizeof(rep) - 1, 0);
+                    rep[btr] = '\0';
+                    std::string reply(rep);
+
+                    if (reply == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                         cout << "cipher was y" << endl;
                         std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted); //file path is a string to the file path //error when reading the file
                         std::string encodedDataClient = sendtoclient.b64EF(fi2);
@@ -672,14 +678,14 @@ void handleClient(int clientSocket, int serverSocket) {
                         static const string yes = "User has accepted your file. File has been sent to user";
                         send(senderSocket, yes.c_str(), yes.length(), 0);
                     }
-                    else if (cipherText == "n") {
+                    else if (reply == "n") {
                         cout << "cipher was n" << endl;
                         static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                         send(senderSocket, no.c_str(), no.length(), 0);
                     }
                     else {
                         cout << "cipher text wasnt an option" << endl;
-                        cout << "reply was: " << cipherText << endl;
+                        cout << "reply was: " << reply << endl;
                     }
                 }
 
