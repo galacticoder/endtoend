@@ -137,6 +137,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                     static string filepathSave = "usersentfile.txt";
                     Recieve recvFile;
                     std::string encodedData = recvFile.receiveBase64Data(clientSocket);
+                    cout << "ENCODED RECIEVED: " << encodedData << endl;
                     std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
                     recvFile.saveFile(filepathSave, decodedData);
                     if (is_regular_file(filepathSave)) { //if file exists
@@ -507,6 +508,7 @@ int main() {
                 std::vector<uint8_t> buffer = sendfile.readFile(message.substr(8 + 2, message.length() - 1)); //file path is a string to the file path
                 std::string encodedData = sendfile.b64EF(buffer);
                 sendfile.sendBase64Data(clientSocket, encodedData);
+                cout << "ENCODED SENDING FILE: " << encodedData << endl;
             }
             else {
                 cout << "This file does not exist cannot send" << endl;
