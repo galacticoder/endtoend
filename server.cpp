@@ -664,6 +664,14 @@ void handleClient(int clientSocket, int serverSocket) {
 
                     // cipherText.clear();
 
+                    while (true) {
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        if (cipherText == "y" || cipherText == "n") {
+                            break;
+                        }
+                    }
+                    cout << "cipher text equaled something continuing" << endl;
+
 
                     if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                         cout << "cipher was y" << endl;
