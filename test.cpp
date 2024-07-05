@@ -1,30 +1,21 @@
 #include <iostream>
 #include <filesystem>
 #include <vector>
+#include <fstream>
 
 
 using namespace std;
 using namespace filesystem;
 
-vector <string> mp;
-
 int main() {
 
-    mp.push_back("djgfdgd");
-    mp.push_back("somehting else second");
-
-    static short int index;
-    for (int i = 0; i < mp.size(); i++)
-    {
-        if (mp[i] == "somehting else second") {
-            std::cout << "i: " << i << endl;
-            index = i; //append index to str
-            break;
-        }
+    std::ifstream file("sendtouser.txt");
+    std::string str;
+    std::string file_contents;
+    while (std::getline(file, str)) {
+        file_contents += str;
+        file_contents.push_back('\n');
     }
-
-    cout << "index is: " << index << endl;
-
-    cout << mp[index - 1] << endl;
+    cout << file_contents;
     return 0;
 }

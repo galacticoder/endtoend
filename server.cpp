@@ -660,28 +660,50 @@ void handleClient(int clientSocket, int serverSocket) {
                     fpFormatted2.append(fpFormatted);
 
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
-                    std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
-                    cl.saveFile(fpFormatted, decodedData);
+                    // std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
+                    std::ofstream file(fpFormatted);
 
-                    short int senderSockIndex;
-                    short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-                    senderSockIndex2 += senderSockIndex;
-                    clSock2 += clSock;
+                    if (file.is_open()) {
+                        file << encodedData;
+                        file.close();
+                        cout << fmt::format("file written to {}", fpFormatted) << endl;
+                    }
+                    // cl.saveFile(fpFormatted, decodedData);
+                    if (is_regular_file(fpFormatted)) {
+                        cout << fpFormatted << " has been opened and sending message" << endl;
+                        short int senderSockIndex;
+                        short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+                        senderSockIndex2 += senderSockIndex;
+                        clSock2 += clSock;
 
-                    // cipherText.clear();
-                    cout << "DONE WITH SEND MESSAGE" << endl;
+                        // cipherText.clear();
+                        cout << "DONE WITH SEND MESSAGE" << endl;
+                    }
+                    else {
+                        cout << "file does not exis cannot send: " << fpFormatted << endl;
+                    }
+
                 }
 
                 if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                     cout << "cipher was y" << endl;
-                    std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
-                    cout << "done reading file to send" << endl;
-                    std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                    cout << "done encoding" << endl;
-                    sendtoclient.sendBase64Data(clSock2, encodedDataClient); //send encoded key
-                    cout << "file sent to user" << endl;
-                    static const string yes = "User has accepted your file. File has been sent to user";
-                    send(senderSocket, yes.c_str(), yes.length(), 0);
+                    if (is_regular_file(fpFormatted2)) {
+                        // std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
+                        cout << "done reading file to send" << endl;
+                        std::ifstream filetosend(fpFormatted2);
+                        std::string str;
+                        std::string file_contents; //encoded base 64
+                        while (getline(filetosend, str)) {
+                            file_contents += str;
+                            file_contents.push_back('\n');
+                        }
+                        // std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                        // cout << "done encoding" << endl;
+                        sendtoclient.sendBase64Data(clSock2, file_contents); //send encoded key
+                        cout << "file sent to user" << endl;
+                        static const string yes = "User has accepted your file. File has been sent to user";
+                        send(senderSocket, yes.c_str(), yes.length(), 0);
+                    }
                 }
                 else if (cipherText == "n") {
                     cout << "cipher was n" << endl;
