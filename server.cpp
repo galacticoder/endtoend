@@ -675,7 +675,9 @@ void handleClient(int clientSocket, int serverSocket) {
                 if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                     cout << "cipher was y" << endl;
                     std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
+                    cout << "done reading file to send" << endl;
                     std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                    cout << "done encoding" << endl;
                     sendtoclient.sendBase64Data(clSock2, encodedDataClient); //send encoded key
                     cout << "file sent to user" << endl;
                     static const string yes = "User has accepted your file. File has been sent to user";
