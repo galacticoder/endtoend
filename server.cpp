@@ -698,7 +698,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             file_contents.push_back('\n');
                         }
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                        // cout << "done encoding" << endl;
+                        cout << "file to send: " << file_contents << endl;
                         sendtoclient.sendBase64Data(clSock2, file_contents); //send encoded key
                         cout << "file sent to user" << endl;
                         static const string yes = "User has accepted your file. File has been sent to user";

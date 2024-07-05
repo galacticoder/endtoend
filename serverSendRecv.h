@@ -57,6 +57,7 @@ struct Send {
         ssize_t sentBytes = send(socket, encodedData.c_str(), encodedData.size(), 0);
         if (sentBytes == -1)
         {
+            cout << "error sending: " << encodedData << endl;
             throw std::runtime_error("Error sending data");
         }
     }
