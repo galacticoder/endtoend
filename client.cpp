@@ -137,7 +137,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                     static string filepathSave = "usersentfile.txt";
                     Recieve recvFile;
                     std::string encodedData = recvFile.receiveBase64Data(clientSocket);
-                    cout << "ENCODED RECIEVED: " << encodedData << endl;
+                    cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
                     std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
                     recvFile.saveFile(filepathSave, decodedData);
                     if (is_regular_file(filepathSave)) { //if file exists

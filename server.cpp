@@ -646,7 +646,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 static string fpFormatted2 = "";
                 short int senderSockIndex2 = 0;
                 static int senderSocket = connectedClients[senderSockIndex2];
-                short int clSock2 = 0;
+                short int clSockIndex2 = 0;
 
 
                 if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
@@ -674,7 +674,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         short int senderSockIndex;
                         short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         senderSockIndex2 += senderSockIndex;
-                        clSock2 += clSock;
+                        clSockIndex2 += clSock; //im so dumbn
 
                         // cipherText.clear();
                         cout << "DONE WITH SEND MESSAGE" << endl;
@@ -695,12 +695,12 @@ void handleClient(int clientSocket, int serverSocket) {
                         std::string file_contents; //encoded base 64
                         while (getline(filetosend, str)) {
                             file_contents += str;
-                            file_contents.push_back('\n');
+                            // file_contents.push_back('\n');
                         }
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         cout << "file to send: " << file_contents << endl;
-                        // sendtoclient.sendBase64Data(clSock2, file_contents); //send encoded key
-                        send(clSock2, file_contents.c_str(), file_contents.length(), 0);
+                        sendtoclient.sendBase64Data(connectedClients[clSockIndex2], file_contents); //send encoded key
+                        // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
                         cout << "file sent to user" << endl;
                         static const string yes = "User has accepted your file. File has been sent to user";
