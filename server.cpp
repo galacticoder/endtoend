@@ -306,7 +306,7 @@ void handleClient(int clientSocket, int serverSocket) {
             if (userStr[i] == ' ')
             {
                 userStr[i] = '_';
-            }
+            } //also check for slashes
         }
         send(clientSocket, userStr.c_str(), userStr.length(), 0);
     }
@@ -676,6 +676,10 @@ void handleClient(int clientSocket, int serverSocket) {
                         cout << "cipher was n" << endl;
                         static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
                         send(senderSocket, no.c_str(), no.length(), 0);
+                    }
+                    else {
+                        cout << "cipher text wasnt an option" << endl;
+                        cout << "reply was: " << cipherText << endl;
                     }
                 }
 
