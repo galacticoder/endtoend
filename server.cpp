@@ -385,15 +385,31 @@ void handleClient(int clientSocket, int serverSocket) {
         else if (clientUsernames.size() > 1) {
             serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
         }
-        cout << "starting encoded data" << endl;
-        std::string encodedData = pubrecvserver.receiveBase64Data(clientSocket);
-        cout << "done encoded data" << endl;
-        std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
-        cout << "SERVERECV PATH: " << serverRecv << endl;
-        cout << "gonna save file" << endl;
+        // cout << "starting encoded data" << endl;
+        // cout << "done encoded data" << endl;
+        // cout << "SERVERECV PATH: " << serverRecv << endl;
+        // cout << "gonna save file" << endl;
+        // cout << "decoded writing: " << decodedData.data() << endl;
         // std::ofstream pubcheck(serverRecv, std::ios::binary);
-        cout << "decoded writing: " << decodedData.data() << endl;
+        std::string encodedData = pubrecvserver.receiveBase64Data(clientSocket);
+        std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
         pubrecvserver.saveFile(serverRecv, decodedData);
+
+        static const string messagetouseraboutpub = "Pub key that you sent to server cannot be loaded on server";
+        if (is_regular_file(serverRecv)) {
+            cout << "public key exists" << endl;
+            LoadKey loadpub;
+            if (!loadpub.loadPub(serverRecv)) {
+                cout << "CANNOT LOAD USER PUB KEY. KICKING" << endl;
+                send(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length(), 0);
+                close(clientSocket);
+            } //test load the key
+        }
+        else {
+            cout << "PUBLIC KEY FILE DOES NOT EXIST" << endl;
+            send(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length(), 0);
+            close(clientSocket);
+        }
         // if (!pubcheck.is_open())
         // {
         // throw std::runtime_error("Could not open file to write");
@@ -674,13 +690,13 @@ void handleClient(int clientSocket, int serverSocket) {
                         short int senderSockIndex;
                         short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         senderSockIndex2 += senderSockIndex;
-                        clSockIndex2 += clSock; //im so dumbn
+                        clSockIndex2 += clSock;
 
                         // cipherText.clear();
                         cout << "DONE WITH SEND MESSAGE" << endl;
                     }
                     else {
-                        cout << "file does not exis cannot send: " << fpFormatted << endl;
+                        cout << "file does not exist cannot send: " << fpFormatted << endl;
                     }
 
                 }

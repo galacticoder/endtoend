@@ -11,6 +11,9 @@
 #include <cryptopp/secblock.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/filters.h>
+#include "rsa.h"
+
+
 
 using namespace CryptoPP;
 using namespace std;
@@ -115,6 +118,30 @@ struct Recieve {
         }
 
         return receivedData;
+    }
+};
+
+struct LoadKey {
+    LoadKey() = default;
+    bool loadPub(const std::string& publicKeyFile) {
+        RSA::PublicKey publickey;
+        try {
+            ifstream fileopencheck(publicKeyFile, ios::binary);
+            if (fileopencheck.is_open()) {
+                FileSource file(publicKeyFile.c_str(), true /*pumpAll*/);
+                publickey.BERDecode(file);
+                cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
+            }
+            else {
+                cout << fmt::format("could not open file at file path '{}'", publicKeyFile) << endl;
+            }
+        }
+        catch (const Exception& e) {
+            std::cerr << fmt::format("error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
+            return false;
+        }
+
+        return true;
     }
 };
 

@@ -138,8 +138,14 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                     Recieve recvFile;
                     std::string encodedData = recvFile.receiveBase64Data(clientSocket);
                     cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
-                    std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
-                    recvFile.saveFile(filepathSave, decodedData);
+                    // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
+                    // recvFile.saveFile(filepathSave, decodedData);
+                    std::ifstream filetosave(filepathSave);
+
+                    if (filetosave.is_open()) {
+                        filetosave >> encodedData;
+                        filetosave.close();
+                    }
                     if (is_regular_file(filepathSave)) { //if file exists
                         cout << "You have saved the file username has sent" << endl;
                         continue;
@@ -209,8 +215,8 @@ static bool createDir(const string& dirName)
     return true;
 }
 
-int readActiveUsers() {
-    ifstream opent("usersActive.txt");
+int readActiveUsers(const string& filepath) {
+    ifstream opent(filepath);
     string active;
     getline(opent, active);
     int activeInt;
@@ -218,7 +224,7 @@ int readActiveUsers() {
     return activeInt;
 }
 
-int main() {
+int main() {//MKA
     char serverIp[30] = "192.168.0.38"; //if server is being served locally change to your loopback address
     ifstream file("PORT.txt");
     string PORTSTR;
@@ -284,18 +290,24 @@ int main() {
     //     delIt(fpath);
     // }
 
-    string pu = fmt::format("{}{}-pubkey.der", fpath, user);
-    string pr = fmt::format("{}{}-privkey.der", fpath, user);
+    static string pu = fmt::format("{}{}-pubkey.der", fpath, user);
+    static string pr = fmt::format("{}{}-privkey.der", fpath, user);
     KeysMake keys(pr, pu); //generates our keys
     //load generated keys to make sure they can be accessed
     LoadKey keyLoader;
-    keyLoader.loadPrv(pr, privateKey);
-    keyLoader.loadPub(pu, publicKey);
+    if (!keyLoader.loadPrv(pr, privateKey) || !keyLoader.loadPub(pu, publicKey)) {
+        cout << "Your keys cannot be loaded. Exiting." << endl;
+        close(clientSocket);
+        delIt(formatPath);
+        delIt(fpath);
+        exit(1);
+    }
 
     Recieve recvActive;
+    static const string usersActivePath = "usersActive.txt";
     std::string encodedData = recvActive.receiveBase64Data(clientSocket);
     std::vector<uint8_t> decodedData = recvActive.base64Decode(encodedData);
-    recvActive.saveFile("usersActive.txt", decodedData);
+    recvActive.saveFile(usersActivePath, decodedData);
 
     // sendFile(pu);
     Send sendtoserver;
@@ -313,7 +325,7 @@ int main() {
 
 
     //send this file from the server
-    ifstream opent("usersActive.txt");
+    ifstream opent(usersActivePath);
     string active;
     int activeInt;
 
@@ -400,7 +412,7 @@ int main() {
         cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << endl;
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(2));
-            activeInt = readActiveUsers();
+            activeInt = readActiveUsers(usersActivePath);
             if (activeInt > 1) {
                 break;
             }
