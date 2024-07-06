@@ -77,6 +77,17 @@
     "typeindex": "cpp",
     "variant": "cpp",
     "regex": "cpp",
-    "filesystem": "cpp"
+    "filesystem": "cpp",
+    "csetjmp": "cpp",
+    "barrier": "cpp",
+    "cuchar": "cpp",
+    "forward_list": "cpp",
+    "unordered_set": "cpp",
+    "latch": "cpp",
+    "ranges": "cpp",
+    "scoped_allocator": "cpp",
+    "span": "cpp",
+    "syncstream": "cpp",
+    "valarray": "cpp"
   }
 }

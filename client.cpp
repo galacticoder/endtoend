@@ -31,6 +31,8 @@
 #include <cryptopp/queue.h>
 #include <regex>
 #include <filesystem>
+#include <bits/stdc++.h>
+
 
 //find a way to send the port file if possible
 
@@ -257,7 +259,7 @@ int main() {//MKA
     std::cout << "Enter a username to go by: ";
     getline(cin, user);
 
-    if (user.empty() || user.length() > 12 || user.length() <= 3) {
+    if (user.empty() || user.length() > 12 || user.length() <= 3) { //set these on top
         std::cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
         close(clientSocket);
         exit(1);
@@ -423,22 +425,58 @@ int main() {//MKA
         ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
         sec[btSec] = '\0';
         std::string secKey(sec);
+        // cout << "ORIGINAL SEC KEY: " << secKey << endl;
 
-        // cout << "seckey bytes: " << sizeof(secKey) << endl;
-        if (sizeof(secKey) < 100) {
-            int indexInt = secKey.find_first_of("/") + 1;
-            secKey = secKey.substr(indexInt);
-            secKey = secKey.insert(0, formatPath, 0, formatPath.length());
-            // cout << fmt::format("Formatted 1 secKey: {}", secKey) << endl;
+        // // cout << "seckey bytes: " << sizeof(secKey) << endl;
+        // if (sizeof(secKey) < 100) { //change this to adapt to the bottom code
+        //     int indexInt = secKey.find_first_of("/") + 1;
+        //     secKey = secKey.substr(indexInt);
+        //     secKey = secKey.insert(0, formatPath, 0, formatPath.length());
+        //     // cout << fmt::format("Formatted 1 secKey: {}", secKey) << endl;
+        // }
+
+            //keys-from-server/someone-pubkeyfromserver.der
+        if (secKey.length() > 50) {
+            //keys-from-server/werfgds-pubkeyfromserver.derMIICIDANBgkqhkiG9w0BAQEFAAOCAg0AMIICCAKCAgEAysDvhdrnVbiW0b68XXAli3eTGWjxV9cKab4MQYM+XGSix/QHZRJH82pjc59LkgI6Wl/4pF5tFBcNzKeVWzR+JRZYaMeuzIhRgK9LShcpqmimpKvhx4Wvy8H8Omr2bO0tf/FVdT6aeq8RQVGDC2MbJWov5WdBGyJ+sgBUEpWzPB3dfop83DtQbLiELd40c4DYIyYg0hKI876Rd/Xg2g5Jzip7C8soenurbudHMH8OltIoBco5ThRy/MfU/HlYFf5pBG7MBC6v0CWQXMmeh3RP2w79MPZigXifuwAgZ3GyA9UXwJhBnf+37fCIN7Ip22/IrQDt7unA4vg4JateRlfRFyuKv7VwKKLCdhmICtIdWmw3VCKM6RJQ7LJuZka2HJOeT/61/2miMMOMjA/eEx4AA+/NctS7Q5fQq9hnoqp0+JJgMjfmPfkkQd1KLeTJq96raMB+sRqDgurha799KepEWxktyrZMSTZSKRYCH9htxyLbpevNx6BoCJ5ZXsV2fVkV5AWB9C/zyxtV2CvdNAFZAYeiMGUN0vVnaU5fzDSN8iTaZ0gNaAfSxkjOt0L10303dIdXLlL0uuCr2QcKCWaAVuvL05/6RrLDU4IJfw80vDBzIO4CW4KzCKOiv5a0lL29k8MlNJB/Tnb5DMdmYL2VbWdXVQMsAtLniuBoAEiTcCsCARE=
+            cout << "chars over 50 executing" << endl;
+            static string s2find = ".der";
+            int found = secKey.find(".der") + s2find.length();
+            if (found != string::npos) {
+                secKey = secKey.substr(0, found);
+                cout << "new secKey: " << secKey << endl;
+                string encodedKey = secKey.substr(found);
+                std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
+                cout << "decoded key gonna save" << endl;
+                recievePub2.saveFile(secKey, decodedData2);
+            }
+            else {
+                cout << "Couldnt format sec key" << endl;
+                close(clientSocket);
+                delIt(formatPath);
+                delIt(fpath);
+                exit(1);
+            }
         }
+        // else if (secKey.length() < 50) {
+        cout << "now seckey: " << secKey << endl;
         int firstPipe = secKey.find_last_of("/");
         int secondPipe = secKey.find_last_of("-");
         string pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        // }
 
-
+        // if (pubUser.length() > 12 || pubUser.length() < 3) {
+        //     //SO WHEN IT PRINTS OUT SECKEY AND YOU CAN SEE WHATS GOING ON SPLIT THE KEY DATA WITH THE USERNAME AND PATH IF THEY CAME TOGETHER.
+        //     cout << "Pub user could not format properly" << endl;
+        //     close(clientSocket);
+        //     delIt(formatPath);
+        //     delIt(fpath);
+        //     exit(1);
+        // }
 
         cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
+        // if (secKey.length())
         std::string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
+        cout << "encd2: " << encodedData2 << endl;
         std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
         recievePub2.saveFile(secKey, decodedData2);
         // cout << encodedData2 << endl;
