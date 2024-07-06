@@ -395,7 +395,7 @@ void handleClient(int clientSocket, int serverSocket) {
         std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
         pubrecvserver.saveFile(serverRecv, decodedData);
 
-        static const string messagetouseraboutpub = "Pub key that you sent to server cannot be loaded on server";
+        static const string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
         if (is_regular_file(serverRecv)) {
             cout << "public key exists" << endl;
             LoadKey loadpub;
@@ -714,6 +714,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             // file_contents.push_back('\n');
                         }
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                        file_contents.append("|\\|2");
                         cout << "file to send: " << file_contents << endl;
                         sendtoclient.sendBase64Data(connectedClients[clSockIndex2], file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
