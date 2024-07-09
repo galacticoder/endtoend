@@ -1,5 +1,3 @@
-// C++ program to demonstrate the use
-// of string::npos
 #include <bits/stdc++.h>
 using namespace std;
 
@@ -38,4 +36,3 @@ int main()
 
     return 0;
 }
-

@@ -9,7 +9,7 @@
 #include <fstream>
 #include <cstring>
 #include <mutex>
-#include <fmt/core.h>
+#include <core.h>
 #include <cryptopp/osrng.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/aes.h>
