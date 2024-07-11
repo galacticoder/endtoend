@@ -690,6 +690,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
                         short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         clSockIndex2 + clSock;
+                        cout << "should be saved: " << clSockIndex2 + clSock << endl;
 
                         // cipherText.clear();
                         cout << "DONE WITH SEND MESSAGE" << endl;
