@@ -689,7 +689,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     if (is_regular_file(fpFormatted)) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
                         short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-                        clSockIndex2 += clSock;
+                        clSockIndex2 + clSock;
 
                         // cipherText.clear();
                         cout << "DONE WITH SEND MESSAGE" << endl;
@@ -715,6 +715,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         file_contents.append("|\\|2");
                         cout << "file to send: " << file_contents << endl;
+                        cout << "clSockIndex2: " << clSockIndex2 << endl;
                         sendtoclient.sendBase64Data(clSocktosend, file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
