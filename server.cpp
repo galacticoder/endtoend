@@ -156,7 +156,7 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
-short int broadcastFile(string& filepath, string& serverpath, const string& username, short int* usersendersocket, int senderSocket = -1) {
+void broadcastFile(string& filepath, string& serverpath, const string& username, short int* usersendersocket, short int* usercl, int senderSocket = -1) {
     static short int index;
     for (int i = 0; i < clientUsernames.size(); i++) {
         if (clientUsernames[i] == username) {
@@ -176,20 +176,19 @@ short int broadcastFile(string& filepath, string& serverpath, const string& user
         send(clSock, message.c_str(), message.length(), 0);
         std::cout << "sent message from client 2 to client 1" << endl;
         *(usersendersocket) = index;
-        return index - 1;
+        *(usercl) = index - 1;
+
     }
     else if (index == 0) { //this is the second client | then the client socket of index == the same index
         static const int clSockCl1 = connectedClients[index + 1];
         send(clSockCl1, message.c_str(), message.length(), 0);
         std::cout << "sent message from client 1 to client 2" << endl;
         *(usersendersocket) = index; //sender socket stored in here
-        return index + 1;
+        *(usercl) = index + 1;
     }
     else {
         cout << "error" << endl;
     }
-
-    return 1;
 }
 
 // void broadcastFile(string& filename, int senderSocket = -1)
@@ -688,9 +687,8 @@ void handleClient(int clientSocket, int serverSocket) {
                     // cl.saveFile(fpFormatted, decodedData);
                     if (is_regular_file(fpFormatted)) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
-                        short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-                        clSockIndex2 + clSock;
-                        cout << "should be saved: " << clSockIndex2 + clSock << endl;
+                        broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+                        // cout << "should be saved: " << clSockIndex2 + clSock << endl;
 
                         // cipherText.clear();
                         cout << "DONE WITH SEND MESSAGE" << endl;
