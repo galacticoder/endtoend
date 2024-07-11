@@ -662,7 +662,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 static string fpFormatted2 = "";
                 short int senderSockIndex2;
                 static int senderSocket = connectedClients[senderSockIndex2];
-                short int clSockIndex2 = 0;
+                // short int clSockIndex2 = 0;
                 // short int clSocktosend = connectedClients[clSockIndex2];
                 static string clfile2 = "";
 
@@ -722,15 +722,15 @@ void handleClient(int clientSocket, int serverSocket) {
                     short int clSockIndex3 = broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
 
                     for (int i = 0; i < connectedClients.size(); i++) {
-                        if (connectedClients[clSockIndex3] == senderSocket) {
+                        if (connectedClients[i] == senderSocket) {
                             continue;
                         }
-                        else if (connectedClients[clSockIndex3] != senderSocket)
+                        else if (connectedClients[i] != senderSocket)
                         {
                             //send file to all clients but the sender
                             short int clsock = connectedClients[clSockIndex3];
                             cout << "file to send: " << file_contents << endl;
-                            cout << "clSockIndex2: " << clSockIndex3 << endl;
+                            cout << "clSockIndex3: " << clSockIndex3 << endl;
                             cout << "sendersock: " << senderSockIndex2 << endl;
                             sendtoclient.sendBase64Data(senderSocket, file_contents); //send encoded key
                             // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
