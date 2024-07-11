@@ -141,7 +141,7 @@ void replySr(const string& reply, int clientSocket) {
     }
 }
 
-void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string* msg) {
+void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     char buffer[4096];
     while (true) {
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
