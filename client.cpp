@@ -117,7 +117,31 @@ static void delIt(const string& formatPath) {
     }
 }
 
-void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
+void replySr(const string& reply, int clientSocket) {
+    if (reply == "y") { //its using this after the encoded encrypt sending
+        cout << "starting second. reply is: " << reply << endl;
+        static string filepathSave = "usersentfile.txt";
+        Recieve recvFile;
+        std::string encodedData = recvFile.receiveBase64Data(clientSocket);
+        cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
+        // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
+        // recvFile.saveFile(filepathSave, decodedData);
+        std::ifstream filetosave(filepathSave);
+
+        if (filetosave.is_open()) {
+            filetosave >> encodedData;
+            filetosave.close();
+        }
+        if (is_regular_file(filepathSave)) { //if file exists
+            cout << "You have saved the file username has sent" << endl;
+        }
+        else {
+            cout << "File could not be saved" << endl;
+        }
+    }
+}
+
+void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string* msg) {
     char buffer[4096];
     while (true) {
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
@@ -130,40 +154,22 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             // }
             string reply;
             if (receivedMessage[0] == '|') { //were going to treat this as a file accept reply message
-                receivedMessage = receivedMessage.substr(1, receivedMessage.length() - 1);
-                cout << receivedMessage;
-                getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
-                // cout << "reply is: " << reply << endl;
-                send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
-            }
-            if (reply == "y" && receivedMessage.substr(receivedMessage.length() - 4, 4) == "|\\|2") { //its using this after the encoded encrypt sending
-                cout << "starting second. reply is: " << reply << endl;
-                static string filepathSave = "usersentfile.txt";
-                Recieve recvFile;
-                std::string encodedData = recvFile.receiveBase64Data(clientSocket);
-                cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
-                // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
-                // recvFile.saveFile(filepathSave, decodedData);
-                std::ifstream filetosave(filepathSave);
-
-                if (filetosave.is_open()) {
-                    filetosave >> encodedData;
-                    filetosave.close();
-                }
-                if (is_regular_file(filepathSave)) { //if file exists
-                    cout << "You have saved the file username has sent" << endl;
-                    continue;
-                }
-                else {
-                    cout << "File could not be saved" << endl;
-                    continue;
-                }
+                cout << "attempt recv file" << endl;
+                // const static string receivedMessageFormatted = receivedMessage.substr(1, receivedMessage.length() - 1);
+                // cout << receivedMessageFormatted;
+                *msg = receivedMessage;
+                // getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
+                // // cout << "reply is: " << reply << endl;
+                // send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
+                // cout << "replied with: " << reply << endl;
             }
 
             string decodedMessage;
             if (bytesReceived < 500) {
-                cout << receivedMessage << endl;
-                continue;
+                if (receivedMessage[0] != '|') {
+                    cout << receivedMessage << endl;
+                    continue;
+                }
             }
             // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
             // cout << "len is: " << receivedMessage.length() - 1 << endl;
@@ -228,7 +234,7 @@ int readActiveUsers(const string& filepath) {
 }
 
 int main() {//MKA
-    char serverIp[30] = "192.168.0.38"; //if server is being served locally change to your loopback address
+    char serverIp[30] = "192.168.0.205"; //if server is being served locally change to your loopback address
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -538,7 +544,8 @@ int main() {//MKA
         }
     }
 
-    thread receiver(receiveMessages, clientSocket, privateKey);
+    string msg;
+    thread receiver(receiveMessages, clientSocket, privateKey, &msg);
     receiver.detach();
 
     string message;
@@ -603,6 +610,39 @@ int main() {//MKA
             exit(true);
         }
         else {
+            if (msg[0] == '|') {
+                // cout << "msg is: " << msg << endl;
+                const static string receivedMessageFormatted = msg.substr(1, msg.length() - 1); // +" "
+                cout << receivedMessageFormatted;
+                string reply;
+                getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
+                // cout << "reply is: " << reply << endl;
+                send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
+                cout << "reply.data: " << reply.data() << endl;
+                cout << "replied with: " << reply << endl;
+                // replySr(reply, clientSocket);
+                if (reply == "y") { //its using this after the encoded encrypt sending
+                    cout << "starting second. reply is: " << reply << endl;
+                    static string filepathSave = "usersentfile.txt";
+                    Recieve recvFile;
+                    std::string encodedData = recvFile.receiveBase64Data(clientSocket);
+                    cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
+                    // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
+                    // recvFile.saveFile(filepathSave, decodedData);
+                    std::ifstream filetosave(filepathSave);
+
+                    if (filetosave.is_open()) {
+                        filetosave >> encodedData;
+                        filetosave.close();
+                    }
+                    if (is_regular_file(filepathSave)) { //if file exists
+                        cout << "You have saved the file username has sent" << endl;
+                    }
+                    else {
+                        cout << "File could not be saved" << endl;
+                    }
+                }
+            }
             if (message.substr(0, 8 + 1) != "/sendfile") {
                 send(clientSocket, newenc.c_str(), newenc.length(), 0);
                 auto now = std::chrono::system_clock::now();

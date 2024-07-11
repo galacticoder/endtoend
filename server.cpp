@@ -719,7 +719,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         sendtoclient.sendBase64Data(connectedClients[clSockIndex2], file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
-                        cout << "file sent to user" << endl;
+                        cout << "file sent to user: " << clientUsernames[clSockIndex2] << endl;
                         static const string yes = "User has accepted your file. File has been sent to user";
                         send(senderSocket, yes.c_str(), yes.length(), 0);
                     }
