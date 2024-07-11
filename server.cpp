@@ -717,13 +717,13 @@ void handleClient(int clientSocket, int serverSocket) {
                         }
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         file_contents.append("|\\|2");
-                        short int clSockIndex2 = broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+                        short int clSockIndex3 = broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         cout << "file to send: " << file_contents << endl;
-                        cout << "clSockIndex2: " << clSockIndex2 << endl;
-                        sendtoclient.sendBase64Data(connectedClients[clSockIndex2], file_contents); //send encoded key
+                        cout << "clSockIndex2: " << clSockIndex3 << endl;
+                        sendtoclient.sendBase64Data(connectedClients[clSockIndex3], file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
-                        cout << "file sent to user: " << clientUsernames[clSockIndex2] << endl;
+                        cout << "file sent to user: " << clientUsernames[clSockIndex3] << endl;
                         static const string yes = "User has accepted your file. File has been sent to user";
                         send(senderSocket, yes.c_str(), yes.length(), 0);
                     }
