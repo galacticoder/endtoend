@@ -689,7 +689,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     // cl.saveFile(fpFormatted, decodedData);
                     if (is_regular_file(fpFormatted)) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
-                        // broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+                        broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         // cout << "should be saved: " << clSockIndex2 + clSock << endl;
 
                         // cipherText.clear();
