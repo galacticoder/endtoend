@@ -718,15 +718,18 @@ void handleClient(int clientSocket, int serverSocket) {
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         file_contents.append("|\\|2");
                         short int clSockIndex3 = broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+
+                        //broadcast file func returns the client to send file to socket index and saves the client index thats sending the file in sendersocket
+                        short int clsock = connectedClients[clSockIndex3];
                         cout << "file to send: " << file_contents << endl;
                         cout << "clSockIndex2: " << clSockIndex3 << endl;
                         cout << "sendersock: " << senderSockIndex2 << endl;
-                        sendtoclient.sendBase64Data(connectedClients[clSockIndex3], file_contents); //send encoded key
+                        sendtoclient.sendBase64Data(senderSocket, file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
-                        cout << "file sent to user: " << clientUsernames[clSockIndex3] << endl;
+                        cout << "file sent to user: " << clientUsernames[senderSockIndex2] << endl;
                         static const string yes = "User has accepted your file. File has been sent to user";
-                        send(senderSocket, yes.c_str(), yes.length(), 0);
+                        send(connectedClients[clSockIndex3], yes.c_str(), yes.length(), 0);
                     }
                 }
                 else if (cipherText == "n") {
