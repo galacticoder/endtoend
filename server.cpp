@@ -660,9 +660,10 @@ void handleClient(int clientSocket, int serverSocket) {
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
                 static string fpFormatted2 = "";
-                short int senderSockIndex2 = 0;
+                short int senderSockIndex2;
                 static int senderSocket = connectedClients[senderSockIndex2];
                 short int clSockIndex2 = 0;
+                short int clSocktosend = connectedClients[clSockIndex2];
 
 
                 if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
@@ -687,9 +688,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     // cl.saveFile(fpFormatted, decodedData);
                     if (is_regular_file(fpFormatted)) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
-                        short int senderSockIndex;
-                        short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-                        senderSockIndex2 += senderSockIndex;
+                        short int clSock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         clSockIndex2 += clSock;
 
                         // cipherText.clear();
@@ -716,7 +715,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         // std::string encodedDataClient = sendtoclient.b64EF(fi2);
                         file_contents.append("|\\|2");
                         cout << "file to send: " << file_contents << endl;
-                        sendtoclient.sendBase64Data(connectedClients[clSockIndex2], file_contents); //send encoded key
+                        sendtoclient.sendBase64Data(clSocktosend, file_contents); //send encoded key
                         // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
 
                         cout << "file sent to user: " << clientUsernames[clSockIndex2] << endl;
