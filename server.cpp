@@ -663,6 +663,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 static int senderSocket = connectedClients[senderSockIndex2];
                 short int clSockIndex2 = 0;
                 short int clSocktosend = connectedClients[clSockIndex2];
+                static string clfile2 = "";
 
 
                 if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
@@ -674,6 +675,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     string clfile = cipherText.substr(8 + 2, cipherText.length() - 1);
                     static string fpFormatted = fmt::format("server-recieved-files/{}", clfile);
                     fpFormatted2.append(fpFormatted);
+                    clfile2.append(clfile);
 
                     std::string encodedData = cl.receiveBase64Data(clientSocket);
                     // std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
@@ -687,7 +689,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     // cl.saveFile(fpFormatted, decodedData);
                     if (is_regular_file(fpFormatted)) {
                         cout << fpFormatted << " has been opened and sending message" << endl;
-                        broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
+                        // broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         // cout << "should be saved: " << clSockIndex2 + clSock << endl;
 
                         // cipherText.clear();
@@ -702,6 +704,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
                     cout << "cipher was y" << endl;
                     if (is_regular_file(fpFormatted2)) {
+                        broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, &clSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
                         // std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
                         cout << "done reading file to send" << endl;
                         std::ifstream filetosend(fpFormatted2);
