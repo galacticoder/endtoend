@@ -186,7 +186,7 @@ struct LoadKey {
 
         return true;
     }
-    bool loadPub(const std::string& publicKeyFile, RSA::PublicKey publickey) {
+    bool loadPub(const std::string& publicKeyFile, RSA::PublicKey& publickey) {
         try {
             ifstream fileopencheck(publicKeyFile, ios::binary);
             if (fileopencheck.is_open()) {
@@ -195,7 +195,7 @@ struct LoadKey {
                 cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
             }
             else {
-                cout << fmt::format("could not open file at file path '{}'", publicKeyFile) << endl;
+                cout << fmt::format("Could not open public key at file path '{}'", publicKeyFile) << endl;
             }
         }
         catch (const Exception& e) {
