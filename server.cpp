@@ -580,12 +580,12 @@ void handleClient(int clientSocket, int serverSocket) {
                         updateActiveFile(clientUsernames.size()); //encrypt it using the pub key of user thats supposed to recieve it
                         LoadKey publoading;
                         Enc encrypt_plaintext;
-                        RSA::PublicKey pubkeyofcl;
                         std::string exitMsg = fmt::format("{} has left the chat", userStr);
 
                         if (clientUsernames[0] == userStr) {
                             int index = 0 + 1;
                             cout << "CLID: " << clientUsernames[index] << endl;
+                            RSA::PublicKey pubkeyofcl;
                             cout << "SIZE BEFORE: " << sizeof(pubkeyofcl) << endl;
                             string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             if (publoading.loadPub(pathpub, pubkeyofcl)) {
@@ -600,11 +600,12 @@ void handleClient(int clientSocket, int serverSocket) {
                         else if (clientUsernames[1] == userStr) {
                             int index = 1 - 1;
                             cout << "CLID: " << clientUsernames[index] << endl;
-                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl) << endl;
+                            RSA::PublicKey pubkeyofcl2;
+                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl2) << endl;
                             string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                            if (publoading.loadPub(pathpub2, pubkeyofcl)) {
-                                cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
-                                string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
+                            if (publoading.loadPub(pathpub2, pubkeyofcl2)) {
+                                cout << "SIZE: " << sizeof(pubkeyofcl2) << endl;
+                                string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl2, exitMsg);
                                 string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
                                 encodedPL2 = encodedPL2 + '|';
                                 broadcastMessage(encodedPL2, connectedClients[index]);
