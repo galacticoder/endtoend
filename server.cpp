@@ -620,12 +620,6 @@ void handleClient(int clientSocket, int serverSocket) {
                     exit(1);
                 }
 
-                else {
-                    // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
-                    std::cout << "Disconnected client with same username" << endl;
-                    close(clientSocket);
-                }
-
                 lenOfUser.clear();
                 // last execution of username exists
             }
