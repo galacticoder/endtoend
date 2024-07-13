@@ -613,8 +613,7 @@ int main() {//MKA
         }
         // cout << cipherText << endl;
     }
-}
 
-close(clientSocket);
-return 0;
+    close(clientSocket);
+    return 0;
 }
