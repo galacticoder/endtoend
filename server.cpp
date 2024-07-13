@@ -604,6 +604,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     RSA::PublicKey pubkeyofcl;
                     if (clientUsernames[0] == userStr) {
                         int index = 0 + 1;
+                        cout << "CLID: " << clientUsernames[index] << endl;
                         string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                         if (publoading.loadPub(pathpub, pubkeyofcl)) {
                             string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
@@ -615,6 +616,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     }
                     else if (clientUsernames[1] == userStr) {
                         int index = 1 - 1;
+                        cout << "CLID: " << clientUsernames[index] << endl;
                         string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                         if (publoading.loadPub(pathpub2, pubkeyofcl)) {
                             string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
