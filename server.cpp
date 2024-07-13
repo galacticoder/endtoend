@@ -567,7 +567,6 @@ void handleClient(int clientSocket, int serverSocket) {
             if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0) {
                 isConnected = false;
                 {
-                    // erase socket
                     std::lock_guard<std::mutex> lock(clientsMutex);
                     std::cout << fmt::format("User client socket deletion: BEFORE: {}", connectedClients.size()) << endl;
                     auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
@@ -576,42 +575,15 @@ void handleClient(int clientSocket, int serverSocket) {
                     std::cout << "------------" << endl;
                     std::cout << fmt::format("{} has left the chat", userStr) << endl;
                     // erase username
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                        updateActiveFile(clientUsernames.size()); //encrypt it using the pub key of user thats supposed to recieve it
-                        LoadKey publoading;
-                        Enc encrypt_plaintext;
-                        std::string exitMsg = fmt::format("{} has left the chat", userStr);
-
-                        if (clientUsernames[0] == userStr) {
-                            int index = 0 + 1;
-                            string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                            string op64 = publoading.loadPub(pathpub, exitMsg);
-                            op64 = op64 + '|';
-                            cout << "UPDATED OP64: " << op64 << endl;
-                            send(connectedClients[index], op64.c_str(), op64.length(), 0);
-                            cout << "sent to " << clientUsernames[index] << endl;
-                        }
-
-                        else if (clientUsernames[1] == userStr) {
-                            int index = 1 - 1;
-                            string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                            string op642 = publoading.loadPub(pathpub2, exitMsg);
-                            op642 = op642 + '|';
-                            cout << "UPDATED OP642: " << op642 << endl;
-                            send(connectedClients[index], op642.c_str(), op642.length(), 0);
-                            cout << "sent to " << clientUsernames[index] << endl;
-                        }
-                    }
                     auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
                     if (user != clientUsernames.rend()) {
                         clientUsernames.erase((user + 1).base());
                     }
                     std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
                     std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
-
-
                 }
 
+                std::string exitMsg = fmt::format("{} has left the chat", userStr);
                 // std::cout << exitMsg << std::endl;
                 std::cout << "------------" << endl;
                 // add if statment if useerrname of user isnt in vector twice
@@ -620,6 +592,16 @@ void handleClient(int clientSocket, int serverSocket) {
                     close(serverSocket);
                     delIt("server-recieved-client-keys");
                     exit(1);
+                }
+
+                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                    updateActiveFile(clientUsernames.size());
+                    broadcastMessage(exitMsg, clientSocket);
+                }
+                else {
+                    // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
+                    std::cout << "Disconnected client with same username" << endl;
+                    close(clientSocket);
                 }
 
                 lenOfUser.clear();
