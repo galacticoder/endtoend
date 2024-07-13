@@ -589,6 +589,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             op64 = op64 + '|';
                             cout << "UPDATED OP64: " << op64 << endl;
                             send(connectedClients[index], op64.c_str(), op64.length(), 0);
+                            cout << "sent to " << clientUsernames[index] << endl;
                         }
 
                         else if (clientUsernames[1] == userStr) {
@@ -598,6 +599,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             op642 = op642 + '|';
                             cout << "UPDATED OP642: " << op642 << endl;
                             send(connectedClients[index], op642.c_str(), op642.length(), 0);
+                            cout << "sent to " << clientUsernames[index] << endl;
                         }
                     }
                     auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);

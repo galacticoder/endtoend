@@ -153,10 +153,10 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             buffer[bytesReceived] = '\0';
             string receivedMessage(buffer);
             string decodedMessage;
-            // cout << receivedMessage << endl;
 
             if (receivedMessage.back() == '|') { //subst soon
                 receivedMessage = receivedMessage.substr(0, receivedMessage.length() - 1);
+                cout << receivedMessage << endl;
                 decodedMessage = decoding.Base64Decode(receivedMessage);
                 string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                 cout << decryptedMessage << endl;
