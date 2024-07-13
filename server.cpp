@@ -584,32 +584,18 @@ void handleClient(int clientSocket, int serverSocket) {
 
                         if (clientUsernames[0] == userStr) {
                             int index = 0 + 1;
-                            cout << "CLID: " << clientUsernames[index] << endl;
-                            RSA::PublicKey pubkeyofcl;
-                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl) << endl;
                             string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                            if (publoading.loadPub(pathpub, pubkeyofcl)) {
-                                cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
-                                string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
-                                string encodedPL = encrypt_plaintext.Base64Encode(encryptedExitMsg);
-                                encodedPL = encodedPL + '|';
-                                broadcastMessage(encodedPL, connectedClients[index]);
-                            }
-
+                            string op64 = publoading.loadPub(pathpub, exitMsg);
+                            op64 = op64 + '|';
+                            broadcastMessage(op64, clientSocket);
                         }
+
                         else if (clientUsernames[1] == userStr) {
                             int index = 1 - 1;
-                            cout << "CLID: " << clientUsernames[index] << endl;
-                            RSA::PublicKey pubkeyofcl2;
-                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl2) << endl;
                             string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                            if (publoading.loadPub(pathpub2, pubkeyofcl2)) {
-                                cout << "SIZE: " << sizeof(pubkeyofcl2) << endl;
-                                string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl2, exitMsg);
-                                string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
-                                encodedPL2 = encodedPL2 + '|';
-                                broadcastMessage(encodedPL2, connectedClients[index]);
-                            }
+                            string op642 = publoading.loadPub(pathpub2, exitMsg);
+                            op642 = op642 + '|';
+                            broadcastMessage(op642, clientSocket);
                         }
                     }
                     auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);

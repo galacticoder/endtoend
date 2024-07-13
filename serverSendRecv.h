@@ -186,24 +186,30 @@ struct LoadKey {
 
         return true;
     }
-    bool loadPub(const std::string& publicKeyFile, RSA::PublicKey& publickey) {
+    string loadPub(const std::string& publicKeyFile, string& plaintext) {
+        Enc encrypt;
+        RSA::PublicKey publickey;
         try {
             ifstream fileopencheck(publicKeyFile, ios::binary);
             if (fileopencheck.is_open()) {
                 FileSource file(publicKeyFile.c_str(), true /*pumpAll*/);
                 publickey.BERDecode(file);
                 cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
+                string encrypted = encrypt.enc(publickey, plaintext);
+                // string base64encoded = ;
+                return encrypt.Base64Encode(encrypted);
             }
             else {
                 cout << fmt::format("Could not open public key at file path '{}'", publicKeyFile) << endl;
+                return "err";
             }
         }
         catch (const Exception& e) {
             std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
-            return false;
+            return "err";
         }
 
-        return true;
+        return "success";
     }
 };
 
