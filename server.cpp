@@ -588,6 +588,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             cout << "CLID: " << clientUsernames[index] << endl;
                             string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             if (publoading.loadPub(pathpub, pubkeyofcl)) {
+                                cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
                                 string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
                                 string encodedPL = encrypt_plaintext.Base64Encode(encryptedExitMsg);
                                 encodedPL = encodedPL + '|';
@@ -600,6 +601,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             cout << "CLID: " << clientUsernames[index] << endl;
                             string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             if (publoading.loadPub(pathpub2, pubkeyofcl)) {
+                                cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
                                 string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
                                 string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
                                 encodedPL2 = encodedPL2 + '|';
