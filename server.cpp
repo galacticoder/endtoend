@@ -587,6 +587,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             string op64 = publoading.loadPub(pathpub, exitMsg);
                             op64 = op64 + '|';
+                            cout << "UPDATED OP64: " << op64 << endl;
                             broadcastMessage(op64, clientSocket);
                         }
 
@@ -595,6 +596,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             string op642 = publoading.loadPub(pathpub2, exitMsg);
                             op642 = op642 + '|';
+                            cout << "UPDATED OP642: " << op642 << endl;
                             broadcastMessage(op642, clientSocket);
                         }
                     }
