@@ -576,6 +576,37 @@ void handleClient(int clientSocket, int serverSocket) {
                     std::cout << "------------" << endl;
                     std::cout << fmt::format("{} has left the chat", userStr) << endl;
                     // erase username
+                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                        updateActiveFile(clientUsernames.size()); //encrypt it using the pub key of user thats supposed to recieve it
+                        LoadKey publoading;
+                        Enc encrypt_plaintext;
+                        RSA::PublicKey pubkeyofcl;
+                        std::string exitMsg = fmt::format("{} has left the chat", userStr);
+
+                        if (clientUsernames[0] == userStr) {
+                            int index = 0 + 1;
+                            cout << "CLID: " << clientUsernames[index] << endl;
+                            string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                            if (publoading.loadPub(pathpub, pubkeyofcl)) {
+                                string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
+                                string encodedPL = encrypt_plaintext.Base64Encode(encryptedExitMsg);
+                                encodedPL = encodedPL + '|';
+                                broadcastMessage(encodedPL, connectedClients[index]);
+                            }
+
+                        }
+                        else if (clientUsernames[1] == userStr) {
+                            int index = 1 - 1;
+                            cout << "CLID: " << clientUsernames[index] << endl;
+                            string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                            if (publoading.loadPub(pathpub2, pubkeyofcl)) {
+                                string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
+                                string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
+                                encodedPL2 = encodedPL2 + '|';
+                                broadcastMessage(encodedPL2, connectedClients[index]);
+                            }
+                        }
+                    }
                     auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
                     if (user != clientUsernames.rend()) {
                         clientUsernames.erase((user + 1).base());
@@ -586,7 +617,6 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 }
 
-                std::string exitMsg = fmt::format("{} has left the chat", userStr);
                 // std::cout << exitMsg << std::endl;
                 std::cout << "------------" << endl;
                 // add if statment if useerrname of user isnt in vector twice
@@ -597,35 +627,6 @@ void handleClient(int clientSocket, int serverSocket) {
                     exit(1);
                 }
 
-                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                    updateActiveFile(clientUsernames.size()); //encrypt it using the pub key of user thats supposed to recieve it
-                    LoadKey publoading;
-                    Enc encrypt_plaintext;
-                    RSA::PublicKey pubkeyofcl;
-                    if (clientUsernames[0] == userStr) {
-                        int index = 0 + 1;
-                        cout << "CLID: " << clientUsernames[index] << endl;
-                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                        if (publoading.loadPub(pathpub, pubkeyofcl)) {
-                            string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
-                            string encodedPL = encrypt_plaintext.Base64Encode(encryptedExitMsg);
-                            encodedPL = encodedPL + '|';
-                            broadcastMessage(encodedPL, connectedClients[index]);
-                        }
-
-                    }
-                    else if (clientUsernames[1] == userStr) {
-                        int index = 1 - 1;
-                        cout << "CLID: " << clientUsernames[index] << endl;
-                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                        if (publoading.loadPub(pathpub2, pubkeyofcl)) {
-                            string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
-                            string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
-                            encodedPL2 = encodedPL2 + '|';
-                            broadcastMessage(encodedPL2, connectedClients[index]);
-                        }
-                    }
-                }
                 else {
                     // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
                     std::cout << "Disconnected client with same username" << endl;
