@@ -586,6 +586,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         if (clientUsernames[0] == userStr) {
                             int index = 0 + 1;
                             cout << "CLID: " << clientUsernames[index] << endl;
+                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl) << endl;
                             string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             if (publoading.loadPub(pathpub, pubkeyofcl)) {
                                 cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
@@ -599,6 +600,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         else if (clientUsernames[1] == userStr) {
                             int index = 1 - 1;
                             cout << "CLID: " << clientUsernames[index] << endl;
+                            cout << "SIZE BEFORE: " << sizeof(pubkeyofcl) << endl;
                             string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                             if (publoading.loadPub(pathpub2, pubkeyofcl)) {
                                 cout << "SIZE: " << sizeof(pubkeyofcl) << endl;
