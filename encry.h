@@ -42,7 +42,7 @@ struct KeysMake {
             publicKey.DEREncode(file);
         }
 
-        cout << "rsa key pair generated" << endl;
+        cout << "Rsa key pair generated" << endl;
     }
 };
 
@@ -55,7 +55,7 @@ struct LoadKey {
             cout << "Loaded RSA Private key successfuly" << endl;
         }
         catch (const Exception& e) {
-            std::cerr << "error loading private rsa key: " << e.what() << std::endl;
+            std::cerr << "Error loading private rsa key: " << e.what() << std::endl;
             return false;
         }
 
@@ -71,11 +71,11 @@ struct LoadKey {
                 cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
             }
             else {
-                cout << fmt::format("could not open file at file path '{}'", publicKeyFile) << endl;
+                cout << fmt::format("Could not open public key at file path '{}'", publicKeyFile) << endl;
             }
         }
         catch (const Exception& e) {
-            std::cerr << fmt::format("error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
+            std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
             return false;
         }
 

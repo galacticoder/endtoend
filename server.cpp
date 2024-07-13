@@ -327,6 +327,7 @@ void handleClient(int clientSocket, int serverSocket) {
         //send the active users txt file to client
         std::vector<uint8_t> activeBuf = usersactive.readFile("usersActive.txt"); //file path is a string to the file path
         std::string ed = usersactive.b64EF(activeBuf);
+        //encrypt the file using the public key of client socket 
         usersactive.sendBase64Data(clientSocket, ed);
 
         std::string joinMsg = fmt::format("{} has joined the chat", userStr);
@@ -563,8 +564,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
             // }
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-            if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0)
-            {
+            if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0) {
                 isConnected = false;
                 {
                     // erase socket
@@ -598,8 +598,31 @@ void handleClient(int clientSocket, int serverSocket) {
                 }
 
                 if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                    updateActiveFile(clientUsernames.size());
-                    broadcastMessage(exitMsg, clientSocket);
+                    updateActiveFile(clientUsernames.size()); //encrypt it using the pub key of user thats supposed to recieve it
+                    LoadKey publoading;
+                    Enc encrypt_plaintext;
+                    RSA::PublicKey pubkeyofcl;
+                    if (clientUsernames[0] == userStr) {
+                        int index = 0 + 1;
+                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                        if (publoading.loadPub(pathpub, pubkeyofcl)) {
+                            string encryptedExitMsg = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
+                            string encodedPL = encrypt_plaintext.Base64Encode(encryptedExitMsg);
+                            encodedPL = encodedPL + '|';
+                            broadcastMessage(encodedPL, connectedClients[index]);
+                        }
+
+                    }
+                    else if (clientUsernames[1] == userStr) {
+                        int index = 1 - 1;
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                        if (publoading.loadPub(pathpub2, pubkeyofcl)) {
+                            string encryptedExitMsg2 = encrypt_plaintext.enc(pubkeyofcl, exitMsg);
+                            string encodedPL2 = encrypt_plaintext.Base64Encode(encryptedExitMsg2);
+                            encodedPL2 = encodedPL2 + '|';
+                            broadcastMessage(encodedPL2, connectedClients[index]);
+                        }
+                    }
                 }
                 else {
                     // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;

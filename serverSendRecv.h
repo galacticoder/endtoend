@@ -18,6 +18,49 @@
 using namespace CryptoPP;
 using namespace std;
 
+
+struct Enc {
+    Enc() = default;
+    string enc(RSA::PublicKey& pubkey, string& plain) {
+        try {
+            AutoSeededRandomPool rng; //using diff rng for better randomness
+            string cipher;
+            RSAES_OAEP_SHA512_Encryptor e(pubkey); //make sure to push rsa.h or you get errors cuz its modified to sha512 instead of sha1 for better security
+            StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher))); //nested for better verification of both key loading
+            return cipher;
+        }
+        catch (const Exception& e) {
+            string pu = "user-keys/pub";
+            string pr = "user-keys/prv";
+            auto pubdel = std::filesystem::directory_iterator(pu);
+            int puddel = 0;
+            for (auto& puddel : pubdel)
+            {
+                if (puddel.is_regular_file())
+                {
+                    std::filesystem::remove(puddel);
+                }
+            }
+            auto prvdel = std::filesystem::directory_iterator(pr);
+            int prvdel2 = 0;
+            for (auto& prvdel2 : prvdel)
+            {
+                if (prvdel2.is_regular_file())
+                {
+                    std::filesystem::remove(prvdel2);
+                }
+            }
+            const string err = "error";
+            return err;
+        }
+    }
+
+    std::string Base64Encode(const std::string& input) {
+        std::string encoded;
+        StringSource(input, true, new Base64Encoder(new StringSink(encoded), false));
+        return encoded;
+    }
+};
 struct Send {
     Send() = default;
     //std::vector<uint8_t> buffer = readFile(filePath); file path is a string to the file path
@@ -138,6 +181,25 @@ struct LoadKey {
         }
         catch (const Exception& e) {
             std::cerr << fmt::format("error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
+            return false;
+        }
+
+        return true;
+    }
+    bool loadPub(const std::string& publicKeyFile, RSA::PublicKey publickey) {
+        try {
+            ifstream fileopencheck(publicKeyFile, ios::binary);
+            if (fileopencheck.is_open()) {
+                FileSource file(publicKeyFile.c_str(), true /*pumpAll*/);
+                publickey.BERDecode(file);
+                cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
+            }
+            else {
+                cout << fmt::format("could not open file at file path '{}'", publicKeyFile) << endl;
+            }
+        }
+        catch (const Exception& e) {
+            std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
             return false;
         }
 

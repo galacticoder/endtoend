@@ -32,6 +32,9 @@
 #include <regex>
 #include <filesystem>
 #include <bits/stdc++.h>
+#include <csignal>
+#include <vector>
+
 
 
 //find a way to send the port file if possible
@@ -40,7 +43,12 @@
 
 //To run: g++ -o client client.cpp -lcryptopp -lfmt
 
+#define formatPath "keys-from-server/"
+#define fpath "your-keys/"
+
 #define GREEN_TEXT "\033[32m" //green text color
+#define erasebeg "\033[2K\r" //erase from beggining
+// #define erasefromc "\033[1J"
 #define RESET_TEXT "\033[0m" //reset color to default
 
 using namespace std;
@@ -48,6 +56,7 @@ using namespace CryptoPP;
 using boost::asio::ip::tcp;
 using namespace filesystem;
 
+vector <int> clsock;
 
 bool isPortOpen(const std::string& address, int port) {
     try {
@@ -61,6 +70,7 @@ bool isPortOpen(const std::string& address, int port) {
         return false;
     }
 }
+
 
 void sendM(string& local, int& PORT, const string msg, const string& userStr, const int clientSocket) {
     bool serverReachable = isPortOpen(local, PORT);
@@ -95,9 +105,9 @@ bool containsOnlyASCII(const std::string& stringS) {
     return true;
 }
 
-static void delIt(const string& formatPath) {
+static void delIt(const string& formatpath) {
     int del1 = 0;
-    auto del2 = std::filesystem::directory_iterator(formatPath);
+    auto del2 = std::filesystem::directory_iterator(formatpath);
     int counter = 0;
     for (auto& del1 : del2) {
         if (del1.is_regular_file()) {
@@ -107,40 +117,30 @@ static void delIt(const string& formatPath) {
     }
 
     if (counter == 0) {
-        cout << fmt::format("There was nothing to delete from path '{}'", formatPath) << endl;
+        cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
     }
     if (counter == 1) {
-        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatPath) << endl;
+        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
     }
     else if (counter > 1) {
-        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatPath) << endl;
+        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
     }
 }
 
-void replySr(const string& reply, int clientSocket) {
-    if (reply == "y") {
-        cout << "starting second. reply is: " << reply << endl;
-        static string filepathSave = "usersentfile.txt";
-        Recieve recvFile;
-        std::string encodedData = recvFile.receiveBase64Data(clientSocket);
-        if (encodedData.length() - 3
-            )
-            cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
-        // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
-        // recvFile.saveFile(filepathSave, decodedData);
-        std::ifstream filetosave(filepathSave);
+void leave(int clientSocket = clsock[0], const string& formatpath = formatPath, const string& fPath = fpath) {
+    close(clientSocket);
+    delIt(formatpath);
+    delIt(fPath);
+    exit(true);
+}
 
-        if (filetosave.is_open()) {
-            filetosave >> encodedData;
-            filetosave.close();
-        }
-        if (is_regular_file(filepathSave)) { //if file exists
-            cout << "You have saved the file username has sent" << endl;
-        }
-        else {
-            cout << "File could not be saved" << endl;
-        }
-    }
+void signalhandle(int signum) {
+    cout << erasebeg;
+    // cout << erasefromc;
+    cout << "You have left the chat" << endl;
+    leave();
+    // cout << "you left" << endl;
+    exit(signum);
 }
 
 void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userstr) {
@@ -148,17 +148,20 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
     while (true) {
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
         if (bytesReceived > 0) {
+            Dec decoding;
+            Dec decrypt;
             buffer[bytesReceived] = '\0';
             string receivedMessage(buffer);
-            // if (typing.load()) {
-            //     std::cout << "\r\033[K" << std::flush; //clear line
-            //     std::cout << "\r\033[K" << "Another user is typing..." << std::flush;
-            // }
-            string reply;
-
             string decodedMessage;
+
+            if (receivedMessage.back() == '|') {
+                decodedMessage = decoding.Base64Decode(receivedMessage);
+                string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                cout << decryptedMessage << endl;
+            }
+
             if (bytesReceived < 500) {
-                if (receivedMessage[0] != '|') {
+                if (receivedMessage.back() != '|') {
                     cout << receivedMessage << endl;
                     continue;
                 }
@@ -178,7 +181,6 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             // cout << "encoded recieved: " << receivedMessage << endl;
             // cout << "cipher recieved: " << cipher << endl;
             // decodedMessage = Base64Decode(receivedMessage);
-            Dec decoding;
             decodedMessage = decoding.Base64Decode(cipher);
             // cout << "decoded Base64" << endl;
             // cout << "base 64 decode: " << decodedMessage << endl;
@@ -188,7 +190,6 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             // }
 
             try {
-                Dec decrypt;
                 string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                 cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
             }
@@ -226,7 +227,7 @@ int readActiveUsers(const string& filepath) {
 }
 
 int main() {//MKA
-    char serverIp[30] = "192.168.0.205"; //if server is being served locally change to your loopback address
+    char serverIp[30] = "192.168.0.205"; //change to the server ip
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -272,10 +273,11 @@ int main() {//MKA
     buffer[bytesReceived] = '\0';
     std::string userStr(buffer);
 
+    clsock.push_back(clientSocket);
     RSA::PrivateKey privateKey;
     RSA::PublicKey publicKey;
-    static const string formatPath = "keys-from-server/";
-    static const string fpath = "your-keys/";
+    static const string formatpath = "keys-from-server/";
+    static const string fPath = "your-keys/";
 
     //check if directories exist if they dont then create them
     if (!exists(formatPath)) {
@@ -298,9 +300,7 @@ int main() {//MKA
     LoadKey keyLoader;
     if (!keyLoader.loadPrv(pr, privateKey) || !keyLoader.loadPub(pu, publicKey)) {
         cout << "Your keys cannot be loaded. Exiting." << endl;
-        close(clientSocket);
-        delIt(formatPath);
-        delIt(fpath);
+        leave(clientSocket);
         exit(1);
     }
 
@@ -361,7 +361,7 @@ int main() {//MKA
         std::string pub(name);
         int indexInt = pub.find_first_of("/") + 1;
         pub = pub.substr(indexInt);
-        pub = pub.insert(0, formatPath, 0, formatPath.length());
+        pub = pub.insert(0, formatpath, 0, formatpath.length());
         // cout << fmt::format("Formatted 1 pub: {}", pub) << endl;
         int firstPipe = pub.find_last_of("/");
         int secondPipe = pub.find_last_of("-");
@@ -438,29 +438,26 @@ int main() {//MKA
         int secondPipe;
         string pubUser;
         if (secKey.length() > 50) {
-            cout << GREEN_TEXT << "CHARS OVER 5000000000000000000" << RESET_TEXT << endl;
+            // cout << GREEN_TEXT << "CHARS OVER 5000000000000000000" << RESET_TEXT << endl;
             static string s2find = ".der";
             int found = secKey.find(".der") + s2find.length();
             if (found != string::npos) {
                 string encodedKey = secKey.substr(found);
                 secKey = secKey.substr(0, found);
-                cout << "new secKey: " << secKey << endl;
-                cout << "encoded key is: " << encodedKey << endl;
+                // cout << "new secKey: " << secKey << endl;
+                // cout << "encoded key is: " << encodedKey << endl;
                 firstPipe = secKey.find_last_of("/");
                 secondPipe = secKey.find_last_of("-");
                 pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
                 std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
-                cout << "decoded key gonna save" << endl;
+                // cout << "decoded key gonna save" << endl;
                 recievePub2.saveFile(secKey, decodedData2);
-                cout << "saved file" << endl;
+                // cout << "saved file" << endl;
             }
             else {
                 cout << "Couldnt format sec key" << endl;
-                close(clientSocket);
-                delIt(formatPath);
-                delIt(fpath);
-                exit(1);
+                leave(clientSocket);
             }
         }
 
@@ -472,7 +469,7 @@ int main() {//MKA
             if (secKey.length() < 50) {
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
                 std::string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
-                cout << "encd2: " << encodedData2 << endl;
+                // cout << "encd2: " << encodedData2 << endl;
                 std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
                 recievePub2.saveFile(secKey, decodedData2);
             }
@@ -540,6 +537,8 @@ int main() {//MKA
     receiver.detach();
 
     string message;
+    signal(SIGINT, signalhandle);
+
     while (true) {
         getline(cin, message); //^<--> none
         //clear input start 
@@ -549,9 +548,7 @@ int main() {//MKA
         //end
         if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat" << endl;
-            close(clientSocket);
-            delIt(formatPath);
-            delIt(fpath);
+            leave(clientSocket);
             break;
         }
         //use t_w first before sending the message
@@ -580,10 +577,7 @@ int main() {//MKA
         bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             std::cout << "Server has been shutdown" << endl; //put in function
-            close(clientSocket);
-            delIt(formatPath);
-            delIt(fpath);
-            exit(true);
+            leave(clientSocket);
         }
         else {
             send(clientSocket, newenc.c_str(), newenc.length(), 0);
