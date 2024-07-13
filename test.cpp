@@ -19,8 +19,10 @@ void fun(string s1, string s2) {
 
 int main()
 {
-    int num = 0;
-    cout << num + 2;
-
+    string userstr = "something";
+    string userstrmsg = "something fkdskjfdjk f djfsjk";
+    if (userstrmsg.substr(0, userstr.length()) == userstr) {
+        cout << "yes" << endl;
+    }
     return 0;
 }

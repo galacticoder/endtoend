@@ -118,12 +118,14 @@ static void delIt(const string& formatPath) {
 }
 
 void replySr(const string& reply, int clientSocket) {
-    if (reply == "y") { //its using this after the encoded encrypt sending
+    if (reply == "y") {
         cout << "starting second. reply is: " << reply << endl;
         static string filepathSave = "usersentfile.txt";
         Recieve recvFile;
         std::string encodedData = recvFile.receiveBase64Data(clientSocket);
-        cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
+        if (encodedData.length() - 3
+            )
+            cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
         // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
         // recvFile.saveFile(filepathSave, decodedData);
         std::ifstream filetosave(filepathSave);
@@ -141,7 +143,7 @@ void replySr(const string& reply, int clientSocket) {
     }
 }
 
-void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
+void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userstr) {
     char buffer[4096];
     while (true) {
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
@@ -153,48 +155,6 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             //     std::cout << "\r\033[K" << "Another user is typing..." << std::flush;
             // }
             string reply;
-            if (receivedMessage[0] == '|') { //were going to treat this as a file accept reply message
-                cout << "attempt recv file" << endl;
-                // const static string receivedMessageFormatted = receivedMessage.substr(1, receivedMessage.length() - 1);
-                // cout << receivedMessageFormatted;
-                if (receivedMessage[0] == '|') {
-                    // cout << "msg is: " << msg << endl;
-                    const static string receivedMessageFormatted = receivedMessage.substr(1, receivedMessage.length() - 1); // +" "
-                    cout << receivedMessageFormatted;
-                    string reply;
-                    getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
-                    // cout << "reply is: " << reply << endl;
-                    send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
-                    cout << "reply.data: " << reply.data() << endl;
-                    cout << "replied with: " << reply << endl;
-                    // replySr(reply, clientSocket);
-                    if (reply == "y") { //its using this after the encoded encrypt sending
-                        cout << "starting second. reply is: " << reply << endl;
-                        static string filepathSave = "usersentfile.txt";
-                        Recieve recvFile;
-                        std::string encodedData = recvFile.receiveBase64Data(clientSocket);
-                        cout << "ENCODED RECIEVED: " << encodedData << endl; //not recieving anything
-                        // std::vector<uint8_t> decodedData = recvFile.base64Decode(encodedData);
-                        // recvFile.saveFile(filepathSave, decodedData);
-                        std::ifstream filetosave(filepathSave);
-
-                        if (filetosave.is_open()) {
-                            filetosave >> encodedData;
-                            filetosave.close();
-                        }
-                        if (is_regular_file(filepathSave)) { //if file exists
-                            cout << "You have saved the file username has sent" << endl;
-                        }
-                        else {
-                            cout << "File could not be saved" << endl;
-                        }
-                    }
-                }
-                // getline(cin, reply); //when you type it doesnt go up and clear the thing so set to normal
-                // // cout << "reply is: " << reply << endl;
-                // send(clientSocket, reply.data(), reply.length(), 0); //sending back the reply
-                // cout << "replied with: " << reply << endl;
-            }
 
             string decodedMessage;
             if (bytesReceived < 500) {
@@ -576,7 +536,7 @@ int main() {//MKA
         }
     }
 
-    thread receiver(receiveMessages, clientSocket, privateKey);
+    thread receiver(receiveMessages, clientSocket, privateKey, userStr);
     receiver.detach();
 
     string message;
@@ -600,21 +560,6 @@ int main() {//MKA
         }
         message = t_w(message);
         // cout << "substringed is: " << message.substr(0, 8 + 1) << endl;
-        if (message.substr(0, 8 + 1) == "/sendfile") { //if this true then encrypt the file before sending it and let the server send it back to the other client
-            if (is_regular_file(message.substr(8 + 2, message.length() - 1))) { //add encryption to the file before sending
-                cout << "Sending file waiting for user to reply" << endl;
-                send(clientSocket, message.c_str(), message.length(), 0); //send the file too
-                Send sendfile;
-                std::vector<uint8_t> buffer = sendfile.readFile(message.substr(8 + 2, message.length() - 1)); //file path is a string to the file path
-                std::string encodedData = sendfile.b64EF(buffer);
-                sendfile.sendBase64Data(clientSocket, encodedData);
-                cout << "ENCODED SENDING FILE: " << encodedData << endl;
-            }
-            else {
-                cout << "This file does not exist cannot send" << endl;
-            }
-        }
-
         // if (message == "quit") {
         //     //delete pub files directory after leaving the chat 
 
@@ -641,36 +586,35 @@ int main() {//MKA
             exit(true);
         }
         else {
-            if (message.substr(0, 8 + 1) != "/sendfile") {
-                send(clientSocket, newenc.c_str(), newenc.length(), 0);
-                auto now = std::chrono::system_clock::now();
-                std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-                std::tm* localTime = std::localtime(&currentTime);
+            send(clientSocket, newenc.c_str(), newenc.length(), 0);
+            auto now = std::chrono::system_clock::now();
+            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+            std::tm* localTime = std::localtime(&currentTime);
 
-                bool isPM = localTime->tm_hour >= 12;
-                string stringFormatTime = asctime(localTime);
+            bool isPM = localTime->tm_hour >= 12;
+            string stringFormatTime = asctime(localTime);
 
-                int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
 
-                stringstream ss;
-                ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-                string formattedTime = ss.str();
+            stringstream ss;
+            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+            string formattedTime = ss.str();
 
-                std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-                std::smatch match;
-                if (regex_search(stringFormatTime, match, time_pattern))
-                {
-                    string str = match.str(0);
-                    size_t pos = stringFormatTime.find(str);
-                    stringFormatTime.replace(pos, str.length(), formattedTime);
-                }
-                // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-                std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
+            std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+            std::smatch match;
+            if (regex_search(stringFormatTime, match, time_pattern))
+            {
+                string str = match.str(0);
+                size_t pos = stringFormatTime.find(str);
+                stringFormatTime.replace(pos, str.length(), formattedTime);
             }
-            // cout << cipherText << endl;
+            // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
+            std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
         }
+        // cout << cipherText << endl;
     }
+}
 
-    close(clientSocket);
-    return 0;
+close(clientSocket);
+return 0;
 }

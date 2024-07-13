@@ -156,42 +156,6 @@ void broadcastMessage(const string& message, int senderSocket = -1)
     }
 }
 
-short int broadcastFile(string& filepath, string& serverpath, const string& username, short int* usersendersocket, int senderSocket = -1) {
-    static short int index;
-    for (int i = 0; i < clientUsernames.size(); i++) {
-        if (clientUsernames[i] == username) {
-            std::cout << "i: " << i << endl;
-            index = i; //append index to str
-            break;
-        }
-    }
-
-    Send sendtoclient;
-    static string fpFormatted = filepath.substr(8 + 2, filepath.length() - 1);
-    static const string message = fmt::format("|{} wants to send you a file named '{}' would you like to recieve it?(y/n): ", username, fpFormatted);
-
-    std::cout << "index is: " << index << endl;
-    if (index == 1) { //this is the second client | then the client socket of index == the same index
-        static const int clSock = connectedClients[index - 1];
-        send(clSock, message.c_str(), message.length(), 0);
-        std::cout << "sent message from client 2 to client 1" << endl;
-        *(usersendersocket) = index;
-        return index - 1;
-
-    }
-    else if (index == 0) { //this is the second client | then the client socket of index == the same index
-        static const int clSockCl1 = connectedClients[index + 1];
-        send(clSockCl1, message.c_str(), message.length(), 0);
-        std::cout << "sent message from client 1 to client 2" << endl;
-        *(usersendersocket) = index; //sender socket stored in here
-        return index + 1;
-    }
-    else {
-        cout << "error" << endl;
-    }
-    return 1;
-}
-
 // void broadcastFile(string& filename, int senderSocket = -1)
 // {
 // {
@@ -659,97 +623,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 // string newenc = benc(newdec);
                 // cout << "mem addr of recieveddata: " << &receivedData << endl;
 
-                static string fpFormatted2 = "";
-                short int senderSockIndex2;
-                static int senderSocket = connectedClients[senderSockIndex2];
-                // short int clSockIndex2 = 0;
-                // short int clSocktosend = connectedClients[clSockIndex2];
-                static string clfile2 = "";
-
-
-                if (cipherText.substr(0, 8 + 1) == "/sendfile") {// /sendfile something.txt //find the last slash plus one
-                    if (!filesystem::exists("server-recieved-files")) { //the user reply is recieved here
-                        createDir("server-recieved-files");
-                    }
-                    Recieve cl;
-
-                    string clfile = cipherText.substr(8 + 2, cipherText.length() - 1);
-                    static string fpFormatted = fmt::format("server-recieved-files/{}", clfile);
-                    fpFormatted2.append(fpFormatted);
-                    clfile2.append(clfile);
-
-                    std::string encodedData = cl.receiveBase64Data(clientSocket);
-                    // std::vector<uint8_t> decodedData = cl.base64Decode(encodedData);
-                    std::ofstream file(fpFormatted);
-
-                    if (file.is_open()) {
-                        file << encodedData;
-                        file.close();
-                        cout << fmt::format("file written to {}", fpFormatted) << endl;
-                    }
-                    // cl.saveFile(fpFormatted, decodedData);
-                    if (is_regular_file(fpFormatted)) {
-                        cout << fpFormatted << " has been opened and sending message" << endl;
-                        short int clsock = broadcastFile(clfile, fpFormatted, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-                        cout << "clsock is: " << clsock << endl;
-                        // cout << "should be saved: " << clSockIndex2 + clSock << endl;
-
-                        // cipherText.clear();
-                        cout << "DONE WITH SEND MESSAGE" << endl;
-                    }
-                    else {
-                        cout << "file does not exist cannot send: " << fpFormatted << endl;
-                    }
-
-                }
-
-                if (cipherText == "y") { //MAKE A PUBLIC KEY FOR SERVER SO NO MESSAGES ARE EVER PLAIN AND IF THE MESSAGE ISNT ABLE TO DECRYP THEN IT ISNT OUR MESSAGE SO RIGHT WHEN USER JOINS THEY SEND THEIR PUB KEY TO SERVER AND THE SERVER SENDS ITS PUB KEY IN CASE THE CLIENT NEEDS TO COMMUNICATE TO SERVER PRIVATELY
-                    cout << "cipher was y" << endl;
-                    std::string file_contents; //encoded base 64
-                    if (is_regular_file(fpFormatted2)) {
-                        // std::vector<uint8_t> fi2 = sendtoclient.readFile(fpFormatted2); //file path is a string to the file path //error when reading the file
-                        cout << "done reading file to send" << endl;
-                        std::ifstream filetosend(fpFormatted2);
-                        std::string str;
-                        while (getline(filetosend, str)) {
-                            file_contents += str;
-                            // file_contents.push_back('\n');
-                        }
-                        // std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                        file_contents.append("|\\|2");
-                    }
-
-                    short int clSockIndex3 = broadcastFile(clfile2, fpFormatted2, userStr, &senderSockIndex2, clientSocket); //basically the index of the username that wants to send the file is the same index in the connectedClients vector
-
-                    for (int i = 0; i < connectedClients.size(); i++) {
-                        if (connectedClients[i] == senderSocket) {
-                            continue;
-                        }
-                        else if (connectedClients[i] != senderSocket)
-                        {
-                            //send file to all clients but the sender
-                            short int clsock = connectedClients[clSockIndex3];
-                            cout << "file to send: " << file_contents << endl;
-                            cout << "clSockIndex3: " << clSockIndex3 << endl;
-                            cout << "sendersock: " << senderSockIndex2 << endl;
-                            sendtoclient.sendBase64Data(senderSocket, file_contents); //send encoded key
-                            // send(clSock2, file_contents.c_str(), file_contents.length(), 0);
-
-                            cout << "file sent to user: " << clientUsernames[senderSockIndex2] << endl;
-                            static const string yes = "User has accepted your file. File has been sent to user";
-                            send(connectedClients[clSockIndex3], yes.c_str(), yes.length(), 0);
-                        }
-                    }
-
-                    //broadcast file func returns the client to send file to socket index and saves the client index thats sending the file in sendersocket
-                }
-                else if (cipherText == "n") {
-                    cout << "cipher was n" << endl;
-                    static const string no = "The user did not accept the file you have sent\n"; //istead of user say the username didnt accept the file you attempted to send
-                    send(senderSocket, no.c_str(), no.length(), 0);
-                }
-
-                else if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
+                if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
                     // cout << "cipher: " << cipherText << endl;;
                     //time
                     auto now = std::chrono::system_clock::now();
