@@ -189,7 +189,31 @@ void updatePort(int PORT) {
     }
 }
 
-string countUsernames(string clientsNamesStr)
+string EncAndB64enc(string& plaintext, const string& userStr, const string& lenOfUser) {
+    LoadKey loadkeyandsend;
+    if (clientUsernames[0] == userStr) {
+        int index = 0 + 1;
+        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, plaintext);
+        cout << "UPDATED OP64: " << op64 << endl;
+        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
+            send(connectedClients[index], op64.c_str(), op64.length(), 0);
+        }
+    }
+
+    else if (clientUsernames[1] == userStr) {
+        int index2 = 1 - 1;
+        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, plaintext);
+        cout << "UPDATED OP642: " << op642 << endl;
+        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+            send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+        }
+    }
+}
+
+string countUsernames(string& clientsNamesStr)
 { // make the func erase the previous string and make it empty to add all users
     clientsNamesStr.clear();
     if (clientsNamesStr.empty())
@@ -406,7 +430,7 @@ void handleClient(int clientSocket, int serverSocket) {
         if (clientUsernames.size() == 2) {
             std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
             //send the file path to save as on client side
-            send(clientSocket, clientSavePathAs.data(), clientSavePathAs.length(), 0); //problem was with length calculations
+            EncAndB64enc(clientSavePathAs, userStr, lenOfUser); //problem was with length calculations
             cout << "sleeping 1 sec" << endl;
             // sleep(1); //dont gotta wait a sec no more
             // sendFile(fir);//this works for the second user only so make it also work for user 1
@@ -437,7 +461,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
-                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0); //problem was with length calculations | fixed
+                EncAndB64enc(client1toSavePathAs, userStr, lenOfUser); //problem was with length calculations | fixed
             }
             cout << "SENDING TO CLIENT 1" << endl;
             sleep(1); //gets connection error if dont sleep for 1s because server not ready yet

@@ -154,11 +154,12 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             string receivedMessage(buffer);
             string decodedMessage;
 
-            if (receivedMessage.find('|') == std::string::npos) { //if not found
+            if (receivedMessage.find('|') == string::npos) { //if not found
                 // cout << "msg from server: " << receivedMessage << endl;
                 decodedMessage = decoding.Base64Decode(receivedMessage);
                 try {
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                    cout << decryptedMessage << endl;
                 }
                 catch (const CryptoPP::Exception& e) {
                     // If decryption fails, it may not be an encrypted message
@@ -168,8 +169,10 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             }
 
             if (bytesReceived < 500) {
-                cout << receivedMessage << endl;
-                continue;
+                if (receivedMessage.find('|') != string::npos) {
+                    cout << receivedMessage << endl;
+                    continue;
+                }
             }
             // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
             // cout << "len is: " << receivedMessage.length() - 1 << endl;
@@ -195,8 +198,10 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             // }
 
             try {
-                string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
+                if (receivedMessage.find('|') != string::npos) {
+                    string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                    cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
+                }
             }
             catch (const CryptoPP::Exception& e) {
                 // If decryption fails, it may not be an encrypted message
@@ -357,6 +362,8 @@ int main() {//MKA
     LoadKey loadp;
     Recieve recievePub;
     Recieve recievePub2;
+    Dec decoding;
+    Dec decrypt;
 
     if (activeInt == 2) {
         // cout << "Users more than 1 executing 1st" << endl;
@@ -364,6 +371,11 @@ int main() {//MKA
         ssize_t bt = recv(clientSocket, name, sizeof(name), 0);
         name[bt] = '\0';
         std::string pub(name);
+        //decode and decrypt
+        string decodedpath = decoding.Base64Decode(pub);
+        pub = decrypt.dec(privateKey, decodedpath);
+
+        //-------
         int indexInt = pub.find_first_of("/") + 1;
         pub = pub.substr(indexInt);
         pub = pub.insert(0, formatpath, 0, formatpath.length());
@@ -428,6 +440,8 @@ int main() {//MKA
         ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
         sec[btSec] = '\0';
         std::string secKey(sec);
+        string decodedpath2 = decoding.Base64Decode(secKey);
+        secKey = decrypt.dec(privateKey, decodedpath2);
         // cout << "ORIGINAL SEC KEY: " << secKey << endl;
 
         // // cout << "seckey bytes: " << sizeof(secKey) << endl;
