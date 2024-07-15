@@ -155,6 +155,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             string decodedMessage;
 
             if (receivedMessage.find('|') == std::string::npos) { //if not found
+                cout << "msg from server: " << receivedMessage << endl;
                 decodedMessage = decoding.Base64Decode(receivedMessage);
                 try {
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
