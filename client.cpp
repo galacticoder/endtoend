@@ -371,13 +371,7 @@ int main() {//MKA
         ssize_t bt = recv(clientSocket, name, sizeof(name), 0);
         name[bt] = '\0';
         std::string pub(name);
-        //decode and decrypt
-        cout << "recv d: " << pub << endl;
-        string decodedpath = decoding.Base64Decode(pub);
-        cout << "dpath: " << decodedpath << endl;
-        pub = decrypt.dec(privateKey, decodedpath);
 
-        //-------
         int indexInt = pub.find_first_of("/") + 1;
         pub = pub.substr(indexInt);
         pub = pub.insert(0, formatpath, 0, formatpath.length());
@@ -442,8 +436,6 @@ int main() {//MKA
         ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
         sec[btSec] = '\0';
         std::string secKey(sec);
-        string decodedpath2 = decoding.Base64Decode(secKey);
-        secKey = decrypt.dec(privateKey, decodedpath2);
         // cout << "ORIGINAL SEC KEY: " << secKey << endl;
 
         // // cout << "seckey bytes: " << sizeof(secKey) << endl;

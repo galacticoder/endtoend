@@ -430,8 +430,7 @@ void handleClient(int clientSocket, int serverSocket) {
         if (clientUsernames.size() == 2) {
             std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
             //send the file path to save as on client side
-            std::thread t1(EncAndB64enc, clientSavePathAs, userStr, lenOfUser);
-            t1.join(); //problem was with length calculations
+            send(clientSocket, clientSavePathAs.data(), clientSavePathAs.length(), 0);
             cout << "sleeping 1 sec" << endl;
             // sleep(1); //dont gotta wait a sec no more
             // sendFile(fir);//this works for the second user only so make it also work for user 1
@@ -462,8 +461,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
-                std::thread t2(EncAndB64enc, client1toSavePathAs, userStr, lenOfUser);
-                t2.join(); //problem was with length calculations | fixed
+                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
             }
             cout << "SENDING TO CLIENT 1" << endl;
             sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
