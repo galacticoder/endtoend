@@ -585,7 +585,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
                     string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
                     cout << "UPDATED OP64: " << op64 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
                         broadcastMessage(op64, clientSocket);
                     }
                 }
@@ -595,7 +595,7 @@ void handleClient(int clientSocket, int serverSocket) {
                     string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
                     string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
                     cout << "UPDATED OP642: " << op642 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
                         // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
                         broadcastMessage(op642, clientSocket);
                     }
