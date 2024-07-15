@@ -34,8 +34,7 @@
 #include <bits/stdc++.h>
 #include <csignal>
 #include <vector>
-
-
+#include <ncurses.h>
 
 //find a way to send the port file if possible
 
@@ -48,7 +47,8 @@
 
 #define GREEN_TEXT "\033[32m" //green text color
 #define erasebeg "\033[2K\r" //erase from beggining
-// #define erasefromc "\033[1J"
+#define left1 "\033[1D" //move the cursor back to the left once
+#define right1 "\033[1C" //move the cursor back to the right once
 #define RESET_TEXT "\033[0m" //reset color to default
 
 using namespace std;
@@ -253,13 +253,13 @@ int main() {//MKA
     serverAddress.sin_addr.s_addr = inet_addr(serverIp);
 
     if (inet_pton(AF_INET, serverIp, &serverAddress.sin_addr) <= 0) {
-        std::cerr << "Invalid address / Address not supported" << std::endl;
+        printw("Invalid address / Address not supported\n");
         return 1;
     }
     // cout << serverIp;
 
     if (connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        std::cout << "Cannot connect to server\n";
+        cout << "Cannot connect to server\n";
         close(clientSocket);
         return 1;
     }
@@ -552,15 +552,24 @@ int main() {//MKA
     string message;
     signal(SIGINT, signalhandle);
 
+    int ch;
+    // while (true) {
+    initscr(); //start ncurses
+    // }./
+    raw(); //no line buffer enabled 
+    keypad(stdscr, TRUE); //enable special key detection like arrow keys and function keys
+
+
     while (true) {
-        getline(cin, message); //^<--> none
+        ch = getch();
+        // getline(cin, message); //^<--> none
         //clear input start 
         std::cout << "\033[A"; //up
         std::cout << "\r"; //delete
         std::cout << "\033[K"; //from start mixed up on line 128
         //end
         if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
-            cout << "You have left the chat" << endl;
+            printw("You have left the chat\n");
             leave(clientSocket);
             break;
         }
@@ -590,6 +599,7 @@ int main() {//MKA
         bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             std::cout << "Server has been shutdown" << endl; //put in function
+            endwin();
             leave(clientSocket);
         }
         else {
@@ -616,11 +626,15 @@ int main() {//MKA
                 stringFormatTime.replace(pos, str.length(), formattedTime);
             }
             // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-            std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
+            // std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
+            printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
         }
         // cout << cipherText << endl;
-    }
 
+        //bathroom break
+
+    }
     close(clientSocket);
+    endwin();
     return 0;
 }

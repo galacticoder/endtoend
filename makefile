@@ -5,7 +5,7 @@ TARGET=server
 SCRIPT_TARGET=client
 SRCS=server.cpp
 SCRIPT_SRCS=client.cpp
-LIBS=-lcryptopp -lfmt
+LIBS=-lcryptopp -lfmt -lncurses
 
 all: $(TARGET) $(SCRIPT_TARGET)
 
