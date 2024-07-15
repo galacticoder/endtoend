@@ -575,40 +575,42 @@ void handleClient(int clientSocket, int serverSocket) {
                     std::cout << "------------" << endl;
                     std::cout << fmt::format("{} has left the chat", userStr) << endl;
 
-                    std::string exitMsg = fmt::format("{} has left the chat", userStr);
-                    LoadKey loadkeyandsend;
-                    if (clientUsernames[0] == userStr) {
-                        int index = 0 + 1;
-                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
-                        cout << "UPDATED OP64: " << op64 << endl;
-                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                            broadcastMessage(op64, clientSocket);
-                        }
-                    }
-
-                    else if (clientUsernames[1] == userStr) {
-                        int index2 = 1 - 1;
-                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
-                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
-                        cout << "UPDATED OP642: " << op642 << endl;
-                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-                            broadcastMessage(op642, clientSocket);
-                        }
-                    }
                     // erase username
-                    auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
-                    if (user != clientUsernames.rend()) {
-                        clientUsernames.erase((user + 1).base());
-                    }
-                    std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
-                    std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
                 }
 
+                std::string exitMsg = fmt::format("{} has left the chat", userStr);
+                LoadKey loadkeyandsend;
+                if (clientUsernames[0] == userStr) {
+                    int index = 0 + 1;
+                    string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                    string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
+                    cout << "UPDATED OP64: " << op64 << endl;
+                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                        broadcastMessage(op64, clientSocket);
+                    }
+                }
+
+                else if (clientUsernames[1] == userStr) {
+                    int index2 = 1 - 1;
+                    string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+                    string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                    cout << "UPDATED OP642: " << op642 << endl;
+                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
+                        // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                        broadcastMessage(op642, clientSocket);
+                    }
+                }
                 // std::cout << exitMsg << std::endl;
                 std::cout << "------------" << endl;
                 // add if statment if useerrname of user isnt in vector twice
+                auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
+                if (user != clientUsernames.rend()) {
+                    clientUsernames.erase((user + 1).base());
+                }
+                updateActiveFile(clientUsernames.size());
+                std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
+                std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
+
                 // string lenOfUser;
                 if (clientUsernames.size() < 1) {
                     close(serverSocket);
@@ -621,7 +623,6 @@ void handleClient(int clientSocket, int serverSocket) {
                     std::cout << "Disconnected client with same username" << endl;
                     close(clientSocket);
                 }
-                updateActiveFile(clientUsernames.size());
                 lenOfUser.clear();
                 // last execution of username exists
             }
