@@ -372,7 +372,9 @@ int main() {//MKA
         name[bt] = '\0';
         std::string pub(name);
         //decode and decrypt
+        cout << "recv d: " << pub << endl;
         string decodedpath = decoding.Base64Decode(pub);
+        cout << "dpath: " << decodedpath << endl;
         pub = decrypt.dec(privateKey, decodedpath);
 
         //-------

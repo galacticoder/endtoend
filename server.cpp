@@ -189,7 +189,7 @@ void updatePort(int PORT) {
     }
 }
 
-void EncAndB64enc(string& plaintext, const string& userStr, const string& lenOfUser) {
+void EncAndB64enc(string plaintext, string userStr, string lenOfUser) {
     LoadKey loadkeyandsend;
     if (clientUsernames[0] == userStr) {
         int index = 0 + 1;
@@ -413,8 +413,8 @@ void handleClient(int clientSocket, int serverSocket) {
 
 
         //file paths
-        static string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
-        static string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
+        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
+        string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
         // string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]); //file path of client 2 pub key | segmentation fault 
         // string client1toSavePathAs;
 
@@ -430,7 +430,8 @@ void handleClient(int clientSocket, int serverSocket) {
         if (clientUsernames.size() == 2) {
             std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
             //send the file path to save as on client side
-            EncAndB64enc(clientSavePathAs, userStr, lenOfUser); //problem was with length calculations
+            std::thread t1(EncAndB64enc, clientSavePathAs, userStr, lenOfUser);
+            t1.join(); //problem was with length calculations
             cout << "sleeping 1 sec" << endl;
             // sleep(1); //dont gotta wait a sec no more
             // sendFile(fir);//this works for the second user only so make it also work for user 1
@@ -461,7 +462,8 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
-                EncAndB64enc(client1toSavePathAs, userStr, lenOfUser); //problem was with length calculations | fixed
+                std::thread t2(EncAndB64enc, client1toSavePathAs, userStr, lenOfUser);
+                t2.join(); //problem was with length calculations | fixed
             }
             cout << "SENDING TO CLIENT 1" << endl;
             sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
