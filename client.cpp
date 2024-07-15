@@ -236,7 +236,7 @@ int readActiveUsers(const string& filepath) {
     return activeInt;
 }
 
-int main() {//MKA
+int main() {
     char serverIp[30] = "192.168.0.205"; //change to the server ip
     ifstream file("PORT.txt");
     string PORTSTR;
@@ -253,7 +253,7 @@ int main() {//MKA
     serverAddress.sin_addr.s_addr = inet_addr(serverIp);
 
     if (inet_pton(AF_INET, serverIp, &serverAddress.sin_addr) <= 0) {
-        printw("Invalid address / Address not supported\n");
+        cout << "Invalid address / Address not supported\n";
         return 1;
     }
     // cout << serverIp;
@@ -599,7 +599,6 @@ int main() {//MKA
         bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             cout << "Server has been shutdown" << endl; //put in function
-            endwin();
             leave(clientSocket);
         }
         else {
@@ -635,6 +634,5 @@ int main() {//MKA
 
     }
     close(clientSocket);
-    endwin();
     return 0;
 }
