@@ -154,19 +154,21 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             string receivedMessage(buffer);
             string decodedMessage;
 
-            if (receivedMessage.back() == '|') { //subst soon
-                receivedMessage = receivedMessage.substr(0, receivedMessage.length() - 1);
-                cout << receivedMessage << endl;
+            if (receivedMessage.find('|') == std::string::npos) { //if not found
                 decodedMessage = decoding.Base64Decode(receivedMessage);
-                string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                cout << decryptedMessage << endl;
+                try {
+                    string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                }
+                catch (const CryptoPP::Exception& e) {
+                    // If decryption fails, it may not be an encrypted message
+                    cout << "Failed to decrypt server message: " << e.what() << endl; //for d
+                    // cout << decodedMessage << endl;
+                }
             }
 
             if (bytesReceived < 500) {
-                if (receivedMessage.back() != '|') {
-                    cout << receivedMessage << endl;
-                    continue;
-                }
+                cout << receivedMessage << endl;
+                continue;
             }
             // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
             // cout << "len is: " << receivedMessage.length() - 1 << endl;

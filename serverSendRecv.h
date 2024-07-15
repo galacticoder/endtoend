@@ -186,7 +186,7 @@ struct LoadKey {
 
         return true;
     }
-    string loadPub(const std::string& publicKeyFile, string& plaintext) {
+    string loadPubAndEncrypt(const std::string& publicKeyFile, string& plaintext) {
         Enc encrypt;
         RSA::PublicKey publickey;
         try {
