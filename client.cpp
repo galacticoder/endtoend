@@ -34,7 +34,7 @@
 #include <bits/stdc++.h>
 #include <csignal>
 #include <vector>
-#include <ncurses.h>
+// #include <ncurses.h>
 
 //find a way to send the port file if possible
 
@@ -58,7 +58,7 @@ using namespace filesystem;
 
 vector <int> clsock;
 
-bool isPortOpen(const std::string& address, int port) {
+bool isPortOpen(const string& address, int port) {
     try {
         boost::asio::io_service io_service;
         tcp::socket socket(io_service);
@@ -66,7 +66,7 @@ bool isPortOpen(const std::string& address, int port) {
         socket.connect(endpoint);
         return true;
     }
-    catch (std::exception& e) {
+    catch (exception& e) {
         return false;
     }
 }
@@ -75,28 +75,28 @@ bool isPortOpen(const std::string& address, int port) {
 void sendM(string& local, int& PORT, const string msg, const string& userStr, const int clientSocket) {
     bool serverReachable = isPortOpen(local, PORT);
     if (serverReachable != true) { //check if server is reachable before attempting to send a message
-        std::cout << "Server has been shutdown" << endl;
+        cout << "Server has been shutdown" << endl;
         close(clientSocket);
         exit(true);
     }
     else {
         send(clientSocket, msg.c_str(), msg.length(), 0);
         // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-        std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, msg) << RESET_TEXT << endl; //print the message you sent without it doubkin g tho
+        cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, msg) << RESET_TEXT << endl; //print the message you sent without it doubkin g tho
     }
 }
 
-std::string t_w(std::string strIp) {
-    strIp.erase(strIp.begin(), std::find_if(strIp.begin(), strIp.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
+string t_w(string strIp) {
+    strIp.erase(strIp.begin(), find_if(strIp.begin(), strIp.end(), [](unsigned char ch) {
+        return !isspace(ch);
         }));
-    strIp.erase(std::find_if(strIp.rbegin(), strIp.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
+    strIp.erase(find_if(strIp.rbegin(), strIp.rend(), [](unsigned char ch) {
+        return !isspace(ch);
         }).base(), strIp.end());
     return strIp;
 }
 
-bool containsOnlyASCII(const std::string& stringS) {
+bool containsOnlyASCII(const string& stringS) {
     for (auto c : stringS) {
         if (static_cast<unsigned char>(c) > 127) {
             return false;
@@ -107,11 +107,11 @@ bool containsOnlyASCII(const std::string& stringS) {
 
 static void delIt(const string& formatpath) {
     int del1 = 0;
-    auto del2 = std::filesystem::directory_iterator(formatpath);
+    auto del2 = filesystem::directory_iterator(formatpath);
     int counter = 0;
     for (auto& del1 : del2) {
         if (del1.is_regular_file()) {
-            std::filesystem::remove(del1);
+            filesystem::remove(del1);
             counter++;
         }
     }
@@ -264,12 +264,12 @@ int main() {//MKA
         return 1;
     }
 
-    std::cout << fmt::format("Found connection to server on port {}", PORT) << endl;
-    std::cout << "Enter a username to go by: ";
+    cout << fmt::format("Found connection to server on port {}", PORT) << endl;
+    cout << "Enter a username to go by: ";
     getline(cin, user);
 
     if (user.empty() || user.length() > 12 || user.length() <= 3) { //set these on top
-        std::cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
+        cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
         close(clientSocket);
         exit(1);
     }
@@ -281,7 +281,7 @@ int main() {//MKA
     char buffer[4096] = { 0 };
     ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
     buffer[bytesReceived] = '\0';
-    std::string userStr(buffer);
+    string userStr(buffer);
 
     clsock.push_back(clientSocket);
     RSA::PrivateKey privateKey;
@@ -316,15 +316,15 @@ int main() {//MKA
 
     Recieve recvActive;
     static const string usersActivePath = "usersActive.txt";
-    std::string encodedData = recvActive.receiveBase64Data(clientSocket);
-    std::vector<uint8_t> decodedData = recvActive.base64Decode(encodedData);
+    string encodedData = recvActive.receiveBase64Data(clientSocket);
+    vector<uint8_t> decodedData = recvActive.base64Decode(encodedData);
     recvActive.saveFile(usersActivePath, decodedData);
 
     // sendFile(pu);
     Send sendtoserver;
     if (is_regular_file(pu)) {
-        std::vector<uint8_t> fi = sendtoserver.readFile(pu); //file path is a string to the file path
-        std::string ed4 = sendtoserver.b64EF(fi);
+        vector<uint8_t> fi = sendtoserver.readFile(pu); //file path is a string to the file path
+        string ed4 = sendtoserver.b64EF(fi);
         cout << fmt::format("Sending public key ({}) to server: {}", pu, ed4) << endl;
         // cout << "Encoded data sending is: " << encodedData << endl;
         sendtoserver.sendBase64Data(clientSocket, ed4); //send encoded key
@@ -370,7 +370,7 @@ int main() {//MKA
         char name[4096] = { 0 };
         ssize_t bt = recv(clientSocket, name, sizeof(name), 0);
         name[bt] = '\0';
-        std::string pub(name);
+        string pub(name);
 
         int indexInt = pub.find_first_of("/") + 1;
         pub = pub.substr(indexInt);
@@ -382,13 +382,13 @@ int main() {//MKA
 
         cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
         // recvServer(pub);
-        std::string ec = recievePub.receiveBase64Data(clientSocket);
-        std::vector<uint8_t> dc = recievePub.base64Decode(ec);
+        string ec = recievePub.receiveBase64Data(clientSocket);
+        vector<uint8_t> dc = recievePub.base64Decode(ec);
         recievePub.saveFile(pub, dc);
 
         //change to recieve 
         // cout << fmt::format("recieved filename: {}", pub) << endl;
-        std::ifstream file(pub, std::ios::binary);
+        ifstream file(pub, ios::binary);
         if (file.is_open()) {
             cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
             file.close();
@@ -425,7 +425,7 @@ int main() {//MKA
     else if (activeInt == 1) {
         cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << endl;
         while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            this_thread::sleep_for(chrono::seconds(2));
             activeInt = readActiveUsers(usersActivePath);
             if (activeInt > 1) {
                 break;
@@ -435,7 +435,7 @@ int main() {//MKA
         char sec[4096] = { 0 };
         ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
         sec[btSec] = '\0';
-        std::string secKey(sec);
+        string secKey(sec);
         // cout << "ORIGINAL SEC KEY: " << secKey << endl;
 
         // // cout << "seckey bytes: " << sizeof(secKey) << endl;
@@ -463,7 +463,7 @@ int main() {//MKA
                 secondPipe = secKey.find_last_of("-");
                 pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
-                std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
+                vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
                 // cout << "decoded key gonna save" << endl;
                 recievePub2.saveFile(secKey, decodedData2);
                 // cout << "saved file" << endl;
@@ -481,9 +481,9 @@ int main() {//MKA
 
             if (secKey.length() < 50) {
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
-                std::string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
+                string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
                 // cout << "encd2: " << encodedData2 << endl;
-                std::vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
+                vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
                 recievePub2.saveFile(secKey, decodedData2);
             }
         }
@@ -503,7 +503,7 @@ int main() {//MKA
         // cout << "stage 2 complete" << endl;
         // cout << "stage 3 complete" << endl;
 
-        // std::ifstream file(secKey, std::ios::binary);
+        // ifstream file(secKey, ios::binary);
         if (is_regular_file(secKey)) {
             cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
             // file.close();
@@ -514,7 +514,7 @@ int main() {//MKA
 
 
         // cout << fmt::format("recieved filename: {}", pub) << endl;
-        // std::ifstream pubkeyrecv(secKey, std::ios::binary);
+        // ifstream pubkeyrecv(secKey, ios::binary);
         // if (pubkeyrecv.is_open()) {
         //     cout << "success" << endl;
         //     pubkeyrecv.close();
@@ -552,24 +552,24 @@ int main() {//MKA
     string message;
     signal(SIGINT, signalhandle);
 
-    int ch;
-    // while (true) {
-    initscr(); //start ncurses
-    // }./
-    raw(); //no line buffer enabled 
-    keypad(stdscr, TRUE); //enable special key detection like arrow keys and function keys
+    // int ch;
+    // // while (true) {
+    // initscr(); //start ncurses
+    // // }./
+    // raw(); //no line buffer enabled 
+    // keypad(stdscr, TRUE); //enable special key detection like arrow keys and function keys
 
 
     while (true) {
-        ch = getch();
-        // getline(cin, message); //^<--> none
+        // ch = getch();
+        getline(cin, message); //^<--> none
         //clear input start 
-        std::cout << "\033[A"; //up
-        std::cout << "\r"; //delete
-        std::cout << "\033[K"; //from start mixed up on line 128
+        cout << "\033[A"; //up
+        cout << "\r"; //delete
+        cout << "\033[K"; //from start mixed up on line 128
         //end
         if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
-            printw("You have left the chat\n");
+            cout << "You have left the chat\n";
             leave(clientSocket);
             break;
         }
@@ -589,7 +589,7 @@ int main() {//MKA
         Enc cipher64;
 
         //CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        std::string cipherText = cipher64.enc(receivedPublicKey, message); //wrong not supposed to encrypt using user pub key only using recipient public key
+        string cipherText = cipher64.enc(receivedPublicKey, message); //wrong not supposed to encrypt using user pub key only using recipient public key
         string newenc = cipher64.Base64Encode(cipherText);
         // cout << "encoded: " << newenc << endl;
         // cout << "encrypted text: \t" << cipherText << endl;
@@ -598,15 +598,15 @@ int main() {//MKA
         //need to send key, iv, and message with a pipe delimeter all at once because of data loss
         bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
-            std::cout << "Server has been shutdown" << endl; //put in function
+            cout << "Server has been shutdown" << endl; //put in function
             endwin();
             leave(clientSocket);
         }
         else {
             send(clientSocket, newenc.c_str(), newenc.length(), 0);
-            auto now = std::chrono::system_clock::now();
-            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-            std::tm* localTime = std::localtime(&currentTime);
+            auto now = chrono::system_clock::now();
+            time_t currentTime = chrono::system_clock::to_time_t(now);
+            tm* localTime = localtime(&currentTime);
 
             bool isPM = localTime->tm_hour >= 12;
             string stringFormatTime = asctime(localTime);
@@ -617,8 +617,8 @@ int main() {//MKA
             ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
             string formattedTime = ss.str();
 
-            std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-            std::smatch match;
+            regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+            smatch match;
             if (regex_search(stringFormatTime, match, time_pattern))
             {
                 string str = match.str(0);
@@ -626,8 +626,8 @@ int main() {//MKA
                 stringFormatTime.replace(pos, str.length(), formattedTime);
             }
             // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-            // std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
-            printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
+            cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
+            // printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
         }
         // cout << cipherText << endl;
 
