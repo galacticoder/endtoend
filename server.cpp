@@ -189,7 +189,7 @@ void updatePort(int PORT) {
     }
 }
 
-string EncAndB64enc(string& plaintext, const string& userStr, const string& lenOfUser) {
+void EncAndB64enc(string& plaintext, const string& userStr, const string& lenOfUser) {
     LoadKey loadkeyandsend;
     if (clientUsernames[0] == userStr) {
         int index = 0 + 1;
