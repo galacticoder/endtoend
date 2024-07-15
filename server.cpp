@@ -583,7 +583,7 @@ void handleClient(int clientSocket, int serverSocket) {
                         string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
                         cout << "UPDATED OP64: " << op64 << endl;
                         if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                            send(connectedClients[index], op64.c_str(), op64.length(), 0);
+                            broadcastMessage(op64, clientSocket);
                         }
                     }
 
@@ -593,7 +593,8 @@ void handleClient(int clientSocket, int serverSocket) {
                         string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
                         cout << "UPDATED OP642: " << op642 << endl;
                         if (lenOfUser.length() == userStr.length() && lenOfUser == userStr) {
-                            send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            broadcastMessage(op642, clientSocket);
                         }
                     }
                     // erase username
