@@ -716,74 +716,77 @@ int main() {
                         break;
                     }
                 }
-            } });
-            t1.join();
-
-            int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-
-            if (serverSocket < 0)
-            {
-                std::cerr << "Error opening server socket" << std::endl;
-                return 1;
             }
+        }
+    );
 
-            sockaddr_in serverAddress;
-            int opt = 1;
+    t1.join();
 
-            if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-                perror("setsockopt");
-                exit(EXIT_FAILURE);
-            }
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
-            serverAddress.sin_family = AF_INET;
-            serverAddress.sin_port = htons(PORT);
-            serverAddress.sin_addr.s_addr = INADDR_ANY;
+    if (serverSocket < 0)
+    {
+        std::cerr << "Error opening server socket" << std::endl;
+        return 1;
+    }
 
-            if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0)
-            {
-                cout << "Chosen port isn't available. Killing server" << endl;
-                close(serverSocket);
-                exit(true);
-            }
+    sockaddr_in serverAddress;
+    int opt = 1;
 
-            std::ofstream file("PORT.txt");
-            if (file.is_open())
-            {
-                file << PORT;
-                file.close();
-            }
-            else
-            {
-                std::cout << "Warning: cannot write port to file. You may need to configure clients port manually\n";
-            }
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
 
-            listen(serverSocket, 5);
-            std::cout << fmt::format("Server listening on port {}", PORT) << "\n";
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(PORT);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
 
-            while (true)
-            {
-                sockaddr_in clientAddress;
-                socklen_t clientLen = sizeof(clientAddress);
-                int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
+    if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0)
+    {
+        cout << "Chosen port isn't available. Killing server" << endl;
+        close(serverSocket);
+        exit(true);
+    }
 
-                std::thread(handleClient, clientSocket, serverSocket).detach();
-            }
+    std::ofstream file("PORT.txt");
+    if (file.is_open())
+    {
+        file << PORT;
+        file.close();
+    }
+    else
+    {
+        std::cout << "Warning: cannot write port to file. You may need to configure clients port manually\n";
+    }
 
-            //delete all keys from key recieves in server
-            // auto dirIter = std::filesystem::directory_iterator("keys-server");
-            // int fileCount = 0;
+    listen(serverSocket, 5);
+    std::cout << fmt::format("Server listening on port {}", PORT) << "\n";
 
-            // for (auto& entry : dirIter)
-            // {
-            // if (entry.is_regular_file())
-            // {
-            // std::filesystem::remove(entry);
-            // ++fileCount;
-            // }
-            // }
-            // cout << "file count is: " << fileCount << endl;
+    while (true)
+    {
+        sockaddr_in clientAddress;
+        socklen_t clientLen = sizeof(clientAddress);
+        int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
+
+        std::thread(handleClient, clientSocket, serverSocket).detach();
+    }
+
+    //delete all keys from key recieves in server
+    // auto dirIter = std::filesystem::directory_iterator("keys-server");
+    // int fileCount = 0;
+
+    // for (auto& entry : dirIter)
+    // {
+    // if (entry.is_regular_file())
+    // {
+    // std::filesystem::remove(entry);
+    // ++fileCount;
+    // }
+    // }
+    // cout << "file count is: " << fileCount << endl;
 
 
-            close(serverSocket);
-            return 0;
+    close(serverSocket);
+    return 0;
 }

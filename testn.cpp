@@ -1,23 +1,105 @@
+#include <ncurses.h>
+#include <vector>
 #include <iostream>
 #include <string>
-#include <ncurses.h>
+
+using namespace std;
+
+void moveleft() {
+  int x, y;
+  getyx(stdscr, y, x);
+  if (x > 0) {
+    move(y, x - 1);
+  }
+}
+
+void moveright(int& y, int& x) {
+  move(y, x + 1);
+}
+
+void delete_char() {
+  cout << "\b \b";
+}
 
 int main() {
-    std::string input;
-    char ch;
+  initscr();
+  raw();
+  // echo();
+  keypad(stdscr, TRUE);
 
-    std::cout << "Type something (type 'j' to stop): " << std::endl;
+  // int new_rows = 24;
+  // int new_cols = 80;
+  // resizeterm(20, 20);
+  // refresh();
+  vector <char> saved;
+  int ch;
+  int cursor = 0;
+  curs_set(0);
 
-    while (true) {
-        ch = std::cin.get();  // Read a single character
+  // printw("Type something (type 'j' to stop): \n");
 
+  while (true) {
+    ch = getch();
 
-        if (ch == 'j') {
-            exit(1);  // Exit the loop if 'j' is pressed
-        }
-        input += ch;  // Add the character to the input string
+    if (ch == KEY_LEFT) {
+      curs_set(1);
+      moveleft();
+      cursor--;
+    }
+    else if (ch == KEY_RIGHT) {
+      curs_set(1);
+      int x, y;
+      getyx(stdscr, y, x);
+      if (x < saved.size()) {
+        moveright(y, x);
+        cursor++;
+      }
+    }
+    else if (ch == KEY_UP) {
+      continue;
+    }
+    else if (ch == KEY_DOWN) {
+      continue;
     }
 
-    std::cout << "You typed: " << input << std::endl;
-    return 0;
+    else if (ch == KEY_BACKSPACE) {
+      delch();
+      cursor--;
+      saved.erase(saved.begin() + cursor);
+    }
+
+    else if (ch == '\n') {
+      break;
+    }
+
+    else {
+      saved.insert(saved.begin() + cursor, char(ch));
+      cursor++;
+      // wrefresh(stdscr);
+      // printw("\033[A"); //up
+      // printw("\r"); //delete
+      // printw("\033[K"); //from start mixed up on line 128
+      // erase();
+
+      clear();
+      // napms(1);
+
+      printf("\n");
+      for (char i : saved) {
+        printw("%c", i);
+      }
+      int x, y;
+      getyx(stdscr, y, x);
+      move(y, cursor);
+    }
+  }
+
+  endwin();
+  std::cout << "You typed: ";
+  for (char i : saved) {
+    cout << i;
+  }
+  cout << endl;
+
+  return 0;
 }

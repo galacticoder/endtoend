@@ -88,6 +88,9 @@
     "scoped_allocator": "cpp",
     "span": "cpp",
     "syncstream": "cpp",
-    "valarray": "cpp"
-  }
+    "valarray": "cpp",
+    "getch.h": "c",
+    "unistd.h": "c"
+  },
+  "C_Cpp.errorSquiggles": "enabled"
 }

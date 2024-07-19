@@ -1,96 +1,165 @@
-#include <ncurses.h>
 #include <iostream>
-#include <vector>
-#include <fmt/core.h>
-
-#define left1 "\033[1D" //move the cursor back to the left once
+#include <unistd.h>
+#include <termios.h>
+#include <string>
 
 using namespace std;
 
+// Function to move the cursor to a specific position
+void moveTo(int row, int col) {
+    std::cout << "\033[" << row << ";" << col << "H";
+    std::cout.flush();
+}
 
-vector <char> buffer;
+// Function to move the cursor up n lines
+void moveUp(int n) {
+    std::cout << "\033[" << n << "A";
+    std::cout.flush();
+}
 
-int main()
-{
+// Function to move the cursor down n lines
+void moveDown(int n) {
+    std::cout << "\033[" << n << "B";
+    std::cout.flush();
+}
 
-    int ch;
+// Function to move the cursor right n columns
+void moveRight(int n) {
+    std::cout << "\033[" << n << "C";
+    std::cout.flush();
+}
 
-    initscr();			/* Start curses mode 		*/
-    raw();				/* Line buffering disabled	*/
-    keypad(stdscr, TRUE);		/* We get F1, F2 etc..		*/
-    string message = "";
-    // noecho();			/* Don't echo() while we do getch */
+// Function to move the cursor left n columns
+void moveLeft(int n) {
+    std::cout << "\033[" << n << "D";
 
-    // printw("Type any character to see it in bold\n");
-    while (true) {
-        ch = getch();
+    std::cout.flush();
+}
 
-        if (ch == 'q') {
-            break;
-        }			/* If raw() hadn't been called
-                         * we have to press enter before it
-                         * gets to the program 		*/
-        if (ch == KEY_F(1))		/* Without keypad enabled this will */
-            printw("F1 Key pressed");/*  not get to us either	*/
-        /* Without noecho() some ugly escape
-         * charachters might have been printed
-         * on screen			*/
-        int y, x;
+char getch() {
+    char buf = 0;
+    struct termios old = { 0 };
+    if (tcgetattr(0, &old) < 0)
+        perror("tcsetattr()");
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+    if (tcsetattr(0, TCSANOW, &old) < 0)
+        perror("tcsetattr ICANON");
+    if (read(0, &buf, 1) < 0)
+        perror("read()");
+    old.c_lflag |= ECHO;
+    if (tcsetattr(0, TCSADRAIN, &old) < 0)
+        perror("tcsetattr ~ICANON");
+    return buf;
+}
 
-        getyx(stdscr, y, x); //get screen cursor postion
-        if (ch == KEY_LEFT) {
-            if (x > 0) {
-                move(y, x - 1);
-            }
-            // refresh();
-            // printw("\033[1D");
-            // cout << left1;
-            refresh();
+std::string get_sequence() {
+    std::string seq;
+    char c = getch();
+    if (c == '\033') { // if the first character is an escape character
+        seq += c;
+        c = getch();
+        if (c == '[') {
+            seq += c;
+            c = getch();
+            seq += c;
+            cout << seq;
         }
-
-        else if (ch == KEY_RIGHT) {//bathroom break
-            int max_x, max_y;
-
-            getmaxyx(stdscr, max_y, max_x);
-            if (x < buffer.size()) {
-                move(y, x + 1);
-            }
-            refresh();
-        }
-        else if (ch == KEY_BACKSPACE) {
-            int y, x;
-            getyx(stdscr, y, x); //get screen cursor postion
-            delch();
-        }
-        // refresh();
-        // printw("\033[1D");
-        // cout << left1;
-
-        if (ch == '\n' || ch == '\r') {
-            break;
-            // cout << "dkd" << endl;
-            // break;
-            // endwin();	/* End curses mode		  */
-            // exit(1);
-        }
-        else
-        {
-            // cout << "key pressed: " << endl;
-            // attron(A_BOLD);
-            buffer.push_back(char(ch));
-            message += char(ch);
-            string some = "fdsdfsufd";
-            // printw("%s: %s %s", some.c_str(), some.c_str(), some.c_str()); //%zu for ssizet %d is int  use %s with .c_str()
-            // cout << char(ch);
-            // cout << ch << endl; //if cout << ch  << endl is called then the code of the key is printed
-            // cout << endl;
-            // attroff(A_BOLD);
-        }
-        // refresh();			/* Print it on to the real screen */
-
     }
-    // getc`h();			/* Wait for user input BEFORE EXITING */
-    endwin();			/* End curses mode		  */
+    else {
+        seq += c;
+    }
+    return seq;
+}
+
+void move_cursor_left(int& cursor_position) {
+    if (cursor_position > 0) {
+        std::cout << "\033[D"; // Move cursor left
+        cursor_position--;
+    }
+}
+
+void move_cursor_right(int& cursor_position, int length) {
+    if (cursor_position < length) {
+        std::cout << "\033[C"; // Move cursor right
+        cursor_position++;
+    }
+}
+
+int main() {
+    std::string user;
+    std::string seq;
+    int cursor_position = 0;
+    char ch;
+
+    // std::cout << "Enter a username to go by: ";
+
+    while (true) {
+        seq = get_sequence();
+        if (seq == "\n") {  // End input on Enter key
+            break;
+        }
+        else if (seq == "\033[A" || seq == "\033[B") {
+            // Ignore up and down arrow keys
+        }
+        else if (seq == "\033[C") {  // Right arrow key
+            // cout << "" << endl;
+            move_cursor_right(cursor_position, user.length());
+        }
+        else if (seq == "\033[D") {  // Left arrow key
+            // cout << "" << endl;
+            move_cursor_left(cursor_position);
+        }
+        else {
+            ch = seq[0];
+            user.insert(user.begin() + cursor_position, ch);
+            // cout << user;
+            cursor_position++;
+            std::cout << "\033[s"; // Save cursor position
+            std::cout << ch;  // Echo character
+            std::cout << "\033[u"; // Restore cursor position
+            std::cout << "\033[K"; // Clear line from cursor to end
+            std::cout << user.substr(cursor_position); // Print the rest of the string
+            std::cout << "\033[u"; // Restore cursor position again
+            std::cout << "\033[C"; // Move cursor one position to the right
+        }
+    }
+
+    std::cout << "\nYou entered: " << user << std::endl;
 
     return 0;
 }
+
+// int main() {
+    // std::cout << "Start" << std::endl;
+    // sleep(1);
+
+    // Move cursor to row 5, column 10
+    // moveTo(5, 10);
+    // std::cout << "Moved to (5, 10)" << std::endl;
+    // sleep(1);
+
+    // Move cursor up 2 lines
+    // moveUp(2);
+    // std::cout << "Moved up 2 lines" << std::endl;
+    // sleep(1);
+
+    // // Move cursor down 3 lines
+    // // moveDown(3);
+    // std::cout << "Moved down 3 lines" << std::endl;
+    // sleep(1);
+
+    // // Move cursor right 5 columns
+    // moveRight(5);
+    // std::cout << "Moved right 5 columns" << std::endl;
+    // sleep(1);
+
+    // // Move cursor left 7 columns
+    // moveLeft(7);
+    // std::cout << "Moved left 7 columns" << std::endl;
+    // sleep(1);
+
+//     return 0;
+// }

@@ -72,6 +72,7 @@ struct LoadKey {
             }
             else {
                 cout << fmt::format("Could not open public key at file path '{}'", publicKeyFile) << endl;
+                exit(1);
             }
         }
         catch (const Exception& e) {

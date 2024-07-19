@@ -16,14 +16,14 @@
 #include <cryptopp/hex.h>
 #include <cryptopp/secblock.h>
 #include <netinet/in.h>
-#include "encry.h"
+#include "headers/encry.h"
 #include <cstdio>
 #include <ctime>
 #include <arpa/inet.h>
 #include <boost/asio.hpp>
 #include <cstdlib>
 #include <termios.h>
-#include "rsa.h"
+#include "headers/rsa.h"
 #include <cryptopp/osrng.h>
 #include <cryptopp/base64.h>
 #include <cryptopp/files.h>
@@ -34,6 +34,7 @@
 #include <bits/stdc++.h>
 #include <csignal>
 #include <vector>
+#include "headers/getch_getline.h" // including my own getline function i made for better user input allows arrow keys and stuff
 // #include <ncurses.h>
 
 //find a way to send the port file if possible
@@ -44,12 +45,13 @@
 
 #define formatPath "keys-from-server/"
 #define fpath "your-keys/"
-
 #define GREEN_TEXT "\033[32m" //green text color
 #define erasebeg "\033[2K\r" //erase from beggining
+#define clearsrc "\033[2J\r" //clears screen and return cursor
 #define left1 "\033[1D" //move the cursor back to the left once
 #define right1 "\033[1C" //move the cursor back to the right once
 #define RESET_TEXT "\033[0m" //reset color to default
+#define xU "\u02DF"
 
 using namespace std;
 using namespace CryptoPP;
@@ -57,6 +59,33 @@ using boost::asio::ip::tcp;
 using namespace filesystem;
 
 vector <int> clsock;
+
+// void set_conio_terminal_mode() { //set to raw mode
+//     struct termios new_termios;
+//     tcgetattr(0, &new_termios);
+//     new_termios.c_lflag &= ~ICANON; // disable line buffering
+//     new_termios.c_lflag &= ~ECHO;   // disable echo
+//     tcsetattr(0, TCSANOW, &new_termios);
+// }
+
+
+// void reset_terminal_mode() { //reset mode
+//     struct termios old_termios;
+//     tcgetattr(0, &old_termios);
+//     old_termios.c_lflag |= ICANON; // enable line buffering
+//     old_termios.c_lflag |= ECHO;   // enable echo
+//     tcsetattr(0, TCSANOW, &old_termios);
+// }
+
+// int get_char() {
+//     int ch;
+//     if (read(0, &ch, 1) < 0) {
+//         return -1;
+//     }
+//     else {
+//         return ch;
+//     }
+// }
 
 bool isPortOpen(const string& address, int port) {
     try {
@@ -105,34 +134,34 @@ bool containsOnlyASCII(const string& stringS) {
     return true;
 }
 
-static void delIt(const string& formatpath) {
-    int del1 = 0;
-    auto del2 = filesystem::directory_iterator(formatpath);
-    int counter = 0;
-    for (auto& del1 : del2) {
-        if (del1.is_regular_file()) {
-            filesystem::remove(del1);
-            counter++;
-        }
-    }
+// static void d/elIt(const string& formatpath) {
+//     int del1 = 0;
+//     auto del2 = filesystem::directory_iterator(formatpath);
+//     int counter = 0;
+//     for (auto& del1 : del2) {
+//         if (del1.is_regular_file()) {
+//             filesystem::remove(del1);
+//             counter++;
+//         }
+//     }
 
-    if (counter == 0) {
-        cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
-    }
-    if (counter == 1) {
-        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
-    }
-    else if (counter > 1) {
-        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
-    }
-}
+//     if (counter == 0) {
+//         cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
+//     }
+//     if (counter == 1) {
+//         cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
+//     }
+//     else if (counter > 1) {
+//         cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
+//     }
+// }
 
-void leave(int clientSocket = clsock[0], const string& formatpath = formatPath, const string& fPath = fpath) {
-    close(clientSocket);
-    delIt(formatpath);
-    delIt(fPath);
-    exit(true);
-}
+// void leave(int clientSocket = clsock[0], const string& formatpath = formatPath, const string& fPath = fpath) {
+//     close(clientSocket);
+//     delIt(formatpath);
+//     delIt(fPath);
+//     exit(true);
+// }1
 
 void signalhandle(int signum) {
     cout << erasebeg;
@@ -170,7 +199,9 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
 
             if (bytesReceived < 500) {
                 if (receivedMessage.find('|') != string::npos) {
+                    disable_conio_mode();
                     cout << receivedMessage << endl;
+                    enable_conio_mode();
                     continue;
                 }
             }
@@ -196,6 +227,8 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             //     cout << receivedMessage << endl;
             //     continue;
             // }
+
+            // cout << "decoded: " << decodedMessage << endl;
 
             try {
                 if (receivedMessage.find('|') != string::npos) {
@@ -237,6 +270,7 @@ int readActiveUsers(const string& filepath) {
 }
 
 int main() {
+    // cout << clearsrc << endl;
     char serverIp[30] = "192.168.0.205"; //change to the server ip
     ifstream file("PORT.txt");
     string PORTSTR;
@@ -265,8 +299,32 @@ int main() {
     }
 
     cout << fmt::format("Found connection to server on port {}", PORT) << endl;
-    cout << "Enter a username to go by: ";
-    getline(cin, user);
+
+    // cout << "\u02F9\t\t\u02FA";
+    for (int i = 0; i < 5;i++) {
+        cout << xU;
+    }
+    ///
+    cout << " Enter a username to go by ";
+    // cout << "\u02FA";
+    for (int i = 0; i < 5;i++) {
+        cout << xU;
+    }
+    cout << endl;
+    //get username input
+    // getline(cin, user);
+    user = getinput_getch(12);
+    // cout << erasebeg;
+    // cout << 
+
+    cout << endl;
+
+    // string* user;
+    // getstr(&string); //append from vector to string and return from function back to string and save it in the string provided in arg
+
+
+
+    //-------------
 
     if (user.empty() || user.length() > 12 || user.length() <= 3) { //set these on top
         cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
@@ -310,7 +368,8 @@ int main() {
     LoadKey keyLoader;
     if (!keyLoader.loadPrv(pr, privateKey) || !keyLoader.loadPub(pu, publicKey)) {
         cout << "Your keys cannot be loaded. Exiting." << endl;
-        leave(clientSocket);
+        close(clientSocket);
+        leave();
         exit(1);
     }
 
@@ -403,10 +462,10 @@ int main() {
         if (loadp.loadPub(pub, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat properly type 'quit' - \n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat properly type 'quit' - \n", userStr, activeInt) << RESET_TEXT;
             }
             else {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
             }
 
             // const string conn = "1";
@@ -470,7 +529,8 @@ int main() {
             }
             else {
                 cout << "Couldnt format sec key" << endl;
-                leave(clientSocket);
+                close(clientSocket);
+                leave();
             }
         }
 
@@ -528,16 +588,16 @@ int main() {
         if (loadp.loadPub(secKey, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat -  To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat -  To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
             }
             else {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", user, activeInt) << RESET_TEXT;
+                //for grammar
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
             }
             // const string conn = "1";
             // send(clientSocket, conn.c_str(), conn.length(), 0);
         }
         else {
-
             cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
             close(clientSocket);
             exit(1);
@@ -555,14 +615,16 @@ int main() {
     // int ch;
     // // while (true) {
     // initscr(); //start ncurses
-    // // }./
+    // // }.//
     // raw(); //no line buffer enabled 
     // keypad(stdscr, TRUE); //enable special key detection like arrow keys and function keys
 
 
     while (true) {
         // ch = getch();
-        getline(cin, message); //^<--> none
+        // getline(cin, message); //<--> none
+        message = getinput_getch(getTermSizeCols());
+        cout << endl;
         //clear input start 
         cout << "\033[A"; //up
         cout << "\r"; //delete
@@ -570,7 +632,8 @@ int main() {
         //end
         if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat\n";
-            leave(clientSocket);
+            close(clientSocket);
+            leave();
             break;
         }
         //use t_w first before sending the message
@@ -599,7 +662,8 @@ int main() {
         bool serverReachable = isPortOpen(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             cout << "Server has been shutdown" << endl; //put in function
-            leave(clientSocket);
+            close(clientSocket);
+            leave();
         }
         else {
             send(clientSocket, newenc.c_str(), newenc.length(), 0);
