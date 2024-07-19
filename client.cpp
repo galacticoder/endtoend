@@ -46,7 +46,7 @@
 #define formatPath "keys-from-server/"
 #define fpath "your-keys/"
 #define GREEN_TEXT "\033[32m" //green text color
-#define erasebeg "\033[2K\r" //erase from beggining
+// #define erasebeg "\033[2K\r" //erase from beggining
 #define clearsrc "\033[2J\r" //clears screen and return cursor
 #define left1 "\033[1D" //move the cursor back to the left once
 #define right1 "\033[1C" //move the cursor back to the right once
@@ -164,7 +164,7 @@ bool containsOnlyASCII(const string& stringS) {
 // }1
 
 void signalhandle(int signum) {
-    cout << erasebeg;
+    cout << eraseLine;
     // cout << erasefromc;
     cout << "You have left the chat" << endl;
     leave();
@@ -314,10 +314,8 @@ int main() {
     //get username input
     // getline(cin, user);
     user = getinput_getch(12);
-    // cout << erasebeg;
-    // cout << 
-
-    cout << endl;
+    cout << eraseLine;
+    cout << "Username: " << boldMode << user << boldModeReset << endl;
 
     // string* user;
     // getstr(&string); //append from vector to string and return from function back to string and save it in the string provided in arg

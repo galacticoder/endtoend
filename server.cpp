@@ -450,7 +450,12 @@ void handleClient(int clientSocket, int serverSocket) {
             cout << "waiting for another client to connect to continue" << endl;
             while (true) {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
-                if (clientUsernames.size() > 1) {
+                if (connectedClients[0] != clientSocket) {
+                    cout << "Client one left. Killing server." << endl;
+                    close(serverSocket);
+                    exit(1);
+                }
+                else if (clientUsernames.size() > 1 && connectedClients[0] == clientSocket) {
                     cout << "Another user connected, proceeding..." << endl;
                     break;
                 }
