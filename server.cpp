@@ -297,6 +297,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 cout << "removed client with the same username socket from vector" << endl;
 
                 close(clientSocket);
+                userStr.clear();
                 // sleep(1);
             }
         }
