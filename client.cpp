@@ -657,7 +657,7 @@ int main() {
         cout << "\r"; //delete
         cout << "\033[K"; //from start mixed up on line 128
         //end
-        if (t_w(message) == "quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
+        if (t_w(message) == "/quit") { //CHECK IF USERS IS EQUAL TO 0 THEN DELETE KEYS // ALSO RECIEVE UPDATED USERSACTIVE TXT FILE WHEN USER QUITS
             cout << "You have left the chat\n";
             close(clientSocket);
             leave();

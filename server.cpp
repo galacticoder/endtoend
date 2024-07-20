@@ -189,29 +189,29 @@ void updatePort(int PORT) {
     }
 }
 
-void EncAndB64enc(string plaintext, string userStr, string lenOfUser) {
-    LoadKey loadkeyandsend;
-    if (clientUsernames[0] == userStr) {
-        int index = 0 + 1;
-        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, plaintext);
-        cout << "UPDATED OP64: " << op64 << endl;
-        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
-            send(connectedClients[index], op64.c_str(), op64.length(), 0);
-        }
-    }
+// void EncAndB64enc(string plaintext, string userStr, string lenOfUser) {
+//     LoadKey loadkeyandsend;
+//     if (clientUsernames[0] == userStr) {
+//         int index = 0 + 1;
+//         string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+//         string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, plaintext);
+//         cout << "UPDATED OP64: " << op64 << endl;
+//         if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
+//             send(connectedClients[index], op64.c_str(), op64.length(), 0);
+//         }
+//     }
 
-    else if (clientUsernames[1] == userStr) {
-        int index2 = 1 - 1;
-        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
-        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, plaintext);
-        cout << "UPDATED OP642: " << op642 << endl;
-        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
-            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-            send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-        }
-    }
-}
+//     else if (clientUsernames[1] == userStr) {
+//         int index2 = 1 - 1;
+//         string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+//         string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, plaintext);
+//         cout << "UPDATED OP642: " << op642 << endl;
+//         if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+//             // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+//             send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+//         }
+//     }
+// }
 
 string countUsernames(string& clientsNamesStr)
 { // make the func erase the previous string and make it empty to add all users
@@ -600,8 +600,7 @@ void handleClient(int clientSocket, int serverSocket) {
         //add join messages somewhere
         //also send the username and time of the message attached to the message by delimeters | done
 
-        while (isConnected)
-        {
+        while (isConnected) {
             //gonna iterate in infinitly
 
             // if (clientUsernames.size() > 1) {
@@ -609,7 +608,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
             // }
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-            if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0) {
+            if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0) { //the quit word is useless because the quit message doesnt get sent to the user
                 isConnected = false;
                 {
                     std::lock_guard<std::mutex> lock(clientsMutex);
@@ -619,7 +618,6 @@ void handleClient(int clientSocket, int serverSocket) {
                     std::cout << fmt::format("User client socket deleted: AFTER: {}", connectedClients.size()) << endl;
                     std::cout << "------------" << endl;
                     std::cout << fmt::format("{} has left the chat", userStr) << endl;
-
                     // erase username
                 }
 
@@ -655,6 +653,14 @@ void handleClient(int clientSocket, int serverSocket) {
                 updateActiveFile(clientUsernames.size());
                 std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
                 std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
+                cout << "Deleting user pubkey" << endl;
+                remove(serverRecv);
+                if (!is_regular_file(serverRecv)) { // if pub file doesnt exist
+                    cout << "client pubkey file has been deleted" << endl;
+                }
+                else if (is_regular_file(serverRecv)) {
+                    cout << "client pub key file could not be deleted" << endl;
+                }
 
                 // string lenOfUser;
                 if (clientUsernames.size() < 1) {
