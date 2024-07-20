@@ -654,11 +654,13 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
                 std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
                 cout << "Deleting user pubkey" << endl;
-                remove(serverRecv);
-                if (!is_regular_file(serverRecv)) { // if pub file doesnt exist
-                    cout << "client pubkey file has been deleted" << endl;
+                string pubfiletodel = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+
+                remove(pubfiletodel);
+                if (!is_regular_file(pubfiletodel)) { // if pub file doesnt exist
+                    cout << fmt::format("client pubkey file ({}) has been deleted", pubfiletodel) << endl;
                 }
-                else if (is_regular_file(serverRecv)) {
+                else if (is_regular_file(pubfiletodel)) {
                     cout << "client pub key file could not be deleted" << endl;
                 }
 
