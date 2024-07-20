@@ -47,7 +47,7 @@ short int getTermSizeCols() {
 void signalhandleGetch(int signum) {
     // cout << "\nYou have left the chat" << endl;
     disable_conio_mode();
-    leave();
+    // leave();
     cout << endl;
     exit(signum);
 }
