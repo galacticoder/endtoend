@@ -287,8 +287,7 @@ void handleClient(int clientSocket, int serverSocket) {
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
     // cout << clientsNamesStr;
     // cout << ")" << endl;
-    if (userStr.find(' '))
-    {
+    if (userStr.find(' ')) {
         for (int i = 0; i < userStr.length(); i++)
         {
             if (userStr[i] == ' ')
@@ -304,9 +303,10 @@ void handleClient(int clientSocket, int serverSocket) {
     if (clientUsernames.size() > 0) {
         for (uint8_t i = 0; i < clientUsernames.size();i++) {
             if (clientUsernames[i] == userStr) {
-                cout << "client with the same username detected. kicking.." << endl;
+                cout << "client with the same username detected. kicking..@" << endl;
                 send(clientSocket, exists.c_str(), exists.length(), 0);
-                close(clientSocket);
+                // sleep(1);
+                // close(clientSocket);
             }
         }
     }

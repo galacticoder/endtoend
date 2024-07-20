@@ -167,6 +167,15 @@ bool containsOnlyASCII(const string& stringS) {
 void signalhandle(int signum) {
     cout << eraseLine;
     // cout << erasefromc;
+    // switch (leavePattern) {
+    // case 0:
+    //     cout << "You have disconnected from the empty chat." << endl;
+    // case 1:
+    //     cout << "You have left the chat" << endl;
+    // default:
+    //     cout << "You have been kicked for having an existing username";
+    // }
+
     leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
     leave();
     // cout << "you left" << endl;
@@ -204,6 +213,15 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
                     cout << receivedMessage << endl;
                     enable_conio_mode();
                     continue;
+                }
+                else if (receivedMessage.back() == '@') {
+                    disable_conio_mode();
+                    cout << receivedMessage << endl;
+                    enable_conio_mode();
+                    close(clientSocket);
+                    leave();
+                    exit(1);
+                    // enable_conio_mode();
                 }
             }
             // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
@@ -272,6 +290,7 @@ int readActiveUsers(const string& filepath) {
 
 int main() {
     // cout << clearsrc << endl;
+    // leavePattern == 
     char serverIp[30] = "192.168.0.205"; //change to the server ip
     ifstream file("PORT.txt");
     string PORTSTR;
@@ -340,7 +359,15 @@ int main() {
     usernameBuffer[bytesReceived] = '\0';
     string userStr(usernameBuffer);
 
+    cout << "\nUserstr is: " << userStr << endl;
+
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
+    if (userStr.back() == '@') {
+        cout << userStr.substr(0, userStr.length() - 1);
+        close(clientSocket);
+        leave();
+        exit(1);
+    }
 
     clsock.push_back(clientSocket);
     RSA::PrivateKey privateKey;
