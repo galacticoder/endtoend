@@ -300,44 +300,53 @@ void handleClient(int clientSocket, int serverSocket) {
     }
 
     const string exists = "\nUsername already exists. You are being kicked.";
-    // set a username length max and detect if user already exists
-    if (clientUsernames.size() != 1 || clientUsernames.size() != 0)
-    {
-        if (clientUsernames.size() > 0)
-        {
-            if (std::find(clientUsernames.begin(), clientUsernames.end(), userStr) != clientUsernames.end())
-            {
-                std::cout << "2 clients of the same username detected" << endl;
-                std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
-                std::cout << "New user entered name that already exists. Kicking..." << endl;
-                send(clientSocket, exists.data(), sizeof(exists), 0);
-                std::lock_guard<std::mutex> lock(clientsMutex);
-                std::cout << "Starting deletion of user socket" << endl;
-                auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-                connectedClients.erase(it, connectedClients.end());
-                std::cout << "Removed client socket from vector" << endl; // probnably getting a segmentation fault because of deletion of client socket before userename making it non accessable
-                // std::lock_guard<std::mutex> lock(clientsMutex);
 
-                // for(int i=clientsNamesStr.length();i<0;i--){
-                // if(clientsNamesStr.find())
-                // }
-
+    if (clientUsernames.size() > 0) {
+        for (uint8_t i = 0; i < clientUsernames.size();i++) {
+            if (clientUsernames[i] == userStr) {
+                cout << "client with the same username detected. kicking.." << endl;
+                send(clientSocket, exists.c_str(), exists.length(), 0);
                 close(clientSocket);
             }
         }
     }
+    // set a username length max and detect if user already exists
+    // if (clientUsernames.size() != 1 || clientUsernames.size() != 0)
+    // {
+    //     if (clientUsernames.size() > 0)
+    //     {
+    //         if (std::find(clientUsernames.begin(), clientUsernames.end(), userStr) != clientUsernames.end())
+    //         {
+    //             std::cout << "2 clients of the same username detected" << endl;
+    //             std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
+    //             std::cout << "New user entered name that already exists. Kicking..." << endl;
+    //             send(clientSocket, exists.data(), sizeof(exists), 0);
+    //             std::lock_guard<std::mutex> lock(clientsMutex);
+    //             std::cout << "Starting deletion of user socket" << endl;
+    //             auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+    //             connectedClients.erase(it, connectedClients.end());
+    //             std::cout << "Removed client socket from vector" << endl; // probnably getting a segmentation fault because of deletion of client socket before userename making it non accessable
+    //             // std::lock_guard<std::mutex> lock(clientsMutex);
+
+    //             // for(int i=clientsNamesStr.length();i<0;i--){
+    //             // if(clientsNamesStr.find())
+    //             // }
+
+    //             close(clientSocket);
+    //         }
+    //     }
+    // }
 
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
     // cout << clientsNamesStr;
     // cout << ")" << endl;
 
-    if (userStr.empty())
-    {
+    if (userStr.empty()) {
         close(clientSocket);
+        cout << "Closed client username empty" << endl;
     }
 
-    else
-    {
+    else {
         clientUsernames.push_back(userStr); //first user index is 0 and the size is going to be 1 right here
         // clientUsernames.push_back(userStr);
         cout << "username added to client vector usernames" << endl;
@@ -453,7 +462,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 if (connectedClients[0] != clientSocket) {
                     cout << "Client one left. Killing server." << endl;
                     close(serverSocket);
-                    exit(1);
+                    exit(1); //not working cuz the client socket is still in the vector when they leave the chat init
                 }
                 else if (clientUsernames.size() > 1 && connectedClients[0] == clientSocket) {
                     cout << "Another user connected, proceeding..." << endl;

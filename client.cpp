@@ -86,6 +86,7 @@ vector <int> clsock;
 //         return ch;
 //     }
 // }
+uint8_t leavePattern;
 
 bool isPortOpen(const string& address, int port) {
     try {
@@ -166,7 +167,7 @@ bool containsOnlyASCII(const string& stringS) {
 void signalhandle(int signum) {
     cout << eraseLine;
     // cout << erasefromc;
-    cout << "You have left the chat" << endl;
+    leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
     leave();
     // cout << "you left" << endl;
     exit(signum);
@@ -334,10 +335,12 @@ int main() {
 
 
     //to recieve new client username if usrname had spaces
-    char buffer[4096] = { 0 };
-    ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-    buffer[bytesReceived] = '\0';
-    string userStr(buffer);
+    char usernameBuffer[200] = { 0 };
+    ssize_t bytesReceived = recv(clientSocket, usernameBuffer, sizeof(usernameBuffer) - 1, 0);
+    usernameBuffer[bytesReceived] = '\0';
+    string userStr(usernameBuffer);
+
+    //check if userstr is equal to the client has the same name exiting message from server then it exits 
 
     clsock.push_back(clientSocket);
     RSA::PrivateKey privateKey;
@@ -368,7 +371,6 @@ int main() {
         cout << "Your keys cannot be loaded. Exiting." << endl;
         close(clientSocket);
         leave();
-        exit(1);
     }
 
     Recieve recvActive;
@@ -404,7 +406,7 @@ int main() {
     else {
         cout << "Could not open the usersActive.txt file to read" << endl;
         close(clientSocket);
-        exit(1);
+        leave();
     }
 
     // int last = (pub.find_last_of("-p")) - 2;
@@ -445,13 +447,13 @@ int main() {
 
         //change to recieve 
         // cout << fmt::format("recieved filename: {}", pub) << endl;
-        ifstream file(pub, ios::binary);
-        if (file.is_open()) {
+        if (is_regular_file(pub)) {
             cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
-            file.close();
         }
         else {
-            cout << "Public key file recieved cannot be opened or does not exist" << endl;
+            cout << "Public key file does not exist. Exiting.." << endl;
+            close(clientSocket);
+            leave();
         }
 
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
@@ -461,9 +463,11 @@ int main() {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
                 cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat properly type 'quit' - \n", userStr, activeInt) << RESET_TEXT;
+                leavePattern = 1;
             }
             else {
                 cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                leavePattern = 1;
             }
 
             // const string conn = "1";
@@ -481,8 +485,11 @@ int main() {
     }
     else if (activeInt == 1) {
         cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << endl;
+        leavePattern = 0;
         while (true) {
             this_thread::sleep_for(chrono::seconds(2));
+            // close(clientSocket);
+            signal(SIGINT, signalhandle);
             activeInt = readActiveUsers(usersActivePath);
             if (activeInt > 1) {
                 break;
@@ -567,7 +574,10 @@ int main() {
             // file.close();
         }
         else {
-            cout << "Public key file does not exist" << endl;
+            cout << fmt::format("{}'s public key file does not exist", pubUser) << endl;
+            close(clientSocket);
+            cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
+            leave();
         }
 
 
@@ -587,10 +597,12 @@ int main() {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
                 cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat -  To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                leavePattern = 1;
             }
             else {
                 //for grammar
                 cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                leavePattern = 1;
             }
             // const string conn = "1";
             // send(clientSocket, conn.c_str(), conn.length(), 0);
