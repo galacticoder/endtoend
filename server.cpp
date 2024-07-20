@@ -285,6 +285,21 @@ void handleClient(int clientSocket, int serverSocket) {
 
     // clientsNamesStr = countUsernames(clientsNamesStr); //something is being added making the vecotr 2
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
+    if (clientUsernames.size() > 0) {
+        for (uint8_t i = 0; i < clientUsernames.size();i++) {
+            if (clientUsernames[i] == userStr) {
+                cout << "client with the same username detected. kicking..@" << endl;
+                send(clientSocket, exists.c_str(), exists.length(), 0);
+
+                auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                connectedClients.erase(it, connectedClients.end());
+                cout << "removed client with the same username socket from vector" << endl;
+
+                close(clientSocket);
+                // sleep(1);
+            }
+        }
+    }
     // cout << clientsNamesStr;
     // cout << ")" << endl;
     if (userStr.find(' ')) {
@@ -300,16 +315,6 @@ void handleClient(int clientSocket, int serverSocket) {
 
     const string exists = "\nUsername already exists. You are being kicked.";
 
-    if (clientUsernames.size() > 0) {
-        for (uint8_t i = 0; i < clientUsernames.size();i++) {
-            if (clientUsernames[i] == userStr) {
-                cout << "client with the same username detected. kicking..@" << endl;
-                send(clientSocket, exists.c_str(), exists.length(), 0);
-                // sleep(1);
-                // close(clientSocket);
-            }
-        }
-    }
     // set a username length max and detect if user already exists
     // if (clientUsernames.size() != 1 || clientUsernames.size() != 0)
     // {

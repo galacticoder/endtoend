@@ -359,7 +359,7 @@ int main() {
     usernameBuffer[bytesReceived] = '\0';
     string userStr(usernameBuffer);
 
-    cout << "\nUserstr is: " << userStr << endl;
+    // cout << "\nUserstr is: " << userStr << endl;
 
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
     if (userStr.back() == '@') {
