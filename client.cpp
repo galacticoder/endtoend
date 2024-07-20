@@ -214,15 +214,6 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
                     enable_conio_mode();
                     continue;
                 }
-                else if (receivedMessage.back() == '@') {
-                    disable_conio_mode();
-                    cout << receivedMessage << endl;
-                    enable_conio_mode();
-                    close(clientSocket);
-                    leave();
-                    exit(1);
-                    // enable_conio_mode();
-                }
             }
             // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
             // cout << "len is: " << receivedMessage.length() - 1 << endl;
@@ -359,8 +350,7 @@ int main() {
     usernameBuffer[bytesReceived] = '\0';
     string userStr(usernameBuffer);
 
-    // cout << "\nUserstr is: " << userStr << endl;
-
+    cout << "\nUserstr is: " << userStr << endl;
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
     if (userStr.back() == '@') {
         cout << userStr.substr(0, userStr.length() - 1);
