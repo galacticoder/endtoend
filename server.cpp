@@ -285,7 +285,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
     // clientsNamesStr = countUsernames(clientsNamesStr); //something is being added making the vecotr 2
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    const string exists = "Username already exists. You are being kicked.@";
+    const string exists = "Username already exists. You are have been kicked.@";
     if (clientUsernames.size() > 0) {
         for (uint8_t i = 0; i < clientUsernames.size();i++) {
             if (clientUsernames[i] == userStr) {
@@ -295,6 +295,7 @@ void handleClient(int clientSocket, int serverSocket) {
                 auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
                 connectedClients.erase(it, connectedClients.end());
                 cout << "removed client with the same username socket from vector" << endl;
+                cout << "connectedClients vector size: " << connectedClients.size() << endl;
 
                 close(clientSocket);
                 userStr.clear();
