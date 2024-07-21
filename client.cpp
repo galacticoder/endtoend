@@ -182,7 +182,7 @@ void signalhandle(int signum) {
     exit(signum);
 }
 
-void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userstr) {
+void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     char buffer[4096];
     while (true) {
         ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
@@ -195,10 +195,16 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
 
             if (receivedMessage.find('|') == string::npos) { //if not found
                 // cout << "msg from server: " << receivedMessage << endl;
+                // disable_conio_mode();
+                // cout << "b is: " << bytesReceived << endl;
+                // enable_conio_mode();
                 decodedMessage = decoding.Base64Decode(receivedMessage);
+
                 try {
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                    disable_conio_mode();
                     cout << decryptedMessage << endl;
+                    enable_conio_mode();
                 }
                 catch (const CryptoPP::Exception& e) {
                     // If decryption fails, it may not be an encrypted message
@@ -208,7 +214,16 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             }
 
             if (bytesReceived < 500) {
-                if (receivedMessage.find('|') != string::npos) {
+                // disable_conio_mode();
+                // cout << "b is a: " << bytesReceived << endl;
+                // enable_conio_mode();
+
+                if (receivedMessage.find('|') != string::npos) { //if '|' not found
+                    // if (receivedMessage.empty()) {
+                    //     disable_conio_mode();
+                    //     cout << "recieved message is empty" << endl;
+                    //     enable_conio_mode();
+                    // }
                     disable_conio_mode();
                     cout << receivedMessage << endl;
                     enable_conio_mode();
@@ -241,9 +256,11 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey, string userst
             // cout << "decoded: " << decodedMessage << endl;
 
             try {
-                if (receivedMessage.find('|') != string::npos) {
+                if (receivedMessage.find('|') != string::npos) { //if found
+                    disable_conio_mode();
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                     cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
+                    enable_conio_mode();
                 }
             }
             catch (const CryptoPP::Exception& e) {
@@ -261,11 +278,13 @@ static bool createDir(const string& dirName)
     {
         if (exists(dirName))
         {
-            cout << fmt::format("The directory ({}) already exists", dirName) << endl;
+            // cout << fmt::format("The directory ({}) already exists", dirName) << endl;
             return true;
         }
-        cout << fmt::format("couldnt make directory: {}", dirName) << endl;
-        return false;
+        else {
+            cout << fmt::format("Couldnt create directory: {}", dirName) << endl;
+            return false;
+        }
     }
     return true;
 }
@@ -352,7 +371,15 @@ int main() {
 
     // cout << "\nUserstr is: " << userStr << endl;
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
-    if (userStr.back() == '@') {
+    if (userStr.back() == '*') {
+        userStr.pop_back();
+        cout << userStr << endl;
+        close(clientSocket);
+        // leave();
+        exit(1);
+    }
+
+    else if (userStr.back() == '@') {
         cout << userStr.substr(0, userStr.length() - 1) << endl;
         close(clientSocket);
         // leave();
@@ -366,18 +393,8 @@ int main() {
     static const string fPath = "your-keys/";
 
     //check if directories exist if they dont then create them
-    if (!exists(formatPath)) {
-        createDir(formatPath);
-    }
-    // else {
-    //     delIt(formatPath);
-    // }
-    if (!exists(fpath)) {
-        createDir(fpath);
-    }
-    // else {
-    //     delIt(fpath);
-    // }
+    createDir(fpath);
+    createDir(formatPath);
 
     static string pu = fmt::format("{}{}-pubkey.der", fpath, user);
     static string pr = fmt::format("{}{}-privkey.der", fpath, user);
@@ -440,6 +457,7 @@ int main() {
     Recieve recievePub2;
     Dec decoding;
     Dec decrypt;
+    string nameRecv = "";
 
     if (activeInt == 2) {
         // cout << "Users more than 1 executing 1st" << endl;
@@ -455,6 +473,7 @@ int main() {
         int firstPipe = pub.find_last_of("/");
         int secondPipe = pub.find_last_of("-");
         string pubUser = pub.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        nameRecv += pubUser;
 
         cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
         // recvServer(pub);
@@ -479,11 +498,11 @@ int main() {
         if (loadp.loadPub(pub, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat properly type 'quit' - \n", userStr, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat type '/quit' - \n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
             else {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
 
@@ -553,6 +572,7 @@ int main() {
                 cout << "Couldnt format sec key" << endl;
                 close(clientSocket);
                 leave();
+                // exit(1);
             }
         }
 
@@ -610,15 +630,16 @@ int main() {
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
         // string some = "user-keys/pub/someone-pubkey.der";
         // loadp.loadPub(some, receivedPublicKey);
+        nameRecv += pubUser;
         if (loadp.loadPub(secKey, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat -  To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
             else {
                 //for grammar
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat properly type 'quit' -\n", userStr, activeInt) << RESET_TEXT;
+                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
             // const string conn = "1";
@@ -633,7 +654,7 @@ int main() {
         }
     }
 
-    thread receiver(receiveMessages, clientSocket, privateKey, userStr);
+    thread receiver(receiveMessages, clientSocket, privateKey);
     receiver.detach();
 
     string message;

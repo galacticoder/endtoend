@@ -283,13 +283,32 @@ void handleClient(int clientSocket, int serverSocket) {
     string pubkeyseri = userStr.substr(index + 1);
     userStr = userStr.substr(0, index);
 
+    uint8_t limOfUsers = 2;
+
+    //end = * == user attempted to join the chat past the limit allowed
+    //end = @ == user attempted to join the chat with an already existing username in the chat
+
+    const string limReached = "The limit of users has been reached for this chat. Exiting..*";
+
+    if (clientUsernames.size() == limOfUsers) {
+        send(clientSocket, limReached.c_str(), limReached.length(), 0);
+        cout << fmt::format("client attempted to join past the required limit of users({})", limOfUsers) << endl;
+
+        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+        connectedClients.erase(it, connectedClients.end());
+        cout << "removed client with the same username socket from vector" << endl;
+        cout << "connectedClients vector size: " << connectedClients.size() << endl;
+
+        close(clientSocket);
+    }
+
     // clientsNamesStr = countUsernames(clientsNamesStr); //something is being added making the vecotr 2
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    const string exists = "Username already exists. You are have been kicked.@";
+    const string exists = "Username already exists. You are have been kicked.@"; //detects if username already exists
     if (clientUsernames.size() > 0) {
         for (uint8_t i = 0; i < clientUsernames.size();i++) {
             if (clientUsernames[i] == userStr) {
-                cout << "client with the same username detected. kicking..@" << endl;
+                cout << "client with the same username detected. kicking.." << endl;
                 send(clientSocket, exists.c_str(), exists.length(), 0);
 
                 auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
@@ -357,7 +376,7 @@ void handleClient(int clientSocket, int serverSocket) {
         clientUsernames.push_back(userStr); //first user index is 0 and the size is going to be 1 right here
         // clientUsernames.push_back(userStr);
         cout << "username added to client vector usernames" << endl;
-        cout << connectedClients[0] << endl;
+        // cout << connectedClients[0] << endl;
         //send pub key
         updateActiveFile(clientUsernames.size());
         // userAndClSocket[userStr + to_string(clientUsernames.size() - 1)] = clientSocket; //clientUsernames.size() - 1 should give us the index of the user that just joined the index for user 1 would be 0
