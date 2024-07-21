@@ -296,7 +296,7 @@ void handleClient(int clientSocket, int serverSocket) {
 
         auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
         connectedClients.erase(it, connectedClients.end());
-        cout << "removed client with the same username socket from vector" << endl;
+        cout << "removed client socket of user that attempted to join past limit from vector" << endl;
         cout << "connectedClients vector size: " << connectedClients.size() << endl;
 
         userStr.clear();
