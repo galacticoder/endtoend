@@ -306,8 +306,8 @@ void handleClient(int clientSocket, int serverSocket) {
 
     // clientsNamesStr = countUsernames(clientsNamesStr); //something is being added making the vecotr 2
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    const string exists = "Username already exists. You are have been kicked.@"; //detects if username already exists
-    if (clientUsernames.size() > 0) {
+    else if (clientUsernames.size() > 0 && clientUsernames.size() != limOfUsers) {
+        const string exists = "Username already exists. You are have been kicked.@"; //detects if username already exists
         for (uint8_t i = 0; i < clientUsernames.size();i++) {
             if (clientUsernames[i] == userStr) {
                 cout << "client with the same username detected. kicking.." << endl;
