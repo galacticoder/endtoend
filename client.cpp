@@ -287,6 +287,7 @@ static bool createDir(const string& dirName)
         }
     }
     return true;
+
 }
 
 int readActiveUsers(const string& filepath) {
@@ -343,7 +344,10 @@ int main() {
     cout << endl;
     //get username input
     // getline(cin, user);
-    user = getinput_getch(12);
+
+    user = getinput_getch("/|\\| ", 12); //seperate chars by '|' delimeter
+
+
     cout << eraseLine;
     cout << "Username: " << boldMode << user << boldModeReset << endl;
 
@@ -363,11 +367,12 @@ int main() {
     send(clientSocket, user.c_str(), sizeof(user), 0);
 
 
-    //to recieve new client username if usrname had spaces
+    //to recieve new client username if usrname had spaces or limit or same name
     char usernameBuffer[200] = { 0 };
     ssize_t bytesReceived = recv(clientSocket, usernameBuffer, sizeof(usernameBuffer) - 1, 0);
     usernameBuffer[bytesReceived] = '\0';
     string userStr(usernameBuffer);
+
 
     // cout << "\nUserstr is: " << userStr << endl;
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
@@ -375,14 +380,12 @@ int main() {
         userStr.pop_back();
         cout << userStr << endl;
         close(clientSocket);
-        // leave();
         exit(1);
     }
 
     else if (userStr.back() == '@') {
         cout << userStr.substr(0, userStr.length() - 1) << endl;
         close(clientSocket);
-        // leave();
         exit(1);
     }
 
@@ -495,6 +498,7 @@ int main() {
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
         // string some = "user-keys/pub/someone-pubkey.der";
         // loadp.loadPub(some, receivedPublicKey);
+
         if (loadp.loadPub(pub, receivedPublicKey) == true) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
             if (activeInt > 1) {
@@ -671,7 +675,7 @@ int main() {
     while (true) {
         // ch = getch();
         // getline(cin, message); //<--> none
-        message = getinput_getch(getTermSizeCols());
+        message = getinput_getch();
         cout << endl;
         //clear input start 
         cout << "\033[A"; //up

@@ -35,7 +35,16 @@ void signalhandleGetch(int signum) { //for forceful leaving like using ctrl-c
     exit(signum);
 }
 
-string getinput_getch(const int&& limit = getTermSizeCols()) {
+bool findIn(const char& find, const string& In) {
+    for (int i = 0; i < In.length(); i++) {
+        if (In[i] == find) {
+            return true;
+        }
+    }
+    return false;
+}
+
+string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
@@ -148,12 +157,31 @@ string getinput_getch(const int&& limit = getTermSizeCols()) {
                 }
             }
             else {
-                if (c != '[') {
-                    if (message.size() < limit) {
-                        message.insert(message.begin() + cursor_pos, c);
-                        cout << c;
-                        cursor_pos++;
+                // const char delimeter = '|';
+                // vector <char> notAllowed;
+                string notAllowed = "";
+                for (int i = 0; i < unallowed.length(); i += 2) {
+                    notAllowed += unallowed[i];
+                    // continue;
+                }
+                // cout << endl;
+                // cout << "not allowed: " << notAllowed << endl;
+                if (unallowed != " MYGETCHDEFAULT'|/") {
+                    if (findIn(c, notAllowed) == true) {
+                        continue;
                     }
+                    else if (findIn(c, notAllowed) == false) {
+                        if (c != '[') {
+                            if (message.size() < limit) {
+                                message.insert(message.begin() + cursor_pos, c);
+                                cout << c;
+                                cursor_pos++;
+                            }
+                        }
+                    }
+                }
+                else {
+                    continue;
                 }
             }
         }
