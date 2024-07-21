@@ -268,27 +268,6 @@ void updateActiveFile(auto data) {
 }
 
 void handleClient(int clientSocket, int serverSocket) {
-    //end = * == user attempted to join the chat past the limit allowed
-    //end = @ == user attempted to join the chat with an already existing username in the chat
-    const string limReached = "The limit of users has been reached for this chat. Exiting..*";
-    uint8_t limOfUsers = 2;
-
-    if (clientUsernames.size() == limOfUsers) {
-        send(clientSocket, limReached.c_str(), limReached.length(), 0);
-        cout << fmt::format("client attempted to join past the required limit of users({}).. kicking..", limOfUsers) << endl;
-
-        // auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-        // connectedClients.erase(it, connectedClients.end());
-        // cout << "removed client socket of user that attempted to join past limit from vector" << endl;
-        // cout << "connectedClients vector size: " << connectedClients.size() << endl;
-
-
-        // userStr.clear();
-        sleep(1);
-
-        close(clientSocket);
-    }
-
     string clientsNamesStr = "";
     {
         lock_guard<mutex> lock(clientsMutex);
@@ -304,13 +283,30 @@ void handleClient(int clientSocket, int serverSocket) {
     string pubkeyseri = userStr.substr(index + 1);
     userStr = userStr.substr(0, index);
 
+    uint8_t limOfUsers = 3;
 
+    //end = * == user attempted to join the chat past the limit allowed
+    //end = @ == user attempted to join the chat with an already existing username in the chat
 
+    const string limReached = "The limit of users has been reached for this chat. Exiting..*";
 
+    if (clientUsernames.size() == limOfUsers) {
+        send(clientSocket, limReached.c_str(), limReached.length(), 0);
+        cout << fmt::format("client attempted to join past the required limit of users({})", limOfUsers) << endl;
+
+        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+        connectedClients.erase(it, connectedClients.end());
+        cout << "removed client socket of user that attempted to join past limit from vector" << endl;
+        cout << "connectedClients vector size: " << connectedClients.size() << endl;
+
+        userStr.clear();
+
+        close(clientSocket);
+    }
 
     // clientsNamesStr = countUsernames(clientsNamesStr); //something is being added making the vecotr 2
     // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    if (clientUsernames.size() > 0 && clientUsernames.size() != limOfUsers) {
+    else if (clientUsernames.size() > 0 && clientUsernames.size() != limOfUsers) {
         const string exists = "Username already exists. You are have been kicked.@"; //detects if username already exists
         for (uint8_t i = 0; i < clientUsernames.size();i++) {
             if (clientUsernames[i] == userStr) {
@@ -409,12 +405,21 @@ void handleClient(int clientSocket, int serverSocket) {
 
         static string serverRecv;
 
-        if (clientUsernames.size() == 1) {
-            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
-        }
-        else if (clientUsernames.size() > 1) {
-            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-        }
+        string nametosave = "";
+
+        // for (auto& itr : clientUsernames) {
+        //     if (itr == userStr) {
+        //         nametosave += itr;
+        //         break;
+        //     }
+        // }
+
+        serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr); //the name to save the pub key file as should be the username of the user
+        // if (clientUsernames.size() == 1) {
+        // }
+        // else if (clientUsernames.size() > 1) {
+        //     serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+        // }
         // cout << "starting encoded data" << endl;
         // cout << "done encoded data" << endl;
         // cout << "SERVERECV PATH: " << serverRecv << endl;
