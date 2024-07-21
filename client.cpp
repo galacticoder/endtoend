@@ -331,6 +331,19 @@ int main() {
 
     cout << fmt::format("Found connection to server on port {}", PORT) << endl;
 
+    char limitBuf[200] = { 0 };
+    ssize_t bytesBuff = recv(clientSocket, limitBuf, sizeof(limitBuf) - 1, 0);
+    limitBuf[bytesBuff] = '\0';
+    string limitBuffer(limitBuf);
+
+
+    if (limitBuffer.back() == '*') {
+        limitBuffer.pop_back();
+        cout << limitBuffer << endl;
+        close(clientSocket);
+        exit(1);
+    }
+
     // cout << "\u02F9\t\t\u02FA";
     for (int i = 0; i < 5;i++) {
         cout << xU;
@@ -376,14 +389,8 @@ int main() {
 
     // cout << "\nUserstr is: " << userStr << endl;
     //check if userstr is equal to the client has the same name exiting message from server then it exits 
-    if (userStr.back() == '*') {
-        userStr.pop_back();
-        cout << userStr << endl;
-        close(clientSocket);
-        exit(1);
-    }
 
-    else if (userStr.back() == '@') {
+    if (userStr.back() == '@') {
         cout << userStr.substr(0, userStr.length() - 1) << endl;
         close(clientSocket);
         exit(1);
