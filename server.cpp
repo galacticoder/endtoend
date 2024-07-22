@@ -705,15 +705,10 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::cout << "Received data: " << receivedData << std::endl;
                 std::string cipherText = receivedData;
                 //if the third user joined then were gonna send the third users file right here before the cipher text and were gonna check if usersActive.txt has the code the client uses to overwrite it when it recives the key and after sending the key updated the usersactive.txt file to #RD which means dont send the file if usersactive.txt == that
-                string active;
-                int activeInt;
-
-                ifstream opent("headers/usersActive.txt");
-                getline(opent, active);
-                istringstream(active) >> activeInt;
                 // active.clear();
+                // updateActiveFile();
 
-                if (activeInt == 3) {
+                if (clientUsernames.size() == 3) {
                     cout << "Sending user 3's public key" << endl;
                     string clienttoSavePathAs3 = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[2]); //file path client 1 needs to save as
                     cout << fmt::format("sending to user 1: {}", clienttoSavePathAs3) << endl;
