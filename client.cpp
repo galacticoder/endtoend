@@ -607,7 +607,78 @@ int main() {
 
         cout << "Another user connected, starting chat.." << endl;
 
-        if (activeInt == 3) {
+        if (activeInt == 2) {
+            char sec[4096] = { 0 };
+            ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
+            sec[btSec] = '\0';
+            string secKey(sec);
+
+            int firstPipe;
+            int secondPipe;
+            string pubUser;
+            if (secKey.length() > 50) {
+                static string s2find = ".der";
+                int found = secKey.find(".der") + s2find.length();
+                if (found != string::npos) {
+                    string encodedKey = secKey.substr(found);
+                    secKey = secKey.substr(0, found);
+                    firstPipe = secKey.find_last_of("/");
+                    secondPipe = secKey.find_last_of("-");
+                    pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+                    cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
+                    vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
+                    recievePub2.saveFile(secKey, decodedData2);
+                }
+                else {
+                    cout << "Couldnt format sec key" << endl;
+                    close(clientSocket);
+                    leave();
+                }
+            }
+
+            else if (secKey.length() < 50) {
+                firstPipe = secKey.find_last_of("/");
+                secondPipe = secKey.find_last_of("-");
+                pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+
+                if (secKey.length() < 50) {
+                    cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
+                    string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
+                    vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
+                    recievePub2.saveFile(secKey, decodedData2);
+                }
+            }
+            if (is_regular_file(secKey)) {
+                cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
+            }
+            else {
+                cout << fmt::format("{}'s public key file does not exist", pubUser) << endl;
+                close(clientSocket);
+                cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
+                leave();
+            }
+            cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
+
+            nameRecv += pubUser;
+            if (loadp.loadPub(secKey, receivedPublicKey) == true) {
+                cout << fmt::format("{}'s public key loaded", pubUser) << endl;
+                if (activeInt > 1) {
+                    cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
+                    leavePattern = 1;
+                }
+                else {
+                    //for grammar
+                    cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
+                    leavePattern = 1;
+                }
+            }
+            else {
+                cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
+                close(clientSocket);
+                exit(1);
+            }
+        }
+        else if (activeInt == 3) {
             char sec[4096] = { 0 };
             ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
             sec[btSec] = '\0';
@@ -728,77 +799,6 @@ int main() {
                 close(clientSocket);
                 leave();
             }
-        }
-    }
-    else if (activeInt == 2) {
-        char sec[4096] = { 0 };
-        ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
-        sec[btSec] = '\0';
-        string secKey(sec);
-
-        int firstPipe;
-        int secondPipe;
-        string pubUser;
-        if (secKey.length() > 50) {
-            static string s2find = ".der";
-            int found = secKey.find(".der") + s2find.length();
-            if (found != string::npos) {
-                string encodedKey = secKey.substr(found);
-                secKey = secKey.substr(0, found);
-                firstPipe = secKey.find_last_of("/");
-                secondPipe = secKey.find_last_of("-");
-                pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-                cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
-                vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedKey);
-                recievePub2.saveFile(secKey, decodedData2);
-            }
-            else {
-                cout << "Couldnt format sec key" << endl;
-                close(clientSocket);
-                leave();
-            }
-        }
-
-        else if (secKey.length() < 50) {
-            firstPipe = secKey.find_last_of("/");
-            secondPipe = secKey.find_last_of("-");
-            pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-
-            if (secKey.length() < 50) {
-                cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
-                string encodedData2 = recievePub2.receiveBase64Data(clientSocket);
-                vector<uint8_t> decodedData2 = recievePub2.base64Decode(encodedData2);
-                recievePub2.saveFile(secKey, decodedData2);
-            }
-        }
-        if (is_regular_file(secKey)) {
-            cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
-        }
-        else {
-            cout << fmt::format("{}'s public key file does not exist", pubUser) << endl;
-            close(clientSocket);
-            cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
-            leave();
-        }
-        cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
-
-        nameRecv += pubUser;
-        if (loadp.loadPub(secKey, receivedPublicKey) == true) {
-            cout << fmt::format("{}'s public key loaded", pubUser) << endl;
-            if (activeInt > 1) {
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
-                leavePattern = 1;
-            }
-            else {
-                //for grammar
-                cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
-                leavePattern = 1;
-            }
-        }
-        else {
-            cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
-            close(clientSocket);
-            exit(1);
         }
     }
     //-----------------
