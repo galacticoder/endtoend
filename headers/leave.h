@@ -6,11 +6,12 @@
 #include <fmt/core.h>
 #include <filesystem>
 
-#define formatPath "keys-from-server/"
-#define fpath "your-keys/"
 
 using namespace std;
 using namespace filesystem;
+
+string formatPath = "keys-from-server/";
+string fpath = "your-keys/";
 
 void delIt(const string& formatpath) {
     int del1 = 0;

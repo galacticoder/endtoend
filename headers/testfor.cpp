@@ -16,17 +16,13 @@ int readActiveUsers(const string& filepath) {
 }
 
 int main() {
-    while (true) {
-        if (readActiveUsers("usersActive.txt") == 3) {
-            cout << "it was 3" << endl;
-            ofstream rewrite("usersActive.txt");
-            if (rewrite.is_open()) {
-                rewrite << "#RD";
-            }
-            break;
-        }
-        cout << readActiveUsers("usersActive.txt") << endl;
-    }
-    cout << "exiting" << endl;
+    string clientThreePath = "keys/user3-publickeyfromserver.der";
+    int indexInt = clientThreePath.find_first_of("/") + 1;
+    // clientThreePath = clientThreePath.substr(indexInt);
+    // clientThreePath = clientThreePath.insert(0, formatpath, 0, formatpath.length());
+    // int firstPipe = clientThreePath.find_last_of("/");
+    int secondPipe = clientThreePath.find_last_of("-");
+    string pubUser = clientThreePath.substr(indexInt, secondPipe - 5);
+    cout << pubUser << endl;
     return 0;
 }

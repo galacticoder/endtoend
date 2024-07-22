@@ -46,10 +46,11 @@ bool findIn(const char& find, const string& In) {
 }
 
 int readActiveUsers(const string& filepath) {
-    ifstream opent(filepath);
     string active;
-    getline(opent, active);
     int activeInt;
+
+    ifstream opent(filepath);
+    getline(opent, active);
     istringstream(active) >> activeInt;
     return activeInt;
 }
@@ -67,10 +68,10 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
     while (true) {
         signal(SIGINT, signalhandleGetch);
         // cout << endl << readActiveUsers("usersActive.txt") << endl; //reading random num idk what it is fix it
-        // if (readActiveUsers("usersActive.txt") == 3) {
-        //     cout << "its 3" << endl;
-        //     break;
-        // }
+        if (readActiveUsers("usersActive.txt") == 3) { //make a way to detect user amount properly
+            cout << "its 3" << endl;
+            break;
+        }
         // else {
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
