@@ -98,13 +98,22 @@ struct Send {
         return buffer;
     }
 
-    void sendBase64Data(int socket, const std::string& encodedData)
-    {
+    void sendBase64Data(int socket, const std::string& encodedData) {
         ssize_t sentBytes = send(socket, encodedData.c_str(), encodedData.size(), 0);
         if (sentBytes == -1)
         {
             cout << "error sending: " << encodedData << endl;
             throw std::runtime_error("Error sending data");
+        }
+    }
+    void broadcastBase64Data(int clientSocket, const std::string& encodedData, vector <int>& connectedClients) {
+        lock_guard<mutex> lock(clientsMutex);
+        for (int clientSocket : connectedClients)
+        {
+            if (clientSocket != clientSocket)
+            {
+                send(clientSocket, encodedData.c_str(), encodedData.length(), 0);
+            }
         }
     }
 };

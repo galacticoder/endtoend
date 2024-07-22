@@ -704,6 +704,41 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::string receivedData(buffer);
                 std::cout << "Received data: " << receivedData << std::endl;
                 std::string cipherText = receivedData;
+                //if the third user joined then were gonna send the third users file right here before the cipher text and were gonna check if usersActive.txt has the code the client uses to overwrite it when it recives the key and after sending the key updated the usersactive.txt file to #RD which means dont send the file if usersactive.txt == that
+                string active;
+                int activeInt;
+
+                ifstream opent("headers/usersActive.txt");
+                getline(opent, active);
+                istringstream(active) >> activeInt;
+                // active.clear();
+
+                if (activeInt == 3) {
+                    cout << "Sending user 3's public key" << endl;
+                    string clienttoSavePathAs3 = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[2]); //file path client 1 needs to save as
+                    cout << fmt::format("sending to user 1: {}", clienttoSavePathAs3) << endl;
+                    //sending the file name to save as for client side
+                    // send(clientSocket, clienttoSavePathAs3.data(), clienttoSavePathAs3.length(), 0);
+                    broadcastMessage(clienttoSavePathAs3, clientSocket);
+                    // cout << "SENDING TO CLIENT 1" << endl;
+                    sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+                    // sendFile(sec);
+
+                    string sendToClient1_3 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[2]);
+                    std::vector<uint8_t> fi4 = sendtoclient.readFile(sendToClient1_3); //file path is a string to the file path //error when reading the file
+                    std::string encodedDataClient2 = sendtoclient.b64EF(fi4);
+                    sendtoclient.sendBase64Data(clientSocket, encodedDataClient2); //send encoded key
+                    sendtoclient.broadcastBase64Data(clientSocket, encodedDataClient2, connectedClients);
+                    cout << "client 3's public key file has been sent to all users" << endl;
+                    ofstream rewrite("headers/usersActive.txt");
+                    if (rewrite.is_open()) {
+                        rewrite << "#RD";
+                        cout << "usersactive.txt has been rewritten" << endl;
+                    }
+                    else {
+                        cout << "cannot rewrite the usersactive.txt" << endl;
+                    }
+                }
 
                 if (cipherText.back() == '=') {
                     string stringFormatTime = getTime();
