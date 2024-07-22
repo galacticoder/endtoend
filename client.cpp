@@ -501,15 +501,15 @@ int main() {
         name2[bt2] = '\0';
         string pub2(name2);
 
-        int indexInt = pub2.find_first_of("/") + 1;
-        pub2 = pub2.substr(indexInt);
+        int indexInt2 = pub2.find_first_of("/") + 1;
+        pub2 = pub2.substr(indexInt2);
         pub2 = pub2.insert(0, formatpath, 0, formatpath.length());
-        int firstPipe = pub2.find_last_of("/");
-        int secondPipe = pub2.find_last_of("-");
-        string pubUser2 = pub2.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        int firstPipe2 = pub2.find_last_of("/");
+        int secondPipe2 = pub2.find_last_of("-");
+        string pubUser2 = pub2.substr(firstPipe2 + 1, (secondPipe2 - firstPipe2) - 1);
         nameRecv += pubUser2;
 
-        cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
+        cout << fmt::format("Recieving {}'s public key", pubUser2) << endl;
 
         string ec2 = recievePub.receiveBase64Data(clientSocket);
         vector<uint8_t> dc2 = recievePub.base64Decode(ec2);
