@@ -870,8 +870,6 @@ int main() {
         string cipherText = cipher64.enc(receivedPublicKey, message); //wrong not supposed to encrypt using user pub key only using recipient public key //2nd clients key
         string newenc = cipher64.Base64Encode(cipherText); //for 2nd client
 
-        string cipherTextCl1 = cipher64.enc(receivedPublicKey2, message); //wrong not supposed to encrypt using user pub key only using recipient public key // 1st clients key
-        string newenc1 = cipher64.Base64Encode(cipherTextCl1);
         // cout << "encoded: " << newenc << endl;
         // cout << "encrypted text: \t" << cipherText << endl;
         // cout << "ciphertext length on client: " << cipherText.length();
@@ -885,8 +883,10 @@ int main() {
         }
         else {
             if (activeInt > 2) { //implying its 3 because thats the limit of users allowed in one chat room
-                newenc += "client2";
-                newenc1 += "client1"; //clientUsernames[0]// recievdMEssage.back() if == 1
+                string cipherTextCl1 = cipher64.enc(receivedPublicKey2, message); //wrong not supposed to encrypt using user pub key only using recipient public key // 1st clients key
+                string newenc1 = cipher64.Base64Encode(cipherTextCl1);
+                newenc += "2";
+                newenc1 += "1"; //clientUsernames[0]// recievdMEssage.back() if == 1
                 send(clientSocket, newenc.c_str(), newenc.length(), 0);
                 send(clientSocket, newenc1.c_str(), newenc1.length(), 0);
                 string stringFormatTime = getTime();

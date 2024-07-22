@@ -180,8 +180,7 @@ static bool createDir(const string& dirName)
     return true;
 }
 
-void broadcastMessage(const string& message, int senderSocket = -1)
-{
+void broadcastMessage(const string& message, int senderSocket = -1) {
     lock_guard<mutex> lock(clientsMutex);
     for (int clientSocket : connectedClients)
     {
@@ -694,24 +693,23 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::cout << "Received data: " << receivedData << std::endl;
                 std::string cipherText = receivedData;
 
-                if (!cipherText.empty() && cipherText.length() > 30) {
-                    if (cipherText.back() == '1') {
-                        cipherText.pop_back();
-                        string stringFormatTime = getTime();
-                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                        send(connectedClients[0], formattedCipher.c_str(), formattedCipher.length(), 0);
-                    }
-                    else if (cipherText.back() == '2') {
-                        cipherText.pop_back();
-                        string stringFormatTime = getTime();
-                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                        send(connectedClients[1], formattedCipher.c_str(), formattedCipher.length(), 0);
-                    }
-                    else {
-                        string stringFormatTime = getTime();
-                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                        broadcastMessage(formattedCipher, clientSocket);
-                    }
+                if (cipherText.back() == '=') {
+
+                    string stringFormatTime = getTime();
+                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                    broadcastMessage(formattedCipher, clientSocket);
+                }
+                else if (cipherText.back() == '1') {
+                    cipherText.pop_back();
+                    string stringFormatTime = getTime();
+                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                    send(connectedClients[0], formattedCipher.c_str(), formattedCipher.length(), 0);
+                }
+                else if (cipherText.back() == '2') {
+                    cipherText.pop_back();
+                    string stringFormatTime = getTime();
+                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                    send(connectedClients[1], formattedCipher.c_str(), formattedCipher.length(), 0);
                 }
             }
         }
