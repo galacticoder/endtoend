@@ -453,7 +453,24 @@ void handleClient(int clientSocket, int serverSocket) {
                     break;
                 }
             }
-            if (clientUsernames.size() == 3) {
+
+
+            if (clientUsernames.size() == 2) {
+                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
+
+                cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
+                //sending the file name to save as for client side
+                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
+                cout << "SENDING TO CLIENT 1" << endl;
+                sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+                // sendFile(sec);
+                string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+                std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
+                std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+                cout << "file to CLIENT 1 SENT" << endl;
+            }
+            else if (clientUsernames.size() == 3) {
                 string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
@@ -481,23 +498,6 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::vector<uint8_t> fi4 = sendtoclient.readFile(sendToClient1_3); //file path is a string to the file path //error when reading the file
                 std::string encodedDataClient2 = sendtoclient.b64EF(fi4);
                 sendtoclient.sendBase64Data(clientSocket, encodedDataClient2); //send encoded key
-                cout << "file to CLIENT 1 SENT" << endl;
-            }
-
-
-            else if (clientUsernames.size() == 2) {
-                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
-
-                cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
-                //sending the file name to save as for client side
-                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
-                cout << "SENDING TO CLIENT 1" << endl;
-                sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-                // sendFile(sec);
-                string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-                std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
-                std::string encodedDataClient = sendtoclient.b64EF(fi2);
-                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
                 cout << "file to CLIENT 1 SENT" << endl;
             }
         }
