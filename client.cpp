@@ -893,6 +893,7 @@ int main() {
                 cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime);
             }
             else if (activeInt <= 2) {
+                send(clientSocket, newenc.c_str(), newenc.length(), 0);
                 string stringFormatTime = getTime();
                 cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime);
             }

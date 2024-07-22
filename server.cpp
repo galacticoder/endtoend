@@ -711,6 +711,12 @@ void handleClient(int clientSocket, int serverSocket) {
                     string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
                     send(connectedClients[1], formattedCipher.c_str(), formattedCipher.length(), 0);
                 }
+                else if (cipherText.back() == '3') {
+                    cipherText.pop_back();
+                    string stringFormatTime = getTime();
+                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                    send(connectedClients[2], formattedCipher.c_str(), formattedCipher.length(), 0);
+                }
             }
         }
     }
