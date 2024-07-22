@@ -302,6 +302,10 @@ void updateActiveFile(auto data) {
     }
 }
 
+// int listenDisconn() {
+
+// }
+
 void handleClient(int clientSocket, int serverSocket) {
     string clientsNamesStr = "";
     {
@@ -378,6 +382,12 @@ void handleClient(int clientSocket, int serverSocket) {
     }
 
     else {
+        for (auto& itr : connectedClients) {
+            cout << "client: " << connectedClients[itr] << endl;
+        }
+        // thread listenForZero();
+        // listenForZero.detach();
+
         clientUsernames.push_back(userStr); //first user index is 0 and the size is going to be 1 right here
         cout << "username added to client vector usernames" << endl;
         updateActiveFile(clientUsernames.size());
@@ -472,6 +482,7 @@ void handleClient(int clientSocket, int serverSocket) {
             cout << "waiting for another client to connect to continue" << endl;
             while (true) {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
+
                 if (clientUsernames.size() > 1) {
                     cout << "Another user connected, proceeding..." << endl;
                     break;
@@ -626,6 +637,7 @@ void handleClient(int clientSocket, int serverSocket) {
                             send(connectedClients[index + 2], op643.c_str(), op643.length(), 0);
                         }
                     }
+
                     else if (clientUsernames[2] == userStr) {
                         int index2 = 2 - 1;
                         string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
@@ -694,7 +706,6 @@ void handleClient(int clientSocket, int serverSocket) {
                 std::string cipherText = receivedData;
 
                 if (cipherText.back() == '=') {
-
                     string stringFormatTime = getTime();
                     string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
                     broadcastMessage(formattedCipher, clientSocket);

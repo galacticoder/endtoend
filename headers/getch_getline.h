@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "leave.h"
 #include <chrono>
+#include <fstream>
 
 #define eraseLine "\033[2K\r"
 #define boldMode "\033[1m"
@@ -44,14 +45,33 @@ bool findIn(const char& find, const string& In) {
     return false;
 }
 
+int readActiveUsers(const string& filepath) {
+    ifstream opent(filepath);
+    string active;
+    getline(opent, active);
+    int activeInt;
+    istringstream(active) >> activeInt;
+    return activeInt;
+}
+
+
 string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
+
+    //since =he while loop is always running detect if the active users.txt file changes to 3 and if it does then exit the getch input and then thatll run the while loop from the client script and recieve the third users key
+
     while (true) {
         signal(SIGINT, signalhandleGetch);
+        // cout << endl << readActiveUsers("usersActive.txt") << endl; //reading random num idk what it is fix it
+        // if (readActiveUsers("usersActive.txt") == 3) {
+        //     cout << "its 3" << endl;
+        //     break;
+        // }
+        // else {
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
             cout << saveCursor;
@@ -159,14 +179,23 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
             else {
                 // const char delimeter = '|';
                 // vector <char> notAllowed;
-                string notAllowed = "";
-                for (int i = 0; i < unallowed.length(); i += 2) {
-                    notAllowed += unallowed[i];
-                    // continue;
-                }
                 // cout << endl;
                 // cout << "not allowed: " << notAllowed << endl;
-                if (unallowed != " MYGETCHDEFAULT'|/") {
+                if (unallowed == " MYGETCHDEFAULT'|/") {
+                    if (c != '[') {
+                        if (message.size() < limit) {
+                            message.insert(message.begin() + cursor_pos, c);
+                            cout << c;
+                            cursor_pos++;
+                        }
+                    }
+                }
+                else if (unallowed != " MYGETCHDEFAULT'|/") {
+                    string notAllowed = "";
+                    for (int i = 0; i < unallowed.length(); i += 2) {
+                        notAllowed += unallowed[i];
+                        // continue;
+                    }
                     if (findIn(c, notAllowed) == true) {
                         continue;
                     }
@@ -179,9 +208,6 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                             }
                         }
                     }
-                }
-                else {
-                    continue;
                 }
             }
         }
@@ -197,6 +223,7 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
 
     cout << boldModeReset;
     message.clear();
+    // unallowed.clear();
 
     return message_str;
 }

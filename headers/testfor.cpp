@@ -1,25 +1,32 @@
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
 
-int itVec(const string&& username, vector <string>& vec) {
-    int i = 0;
-    for (auto& it : vec) {
-        // cout << it << ' ';
-        i++;
-        if (it == username) {
-            return i - 1;
-        }
-    }
-    return -1;
+int readActiveUsers(const string& filepath) {
+    ifstream opent(filepath);
+    string active;
+    getline(opent, active);
+    int activeInt;
+    istringstream(active) >> activeInt;
+    return activeInt;
 }
 
 int main() {
-    vector <string> some = { "something", "someone" };
-
-    cout << itVec("something", some) << endl; //returns index
-
+    while (true) {
+        if (readActiveUsers("usersActive.txt") == 3) {
+            cout << "it was 3" << endl;
+            ofstream rewrite("usersActive.txt");
+            if (rewrite.is_open()) {
+                rewrite << "#RD";
+            }
+            break;
+        }
+        cout << readActiveUsers("usersActive.txt") << endl;
+    }
+    cout << "exiting" << endl;
     return 0;
 }
