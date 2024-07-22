@@ -107,6 +107,17 @@ bool isPav(int port)
     return available;
 }
 
+int itVec(const string& username, vector <string>& vec) {
+    int i = 0;
+    for (auto& it : vec) {
+        i++;
+        if (it == username) {
+            return i - 1;
+        }
+    }
+    return -1;
+}
+
 static void delIt(const string& formatPath) {
     int del1 = 0;
     auto del2 = std::filesystem::directory_iterator(formatPath);
@@ -337,38 +348,6 @@ void handleClient(int clientSocket, int serverSocket) {
         send(clientSocket, userStr.c_str(), userStr.length(), 0);
     }
 
-
-    // set a username length max and detect if user already exists
-    // if (clientUsernames.size() != 1 || clientUsernames.size() != 0)
-    // {
-    //     if (clientUsernames.size() > 0)
-    //     {
-    //         if (std::find(clientUsernames.begin(), clientUsernames.end(), userStr) != clientUsernames.end())
-    //         {
-    //             std::cout << "2 clients of the same username detected" << endl;
-    //             std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
-    //             std::cout << "New user entered name that already exists. Kicking..." << endl;
-    //             send(clientSocket, exists.data(), sizeof(exists), 0);
-    //             std::lock_guard<std::mutex> lock(clientsMutex);
-    //             std::cout << "Starting deletion of user socket" << endl;
-    //             auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-    //             connectedClients.erase(it, connectedClients.end());
-    //             std::cout << "Removed client socket from vector" << endl; // probnably getting a segmentation fault because of deletion of client socket before userename making it non accessable
-    //             // std::lock_guard<std::mutex> lock(clientsMutex);
-
-    //             // for(int i=clientsNamesStr.length();i<0;i--){
-    //             // if(clientsNamesStr.find())
-    //             // }
-
-    //             close(clientSocket);
-    //         }
-    //     }
-    // }
-
-    // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    // cout << clientsNamesStr;
-    // cout << ")" << endl;
-
     if (userStr.empty()) {
         close(clientSocket);
         cout << "Closed client username empty" << endl;
@@ -376,12 +355,8 @@ void handleClient(int clientSocket, int serverSocket) {
 
     else {
         clientUsernames.push_back(userStr); //first user index is 0 and the size is going to be 1 right here
-        // clientUsernames.push_back(userStr);
         cout << "username added to client vector usernames" << endl;
-        // cout << connectedClients[0] << endl;
-        //send pub key
         updateActiveFile(clientUsernames.size());
-        // userAndClSocket[userStr + to_string(clientUsernames.size() - 1)] = clientSocket; //clientUsernames.size() - 1 should give us the index of the user that just joined the index for user 1 would be 0
         cout << "client SIZE: " << clientUsernames.size() << endl;
 
         Send usersactive;
@@ -403,29 +378,11 @@ void handleClient(int clientSocket, int serverSocket) {
         //recieve the pub key file from the client and save it
         Recieve pubrecvserver;
 
-        static string serverRecv;
+        // static ;
 
-        string nametosave = "";
+        // string nametosave = "";
 
-        // for (auto& itr : clientUsernames) {
-        //     if (itr == userStr) {
-        //         nametosave += itr;
-        //         break;
-        //     }
-        // }
-
-        serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr); //the name to save the pub key file as should be the username of the user
-        // if (clientUsernames.size() == 1) {
-        // }
-        // else if (clientUsernames.size() > 1) {
-        //     serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-        // }
-        // cout << "starting encoded data" << endl;
-        // cout << "done encoded data" << endl;
-        // cout << "SERVERECV PATH: " << serverRecv << endl;
-        // cout << "gonna save file" << endl;
-        // cout << "decoded writing: " << decodedData.data() << endl;
-        // std::ofstream pubcheck(serverRecv, std::ios::binary);
+        string serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr); //the name to save the pub key file as should be the username of the user
         std::string encodedData = pubrecvserver.receiveBase64Data(clientSocket);
         std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
         pubrecvserver.saveFile(serverRecv, decodedData);
@@ -445,97 +402,105 @@ void handleClient(int clientSocket, int serverSocket) {
             send(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length(), 0);
             close(clientSocket);
         }
-        // if (!pubcheck.is_open())
-        // {
-        // throw std::runtime_error("Could not open file to write");
-        // }
-        // else{
-        // cout << "KEY FILE RECIEVED OPENED" << endl;
-        // pubcheck.close();
-        // }
 
         cout << "recv" << endl;
         cout << "Encoded key: " << encodedData << endl;
 
 
-        //file paths
-        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
-        string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
-        // string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]); //file path of client 2 pub key | segmentation fault 
-        // string client1toSavePathAs;
-
-        // string fir = fmt::format("keys-server/{}-pubkeyserver.der", clientUsernames[0]);
-        // string sec = fmt::format("keys-server/{}-pubkeyserver.der", userStr); //change userstr to new user without segmentation fault
-
-        // string firSend = fmt::format("keys-server/{}-pubkeyserverfromser.der", clientUsernames[0]);
-
         //send file name to client
         Send sendtoclient;
+        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); //this path is to send the pub key of client 1 to the client that connects 
+        string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
 
         const string con = fmt::format("\nUsers connected: {}\n", clientUsernames.size());
-        if (clientUsernames.size() == 2) {
-            std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
-            //send the file path to save as on client side
-            send(clientSocket, clientSavePathAs.data(), clientSavePathAs.length(), 0);
-            cout << "sleeping 1 sec" << endl;
-            // sleep(1); //dont gotta wait a sec no more
-            // sendFile(fir);//this works for the second user only so make it also work for user 1
-            std::vector<uint8_t> fi = sendtoclient.readFile(sendToClient2); //file path is a string to the file path
-            std::string encodedData = sendtoclient.b64EF(fi);
-            sendtoclient.sendBase64Data(clientSocket, encodedData); //send encoded key
+        if (clientUsernames.size() > 1) {
+            if (clientUsernames.size() == 3) {
+                string sendToClient3 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+                string clientSavePathAs3 = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]);
+                std::cout << fmt::format("sending {} from user {} to user {}", sendToClient3, clientUsernames[1], userStr) << endl;
+                send(clientSocket, clientSavePathAs3.data(), clientSavePathAs3.length(), 0);
+                std::vector<uint8_t> fi3 = sendtoclient.readFile(sendToClient3); //file path is a string to the file path
+                std::string encodedData3 = sendtoclient.b64EF(fi3);
+                sendtoclient.sendBase64Data(clientSocket, encodedData3); //send encoded key
 
-            // char buf1[8] = { 0 };
-            // ssize_t bt = recv(clientSocket, buf1, sizeof(buf1) - 1, 0);
-            // buf1[bt] = '\0';
-            // std::string ms1(buf1);
-            // cout << "client 2 ms is: " << ms1 << endl;
+                sleep(1);
+                //---------
+
+                string sendToClient4 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]);
+                string clientSavePathAs4 = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
+                std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
+                send(clientSocket, clientSavePathAs4.data(), clientSavePathAs4.length(), 0);
+
+                std::vector<uint8_t> fi4 = sendtoclient.readFile(sendToClient2);
+                std::string encodedData2 = sendtoclient.b64EF(fi4);
+                sendtoclient.sendBase64Data(clientSocket, encodedData2);
+
+            }
+            else if (clientUsernames.size() == 2) {
+                std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
+                send(clientSocket, clientSavePathAs.data(), clientSavePathAs.length(), 0);
+                std::vector<uint8_t> fi = sendtoclient.readFile(sendToClient2); //file path is a string to the file path
+                std::string encodedData = sendtoclient.b64EF(fi);
+                sendtoclient.sendBase64Data(clientSocket, encodedData); //send encoded key
+            }
         }
         else if (clientUsernames.size() == 1) {
-            // send(clientSocket, con.c_str(), con.length(), 0);
-            // send(clientSocket, only.c_str(), only.length(), 0);
             cout << "waiting for another client to connect to continue" << endl;
             while (true) {
                 std::this_thread::sleep_for(std::chrono::seconds(2));
-                if (connectedClients[0] != clientSocket) {
-                    cout << "Client one left. Killing server." << endl;
-                    close(serverSocket);
-                    exit(1); //not working cuz the client socket is still in the vector when they leave the chat init
-                }
-                else if (clientUsernames.size() > 1 && connectedClients[0] == clientSocket) {
+                if (clientUsernames.size() > 1) {
                     cout << "Another user connected, proceeding..." << endl;
                     break;
                 }
             }
-            // string sec = fmt::format("keys-server/{}-pubkeyserver.der", clientUsernames[1]); //change userstr to new user without segmentation fault | fixed //second client sending the pub key to the first client
-            if (clientUsernames.size() == 2) {
+            if (clientUsernames.size() == 3) {
+                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
+                cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
+                //sending the file name to save as for client side
+                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
+                cout << "SENDING TO CLIENT 1" << endl;
+                sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+                // sendFile(sec);
+                string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+                std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
+                std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+                cout << "file to CLIENT 1 SENT" << endl;
+                //-----------------------
+
+
+                string client1toSavePathAs3 = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[2]); //file path client 1 needs to save as
+                cout << fmt::format("sending to user 1: {}", client1toSavePathAs3) << endl;
+                //sending the file name to save as for client side
+                send(clientSocket, client1toSavePathAs3.data(), client1toSavePathAs3.length(), 0);
+                cout << "SENDING TO CLIENT 1" << endl;
+                sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+                // sendFile(sec);
+
+                string sendToClient1_3 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[2]);
+                std::vector<uint8_t> fi4 = sendtoclient.readFile(sendToClient1_3); //file path is a string to the file path //error when reading the file
+                std::string encodedDataClient2 = sendtoclient.b64EF(fi4);
+                sendtoclient.sendBase64Data(clientSocket, encodedDataClient2); //send encoded key
+                cout << "file to CLIENT 1 SENT" << endl;
+            }
+
+
+            else if (clientUsernames.size() == 2) {
                 string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]); //file path client 1 needs to save as
 
                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
                 //sending the file name to save as for client side
                 send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
+                cout << "SENDING TO CLIENT 1" << endl;
+                sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
+                // sendFile(sec);
+                string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+                std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
+                std::string encodedDataClient = sendtoclient.b64EF(fi2);
+                sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
+                cout << "file to CLIENT 1 SENT" << endl;
             }
-            cout << "SENDING TO CLIENT 1" << endl;
-            sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-            // sendFile(sec);
-            string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-            std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); //file path is a string to the file path //error when reading the file
-            std::string encodedDataClient = sendtoclient.b64EF(fi2);
-            sendtoclient.sendBase64Data(clientSocket, encodedDataClient); //send encoded key
-            cout << "file to CLIENT 1 SENT" << endl;
-            // char buf2[8] = { 0 };
-            // ssize_t bt2 = recv(clientSocket, buf2, sizeof(buf2) - 1, 0);
-            // buf2[bt2] = '\0';
-            // std::string ms2(buf2);
-            // cout << "client 1 ms is: " << ms2 << endl;
-            // send(clientSocket, userJoinMsg.data(), userJoinMsg.length(), 0);
-            // broadcastMessage(joinMsg, clientSocket);
         }
-        // send(clientSocket, userJoinMsg.data(), userJoinMsg.length(), 0);
-        // broadcastMessage(joinMsg, clientSocket);
-
-        // string newSecSend = fmt::format("keys-server/{}-pubkeyserver.der", clientUsernames[1]);
-        // //check if port file server was on is still on if so send the file to it
-        // int PORT; 
         std::cout << "for join" << endl;
         for (int i = 0; i < clientUsernames.size(); i++)
         {
@@ -559,84 +524,10 @@ void handleClient(int clientSocket, int serverSocket) {
 
         std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
         std::cout << "------------" << endl;
-        // string portfile = "FILEPORT.TXT";
-        // sleep(1); //actually no need for chrono just use sleep
-        // ifstream fileport(portfile);
-        // if (!fileport.is_open()) {
-        // cerr << "Could not open port file" << endl;
-        // return;
-        // }
-        // string PORTSTR;
-        // getline(fileport, PORTSTR);
-        // istringstream(PORTSTR) >> PORT;
-
-        // cout << "starting check of ports open" << endl;
-        // cout << "original port is " << PORT << endl;
-        // updatePort(PORT + 1); // check a different way
-
-        // cout << "gonna send file " << newSecSend << endl;
-        // cout << "checking port " << PORT << endl;
-        // // cout << fmt::format("pOPEN 1: {}", pOpen) << endl;
-        // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-        // if (sendFile(newSecSend) == false) {
-        // updatePort(PORT - 1); // check a different
-        // int newp = showfp();
-        // cout << "checking port " << newp << endl;
-        // cout << fmt::format("pOPEN 2: {}", newp) << endl;
-        // if (sendFile(newSecSend) == false) { //if open check second port back
-        // cout << fmt::format("file server is not open on port {}", newp) << endl;
-        // }
-        // else {
-        // // updatePort(PORT );
-        // cout << "file to CLIENT 1 SENT (A2) on port " << newp << endl;
-        // //send file to client that has their opened port 
-        // }
-        // }
-        // else {
-        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
-        // // send file to client that has their opened port
-        // }
-        // else {
-        // // updatePort(PORT + 1);
-        // // //send file to client that has their opened port
-        // // cout << "SENDING TO CLIENT (A3)" << endl;
-        // // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-        // // sendFile(newSecSend);
-        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
-        // }
-        // }
-
-        // recvServer(pub);
-
-
-
-        // string userName = userStr;
-
-        // string some;
-
-        // int counterUsers = 0;
-        // thread t1([&]() {
-        // });
-        // t1.join(); 
-        // check if username already exists if it does then kick them
-
-        // broadcastMessage(joinMsg, clientSocket);
 
         bool isConnected = true;
 
-        // if (clientUsernames.size() > 1) {
-        // string ms = "";
-
-        //add join messages somewhere
-        //also send the username and time of the message attached to the message by delimeters | done
-
         while (isConnected) {
-            //gonna iterate in infinitly
-
-            // if (clientUsernames.size() > 1) {
-            // send(clientSocket, only.c_str(), only.length(), 0);
-
-            // }
             bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
             if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0) { //the quit word is useless because the quit message doesnt get sent to the user
                 isConnected = false;
@@ -653,27 +544,95 @@ void handleClient(int clientSocket, int serverSocket) {
 
                 std::string exitMsg = fmt::format("{} has left the chat", userStr);
                 LoadKey loadkeyandsend;
-                if (clientUsernames[0] == userStr) {
-                    int index = 0 + 1;
-                    string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                    string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
-                    cout << "UPDATED OP64: " << op64 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
-                        broadcastMessage(op64, clientSocket);
+
+                if (clientUsernames.size() < 3) {
+                    if (clientUsernames[0] == userStr) {
+                        int index = 1 + 0;
+                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
+                        cout << "UPDATED OP64: " << op64 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
+                            broadcastMessage(op64, clientSocket);
+                        }
+                    }
+
+                    else if (clientUsernames[1] == userStr) {
+                        int index2 = 1 - 1;
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                        cout << "UPDATED OP642: " << op642 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            broadcastMessage(op642, clientSocket);
+                        }
                     }
                 }
 
-                else if (clientUsernames[1] == userStr) {
-                    int index2 = 1 - 1;
-                    string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
-                    string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
-                    cout << "UPDATED OP642: " << op642 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
-                        // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-                        broadcastMessage(op642, clientSocket);
+                else if (clientUsernames.size() == 3) {
+                    if (clientUsernames[0] == userStr) {
+                        int index = 1 + 0;
+                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
+                        cout << "UPDATED OP64: " << op64 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
+                            send(connectedClients[index], op64.c_str(), op64.length(), 0);
+                        }
+                        //---------------
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index + 1]);
+                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                        cout << "UPDATED OP64: " << op642 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+                            send(connectedClients[index + 1], op642.c_str(), op642.length(), 0);
+                        }
+                    }
+                    else if (clientUsernames[1] == userStr) {
+                        int index2 = 1 - 1;
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                        cout << "UPDATED OP642: " << op642 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            broadcastMessage(op642, clientSocket);
+                        }
+                        //-------------------------------
+                        string pathpub3 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index + 2]);
+                        string op643 = loadkeyandsend.loadPubAndEncrypt(pathpub3, exitMsg);
+                        cout << "UPDATED OP64: " << op643 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op643 != "err") {
+                            send(connectedClients[index + 2], op643.c_str(), op643.length(), 0);
+                        }
+                    }
+                    else if (clientUsernames[2] == userStr) {
+                        int index2 = 2 - 1;
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                        cout << "UPDATED OP642: " << op642 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            broadcastMessage(op642, clientSocket);
+                        }
+                        //-------------------------------
+                        //for 1st user
+                        string pathpub4 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index - 1]);
+                        string op644 = loadkeyandsend.loadPubAndEncrypt(pathpub4, exitMsg);
+                        cout << "UPDATED OP64: " << op644 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op644 != "err") {
+                            send(connectedClients[index - 1], op644.c_str(), op644.length(), 0);
+                        }
                     }
                 }
-                // std::cout << exitMsg << std::endl;
+
+
+                // else if (clientUsernames[2] == userStr) {
+                //     int index3 = 2; //for user pub key
+                //     string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index3]);
+                //     string op643 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                //     cout << "UPDATED OP642: " << op643 << endl;
+                //     if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op643 != "err") {
+                //         // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                //         broadcastMessage(op643, clientSocket);
+                //     }
+                // }
                 std::cout << "------------" << endl;
                 // add if statment if useerrname of user isnt in vector twice
                 auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
@@ -700,31 +659,22 @@ void handleClient(int clientSocket, int serverSocket) {
                     delIt("server-recieved-client-keys");
                     exit(1);
                 }
-
-                // else {
-                //     // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
-                //     std::cout << "Disconnected client with same username" << endl;
-                //     close(clientSocket);
-                // }
                 lenOfUser.clear();
-                // last execution of username exists
             }
+            // }
 
             else {
                 buffer[bytesReceived] = '\0';
                 std::string receivedData(buffer);
                 // cout << "______________________________" << endl;
                 std::cout << "Received data: " << receivedData << std::endl;
+
+                //CHECK THE END USING SUBSTR TO CUT IT AND SEE WHO IT BELONGS TOO
                 // cout << "______________________________" << endl;
                 cout << "ciphertext length on server: " << receivedData.length() << endl;
                 std::string cipherText = receivedData; //fix server shutdown
 
-                // string newenc = benc(newdec);
-                // cout << "mem addr of recieveddata: " << &receivedData << endl;
-
                 if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
-                    // cout << "cipher: " << cipherText << endl;;
-                    //time
                     auto now = std::chrono::system_clock::now();
                     std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
                     std::tm* localTime = std::localtime(&currentTime);
