@@ -107,7 +107,6 @@ struct Send {
         }
     }
     void broadcastBase64Data(int clientSocket, const std::string& encodedData, vector <int>& connectedClients) {
-        lock_guard<mutex> lock(clientsMutex);
         for (int clientSocket : connectedClients)
         {
             if (clientSocket != clientSocket)
