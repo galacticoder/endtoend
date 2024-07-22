@@ -88,6 +88,31 @@ vector <int> clsock;
 // }
 uint8_t leavePattern;
 
+string getTime() {
+    auto now = chrono::system_clock::now();
+    time_t currentTime = chrono::system_clock::to_time_t(now);
+    tm* localTime = localtime(&currentTime);
+
+    bool isPM = localTime->tm_hour >= 12;
+    string stringFormatTime = asctime(localTime);
+
+    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+    stringstream ss;
+    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+    string formattedTime = ss.str();
+
+    regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+    smatch match;
+    if (regex_search(stringFormatTime, match, time_pattern))
+    {
+        string str = match.str(0);
+        size_t pos = stringFormatTime.find(str);
+        stringFormatTime.replace(pos, str.length(), formattedTime);
+    }
+    return stringFormatTime;
+}
+
 bool isPortOpen(const string& address, int port) {
     try {
         boost::asio::io_service io_service;
@@ -842,8 +867,11 @@ int main() {
         Enc cipher64;
 
         //CHANGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        string cipherText = cipher64.enc(receivedPublicKey, message); //wrong not supposed to encrypt using user pub key only using recipient public key
-        string newenc = cipher64.Base64Encode(cipherText);
+        string cipherText = cipher64.enc(receivedPublicKey, message); //wrong not supposed to encrypt using user pub key only using recipient public key //2nd clients key
+        string newenc = cipher64.Base64Encode(cipherText); //for 2nd client
+
+        string cipherTextCl1 = cipher64.enc(receivedPublicKey2, message); //wrong not supposed to encrypt using user pub key only using recipient public key // 1st clients key
+        string newenc1 = cipher64.Base64Encode(cipherTextCl1);
         // cout << "encoded: " << newenc << endl;
         // cout << "encrypted text: \t" << cipherText << endl;
         // cout << "ciphertext length on client: " << cipherText.length();
@@ -856,37 +884,22 @@ int main() {
             leave();
         }
         else {
-            send(clientSocket, newenc.c_str(), newenc.length(), 0);
-            auto now = chrono::system_clock::now();
-            time_t currentTime = chrono::system_clock::to_time_t(now);
-            tm* localTime = localtime(&currentTime);
-
-            bool isPM = localTime->tm_hour >= 12;
-            string stringFormatTime = asctime(localTime);
-
-            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-            stringstream ss;
-            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-            string formattedTime = ss.str();
-
-            regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-            smatch match;
-            if (regex_search(stringFormatTime, match, time_pattern))
-            {
-                string str = match.str(0);
-                size_t pos = stringFormatTime.find(str);
-                stringFormatTime.replace(pos, str.length(), formattedTime);
+            if (activeInt > 2) { //implying its 3 because thats the limit of users allowed in one chat room
+                newenc += "client2";
+                newenc1 += "client1"; //clientUsernames[0]// recievdMEssage.back() if == 1
+                send(clientSocket, newenc.c_str(), newenc.length(), 0);
+                send(clientSocket, newenc1.c_str(), newenc1.length(), 0);
+                string stringFormatTime = getTime();
+                cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime);
             }
-            // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-            cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
-            // printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
+            else if (activeInt <= 2) {
+                string stringFormatTime = getTime();
+                cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime);
+            }
         }
-        // cout << cipherText << endl;
-
-        //bathroom break
-
     }
+
     close(clientSocket);
+    leave();
     return 0;
 }

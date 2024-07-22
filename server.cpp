@@ -140,6 +140,31 @@ static void delIt(const string& formatPath) {
     }
 }
 
+string getTime() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+    std::tm* localTime = std::localtime(&currentTime);
+
+    bool isPM = localTime->tm_hour >= 12;
+    string stringFormatTime = asctime(localTime);
+
+    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+    stringstream ss;
+    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+    string formattedTime = ss.str();
+
+    std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+    std::smatch match;
+    if (regex_search(stringFormatTime, match, time_pattern))
+    {
+        string str = match.str(0);
+        size_t pos = stringFormatTime.find(str);
+        stringFormatTime.replace(pos, str.length(), formattedTime);
+    }
+    return stringFormatTime;
+}
+
 static bool createDir(const string& dirName)
 {
     if (!create_directories(dirName))
@@ -666,38 +691,27 @@ void handleClient(int clientSocket, int serverSocket) {
             else {
                 buffer[bytesReceived] = '\0';
                 std::string receivedData(buffer);
-                // cout << "______________________________" << endl;
                 std::cout << "Received data: " << receivedData << std::endl;
+                std::string cipherText = receivedData;
 
-                //CHECK THE END USING SUBSTR TO CUT IT AND SEE WHO IT BELONGS TOO
-                // cout << "______________________________" << endl;
-                cout << "ciphertext length on server: " << receivedData.length() << endl;
-                std::string cipherText = receivedData; //fix server shutdown
-
-                if (!cipherText.empty() && cipherText.length() > 30) { //when sneing somehow losig data when sending | fixed //this may be a problem to why the message is being sent like weirdly
-                    auto now = std::chrono::system_clock::now();
-                    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-                    std::tm* localTime = std::localtime(&currentTime);
-
-                    bool isPM = localTime->tm_hour >= 12;
-                    string stringFormatTime = asctime(localTime);
-
-                    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-                    stringstream ss;
-                    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-                    string formattedTime = ss.str();
-
-                    std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-                    std::smatch match;
-                    if (regex_search(stringFormatTime, match, time_pattern))
-                    {
-                        string str = match.str(0);
-                        size_t pos = stringFormatTime.find(str);
-                        stringFormatTime.replace(pos, str.length(), formattedTime);
+                if (!cipherText.empty() && cipherText.length() > 30) {
+                    if (cipherText.back() == '1') {
+                        cipherText.pop_back();
+                        string stringFormatTime = getTime();
+                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                        send(connectedClients[0], formattedCipher.c_str(), formattedCipher.length(), 0);
                     }
-                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                    broadcastMessage(formattedCipher, clientSocket);
+                    else if (cipherText.back() == '2') {
+                        cipherText.pop_back();
+                        string stringFormatTime = getTime();
+                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                        send(connectedClients[1], formattedCipher.c_str(), formattedCipher.length(), 0);
+                    }
+                    else {
+                        string stringFormatTime = getTime();
+                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                        broadcastMessage(formattedCipher, clientSocket);
+                    }
                 }
             }
         }
