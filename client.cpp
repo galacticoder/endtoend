@@ -525,7 +525,7 @@ int main() {
         }
         //----------
 
-        cout << fmt::format("Attempting to load {}'s public key & {}'public key..", pubUser2, pubUser) << endl;
+        cout << fmt::format("Attempting to load {}'s public key & {}'s public key..", pubUser2, pubUser) << endl;
 
         if (loadp.loadPub(pub, receivedPublicKey) == true && loadp.loadPub(pub2, receivedPublicKey2)) {
             cout << fmt::format("{}'s public key loaded", pubUser) << endl;
