@@ -24,8 +24,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <filesystem>
-#include "headers/serverSendRecv.h"
 #include <ncurses.h>
+#include "headers/serverSendRecv.h"
 
 // add certain length of username allow only
 
@@ -107,26 +107,13 @@ bool isPav(int port)
     return available;
 }
 
-static void delIt(const string& formatPath) {
-    int del1 = 0;
-    auto del2 = std::filesystem::directory_iterator(formatPath);
-    int counter = 0;
-    for (auto& del1 : del2) {
-        if (del1.is_regular_file()) {
-            std::filesystem::remove(del1);
-            counter++;
-        }
-    }
+void signalHandleServer(int signum) {
 
-    if (counter == 0) {
-        cout << fmt::format("There was nothing to delete from path '{}'", formatPath) << endl;
-    }
-    if (counter == 1) {
-        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatPath) << endl;
-    }
-    else if (counter > 1) {
-        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatPath) << endl;
-    }
+    cout << eraseLine;
+    cout << "Server has been shutdown" << endl;
+    delIt("server-recieved-client-keys");
+    // cout << "you left" << endl;
+    exit(signum);
 }
 
 static bool createDir(const string& dirName)
@@ -135,10 +122,9 @@ static bool createDir(const string& dirName)
     {
         if (exists(dirName))
         {
-            cout << fmt::format("The directory ({}) already exists", dirName) << endl;
             return true;
         }
-        cout << fmt::format("couldnt make directory: {}", dirName) << endl;
+        cout << fmt::format("Couldnt make directory: {}", dirName) << endl;
         return false;
     }
     return true;
@@ -746,15 +732,11 @@ void handleClient(int clientSocket, int serverSocket) {
 }
 
 int main() {
-
-    windowMenuStart();
     static const string path = "server-recieved-client-keys";
-    if (!exists(path)) {
-        createDir(path);
-    }
-    else {
-        delIt(path);
-    }
+    signal(SIGINT, signalHandleServer);
+    unordered_map <int, string> serverHash;
+    initMenu startMenu(serverHash);
+    createDir(path);
 
     unsigned short PORT = 8080; //defualt port is set at 8080
 
@@ -820,9 +802,9 @@ int main() {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
-        cout << "choose your pass: ";
-        string pass;
-        getline(cin, pass);
+        // cout << "choose your pass: ";
+        // string pass;
+        // getline(cin, pass);
 
         thread(handleClient, clientSocket, serverSocket).detach();
     }

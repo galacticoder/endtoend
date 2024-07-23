@@ -13,28 +13,19 @@
 #include <cryptopp/filters.h>
 #include <ncurses.h>
 #include <sys/ioctl.h>
+#include <csignal>
+#include <unistd.h>
+#include <unordered_map>
+#include "bcrypt/include/bcrypt.h"
 #include "rsa.h"
+#include "getch_getline.h"
 
-
+#define clearScreen "\033[2J\r"
 
 using namespace CryptoPP;
 using namespace std;
 
-
-
-struct hashingAndGenPass {
-    hashingAndGenPass() = default;
-    string genPass(int&& length) {
-
-    }
-    string hashPass() {
-
-    }
-
-};
-
 struct initMenu {
-    initMenu() = default;
     short int getTermSize(int* ptrCols) {
         struct winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -42,7 +33,33 @@ struct initMenu {
         return w.ws_row; //lines
     }
 
-    void print_menu(WINDOW* menu_win, int highlight) {
+    void hashP(const string& p, unordered_map<int, string>& hashedServerP)
+    {
+        hashedServerP[1] = bcrypt::generateHash(p);
+        // bcrypt::validatePassword(p, hashedServerP[1]);
+    }
+
+    void generatePassword(unordered_map<int, string>& hashedServerP, int&& length = 8)
+    {
+        AutoSeededRandomPool random;
+        const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
+
+        // make thing for dont include
+        string pass;
+        for (ssize_t i = 0; i < length; ++i)
+        {
+            pass += charSet[random.GenerateByte() % charSet.size()];
+        }
+        cout << "Password: " << pass << endl;
+        sleep(2);
+        cout << eraseLine;
+        cout << "\x1b[A";
+        hashP(pass, hashedServerP);
+        cout << "Hash: " << hashedServerP[1] << endl;
+    }
+
+    void print_menu(WINDOW* menu_win, int highlight)
+    {
         int x, y, i;
         x = 2;
         y = 2;
@@ -65,17 +82,24 @@ struct initMenu {
         wrefresh(menu_win);
     }
 
-    void menu() {
+    initMenu(unordered_map<int, string>& hashServerStore) {
+        if (!hashServerStore.empty()) {
+            hashServerStore.clear();
+        }
         initscr();
         clear();
         noecho();
         cbreak();
         curs_set(0);
-        int* lines;
+        keypad(stdscr, TRUE);
+
+        int cols;
+        int lines = getTermSize(&cols);
+
         int width = 50;
         int height = 18;
-        int starty = getTermSize(lines) / 2;
-        int startx = *lines / 2;
+        int starty = lines / 2 - height / 2;
+        int startx = cols / 2 - width / 2;
 
         WINDOW* menu_win = newwin(height, width, starty, startx);
         keypad(menu_win, TRUE);
@@ -87,7 +111,7 @@ struct initMenu {
         int c;
 
         print_menu(menu_win, highlight);
-        while (true)
+        while (choice == 0)
         {
             c = wgetch(menu_win);
             switch (c)
@@ -111,37 +135,49 @@ struct initMenu {
                 break;
             }
             print_menu(menu_win, highlight);
-            hashingAndGenPass makePass;
-            if (choice == 1) {
-                WINDOW* getinput = newwin(20, 20, 0, 0);
-                box(getinput, 0, 0);
-                wrefresh(getinput);
-                // printw("some");
-                refresh();
-                getch();
-
-                delwin(getinput);
+            if (choice != 0)
+            {
                 break;
             }
-            else if (choice == 2) {
-                makePass.genPass(12);
-                // clrtoeol();
-                // printw("Your password has been generated. The hash has been saved in %s.", somepath);
-                refresh();
-                endwin();
-            }
-            else if (choice == 3) {
-                break;
-            }
-            else if (choice == 4) {
-                break;
-            }
-            // if (choice != 0)
-            //     break;
         }
+
+        // make it so you can press esc to go back to options when you click make your own password
+
+        curs_set(1);
         clrtoeol();
         refresh();
         endwin();
+
+        // system("cls");
+        // cout << clearScreen;
+
+        string password;
+
+        switch (choice)
+        {
+        case 1:
+            cout << clearScreen;
+            cout << "Enter a password: " << endl;
+            getinput_getch(MODE_P);
+            // storeHash[1] = hashP(password, storeHash);
+            cout << endl;
+            cout << "Password has been set for server" << endl;
+            break;
+        case 2:
+            cout << clearScreen;
+            cout << "Generating password for server..." << endl;
+            generatePassword(hashServerStore);
+            break;
+        case 3:
+            cout << clearScreen;
+            cout << "Server is starting up without password..." << endl;
+            break;
+        case 4:
+            exit(1);
+        default:
+            cout << "No choice has been chosen" << endl;
+            exit(1);
+        }
     }
 };
 
