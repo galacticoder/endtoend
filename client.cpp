@@ -290,19 +290,10 @@ static bool createDir(const string& dirName)
 
 }
 
-int readActiveUsers(const string& filepath) {
-    ifstream opent(filepath);
-    string active;
-    getline(opent, active);
-    int activeInt;
-    istringstream(active) >> activeInt;
-    return activeInt;
-}
-
 int main() {
     // cout << clearsrc << endl;
     // leavePattern == 
-    char serverIp[30] = "192.168.0.205"; //change to the server ip
+    char serverIp[30] = "127.0.0.1"; //change to the server ip //192.168.0.205
     ifstream file("PORT.txt");
     string PORTSTR;
     getline(file, PORTSTR);
@@ -345,7 +336,7 @@ int main() {
     //get username input
     // getline(cin, user);
 
-    user = getinput_getch("/|\\| ", 12); //seperate chars by '|' delimeter
+    user = getinput_getch('N', "/|\\| ", 12); //seperate chars by '|' delimeter
 
 
     cout << eraseLine;

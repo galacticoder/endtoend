@@ -11,6 +11,8 @@
 #include <cryptopp/secblock.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/filters.h>
+#include <ncurses.h>
+#include <sys/ioctl.h>
 #include "rsa.h"
 
 
@@ -18,6 +20,130 @@
 using namespace CryptoPP;
 using namespace std;
 
+
+
+struct hashingAndGenPass {
+    hashingAndGenPass() = default;
+    string genPass(int&& length) {
+
+    }
+    string hashPass() {
+
+    }
+
+};
+
+struct initMenu {
+    initMenu() = default;
+    short int getTermSize(int* ptrCols) {
+        struct winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        *ptrCols = w.ws_col;
+        return w.ws_row; //lines
+    }
+
+    void print_menu(WINDOW* menu_win, int highlight) {
+        int x, y, i;
+        x = 2;
+        y = 2;
+        box(menu_win, 0, 0);
+        const char* choices[] = { "Set password for server", "Generate password", "Dont set password", "Exit" };
+        int n_choices = sizeof(choices) / sizeof(char*);
+
+        for (i = 0; i < n_choices; ++i)
+        {
+            if (highlight == i + 1)
+            {
+                wattron(menu_win, A_REVERSE);
+                mvwprintw(menu_win, y, x, "%s", choices[i]);
+                wattroff(menu_win, A_REVERSE);
+            }
+            else
+                mvwprintw(menu_win, y, x, "%s", choices[i]);
+            ++y;
+        }
+        wrefresh(menu_win);
+    }
+
+    void menu() {
+        initscr();
+        clear();
+        noecho();
+        cbreak();
+        curs_set(0);
+        int* lines;
+        int width = 50;
+        int height = 18;
+        int starty = getTermSize(lines) / 2;
+        int startx = *lines / 2;
+
+        WINDOW* menu_win = newwin(height, width, starty, startx);
+        keypad(menu_win, TRUE);
+
+        const char* choices[] = { "Set password for server", "Generate password", "Dont set password", "Exit" }; // 1==set//2==gen//3==nopass//4==exit
+        int n_choices = sizeof(choices) / sizeof(char*);
+        int highlight = 1;
+        int choice = 0;
+        int c;
+
+        print_menu(menu_win, highlight);
+        while (true)
+        {
+            c = wgetch(menu_win);
+            switch (c)
+            {
+            case KEY_UP:
+                if (highlight == 1)
+                    highlight = n_choices;
+                else
+                    --highlight;
+                break;
+            case KEY_DOWN:
+                if (highlight == n_choices)
+                    highlight = 1;
+                else
+                    ++highlight;
+                break;
+            case 10:
+                choice = highlight;
+                break;
+            default:
+                break;
+            }
+            print_menu(menu_win, highlight);
+            hashingAndGenPass makePass;
+            if (choice == 1) {
+                WINDOW* getinput = newwin(20, 20, 0, 0);
+                box(getinput, 0, 0);
+                wrefresh(getinput);
+                // printw("some");
+                refresh();
+                getch();
+
+                delwin(getinput);
+                break;
+            }
+            else if (choice == 2) {
+                makePass.genPass(12);
+                // clrtoeol();
+                // printw("Your password has been generated. The hash has been saved in %s.", somepath);
+                refresh();
+                endwin();
+            }
+            else if (choice == 3) {
+                break;
+            }
+            else if (choice == 4) {
+                break;
+            }
+            // if (choice != 0)
+            //     break;
+        }
+        clrtoeol();
+        refresh();
+        endwin();
+    }
+};
 
 struct Enc {
     Enc() = default;

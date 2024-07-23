@@ -8,11 +8,11 @@
 #include <cryptopp/base64.h>
 #include <cryptopp/files.h>
 #include <cryptopp/osrng.h>
-#include "rsa.h"
 #include <cryptopp/secblock.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/filters.h>
 #include <filesystem>
+#include "rsa.h"
 
 // #include <vector>
 
@@ -95,24 +95,14 @@ struct Enc {
             return cipher;
         }
         catch (const Exception& e) {
-            string pu = "user-keys/pub";
-            string pr = "user-keys/prv";
-            auto pubdel = std::filesystem::directory_iterator(pu);
-            int puddel = 0;
-            for (auto& puddel : pubdel)
+            string pu = "../your-keys";
+            auto keyDel = std::filesystem::directory_iterator(pu);
+            int keyCount = 0;
+            for (auto& keyDeleting : keyDel)
             {
-                if (puddel.is_regular_file())
+                if (keyDeleting.is_regular_file())
                 {
-                    std::filesystem::remove(puddel);
-                }
-            }
-            auto prvdel = std::filesystem::directory_iterator(pr);
-            int prvdel2 = 0;
-            for (auto& prvdel2 : prvdel)
-            {
-                if (prvdel2.is_regular_file())
-                {
-                    std::filesystem::remove(prvdel2);
+                    std::filesystem::remove(keyDeleting);
                 }
             }
             const string err = "error";

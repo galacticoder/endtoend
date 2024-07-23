@@ -9,7 +9,6 @@
 #include <fstream>
 #include <cstring>
 #include <mutex>
-// #include "headers/core.h"
 #include <fmt/core.h>
 #include <cryptopp/osrng.h>
 #include <cryptopp/aes.h>
@@ -26,6 +25,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include "headers/serverSendRecv.h"
+#include <ncurses.h>
 
 // add certain length of username allow only
 
@@ -746,6 +746,8 @@ void handleClient(int clientSocket, int serverSocket) {
 }
 
 int main() {
+
+    windowMenuStart();
     static const string path = "server-recieved-client-keys";
     if (!exists(path)) {
         createDir(path);
@@ -818,24 +820,12 @@ int main() {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
+        cout << "choose your pass: ";
+        string pass;
+        getline(cin, pass);
 
-        std::thread(handleClient, clientSocket, serverSocket).detach();
+        thread(handleClient, clientSocket, serverSocket).detach();
     }
-
-    //delete all keys from key recieves in server
-    // auto dirIter = std::filesystem::directory_iterator("keys-server");
-    // int fileCount = 0;
-
-    // for (auto& entry : dirIter)
-    // {
-    // if (entry.is_regular_file())
-    // {
-    // std::filesystem::remove(entry);
-    // ++fileCount;
-    // }
-    // }
-    // cout << "file count is: " << fileCount << endl;
-
 
     close(serverSocket);
     return 0;

@@ -17,11 +17,14 @@
 #define saveCursor "\033[s"
 #define restoreCursor "\033[u"
 
+#define MODE_P 'P'
+#define MODE_N 'N'
+
 using namespace std;
 using namespace chrono;
 
 vector <char> message;
-
+vector <char> modeP;
 
 short int getTermSizeCols() {
     struct winsize w;
@@ -56,29 +59,33 @@ int readActiveUsers(const string& filepath) {
 }
 
 
-string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {
+string getinput_getch(char&& MODE = 'N', const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {//N==normal//P==Password
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
-
     //since =he while loop is always running detect if the active users.txt file changes to 3 and if it does then exit the getch input and then thatll run the while loop from the client script and recieve the third users key
+
+    // cout << eraseLine;
 
     while (true) {
         signal(SIGINT, signalhandleGetch);
         // cout << endl << readActiveUsers("usersActive.txt") << endl; //reading random num idk what it is fix it
-        if (readActiveUsers("usersActive.txt") == 3) { //make a way to detect user amount properly
-            cout << "its 3" << endl;
-            break;
-        }
         // else {
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
             cout << saveCursor;
             cout << eraseLine;
-            for (int i : message) {
-                cout << char(i);
+            if (MODE == 'P') {
+                for (int i : modeP) {
+                    cout << '*';
+                }
+            }
+            else if (MODE == 'N') {
+                for (int i : message) {
+                    cout << char(i);
+                }
             }
             cout << restoreCursor;
         }
@@ -134,7 +141,6 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                 if (cursor_pos < message.size()) {
                     if (cursor_pos < 1) {
                         if (message.size() + 1 != cols_out) {
-
                             cout << saveCursor;
                             cout << eraseLine;
                             for (int i : message) {
@@ -159,6 +165,8 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                             cout << restoreCursor;
                             cout << "\b \b";
                             message.erase(message.begin() + cursor_pos - 1);
+                            modeP.erase(modeP.begin() + cursor_pos - 1);
+                            modeP.shrink_to_fit();
                             message.shrink_to_fit();
                             cursor_pos--;
                         }
@@ -173,6 +181,8 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                         cout << "\b \b";
                         message.pop_back();
                         message.shrink_to_fit();
+                        modeP.pop_back();
+                        modeP.shrink_to_fit();
                         cursor_pos--;
                     }
                 }
@@ -185,9 +195,19 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                 if (unallowed == " MYGETCHDEFAULT'|/") {
                     if (c != '[') {
                         if (message.size() < limit) {
-                            message.insert(message.begin() + cursor_pos, c);
-                            cout << c;
-                            cursor_pos++;
+                            if (MODE == MODE_P) {
+                                // c = '*';
+                                message.insert(message.begin() + cursor_pos, c);
+                                modeP.insert(modeP.begin() + cursor_pos, c);
+                                // cout << c;
+                                cout << "*";
+                                cursor_pos++;
+                            }
+                            else if (MODE == MODE_N) {
+                                message.insert(message.begin() + cursor_pos, c);
+                                cout << c;
+                                cursor_pos++;
+                            }
                         }
                     }
                 }
@@ -203,9 +223,18 @@ string getinput_getch(const string&& unallowed = " MYGETCHDEFAULT'|", const int&
                     else if (findIn(c, notAllowed) == false) {
                         if (c != '[') {
                             if (message.size() < limit) {
-                                message.insert(message.begin() + cursor_pos, c);
-                                cout << c;
-                                cursor_pos++;
+                                if (MODE == MODE_P) {
+                                    message.insert(message.begin() + cursor_pos, c);
+                                    modeP.insert(modeP.begin() + cursor_pos, c);
+                                    // cout << c;
+                                    cout << "*";
+                                    cursor_pos++;
+                                }
+                                else if (MODE == MODE_N) {
+                                    message.insert(message.begin() + cursor_pos, c);
+                                    cout << c;
+                                    cursor_pos++;
+                                }
                             }
                         }
                     }
