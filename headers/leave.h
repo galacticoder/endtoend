@@ -39,7 +39,6 @@ void leave(const string& formatpath = formatPath, const string& fPath = fpath) {
     delIt(formatpath);
     delIt(fPath);
     remove("usersActive.txt");
-    // cout << endl;
     exit(1);
 }
 

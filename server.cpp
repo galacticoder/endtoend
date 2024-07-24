@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include <ncurses.h>
+#include <map>
 #include "headers/serverSendRecv.h"
 
 // add certain length of username allow only
@@ -65,6 +66,8 @@ vector<int> connectedClients;
 vector<int> uids;
 vector<string> clientUsernames;
 mutex clientsMutex;
+vector <int> clientHashVerifiedClients;
+
 // const stringlenOfUser;
 
 //std::string encodedData = receiveBase64Data(clientSocket);
@@ -105,10 +108,9 @@ bool isPav(int port)
 }
 
 void signalHandleServer(int signum) {
-    cout << eraseLine;
+    cout << eraseLine; //
     cout << "Server has been shutdown" << endl;
     delIt("server-recieved-client-keys");
-    // cout << "you left" << endl;
     exit(signum);
 }
 
@@ -249,27 +251,107 @@ void updateActiveFile(auto data) {
     }
 }
 
-void handleClient(int clientSocket, int serverSocket, unordered_map<int, string> serverHash, const string notVerified, string passGetArg) {
-    //check user hash given in order to continue in the chat
-    string clientsNamesStr = "";
+void handleClient(int clientSocket, int serverSocket, unordered_map<int, string> serverHash, int pnInt) {
+    cout << "RUNNING HANDLE CLIENT" << endl;
     {
         lock_guard<mutex> lock(clientsMutex);
         connectedClients.push_back(clientSocket);
     }
+    int clientHashi = 0;
+    string pnS = "1";
+    string pnO = "2";
+    const string passwordGet = "This server is password protected. Enter the password to join: ";
+    const string notVerified = "Wrong password. You have been kicked.#N";
+    const string verified = "You have joined the server#V";
+    string passGetArg = "";
+
+    unordered_map<int, string> clientHash;
+    // map<int, string> clientHashVerifiedClients;
+
+    auto itCl = find(connectedClients.begin(), connectedClients.end(), clientSocket); //find clientSocket index
+    int indexClientOut = itCl - connectedClients.begin();
+    cout << "IndexClientOut: " << indexClientOut << endl;
+    //remove this when the user exits
+
+    if (clientHashVerifiedClients.size() != 3) {
+        clientHashVerifiedClients.push_back(0);
+    }
+    cout << "inserted" << endl;
+    cout << "size of clientHashVerifiedClients: " << clientHashVerifiedClients.size() << endl;
+    for (size_t i = 0; i < clientHashVerifiedClients.size(); ++i) {
+        std::cout << fmt::format("CLIENT {} HASH: ", i + 1) << clientHashVerifiedClients[i] << std::endl;
+    }
+
+    // cout << "Client status first client: " << clientHashVerifiedClients[0] << endl; //first client
+
+    cout << "OUPUYT: " << clientHashVerifiedClients[indexClientOut] << endl;
+    cout << "id up: " << indexClientOut - 1 << endl;
+
+    //it says indexcLIENTOUT IS 2
+    if (clientHashVerifiedClients.size() < 3) {
+        if (pnInt == 1 && clientHashVerifiedClients[indexClientOut] != 1) { //need to fix arg so instead of pushing back we insert at the index where it was 0 so it can be updated and this funciton cant be called again
+            // cout << "in func 1 inClOUt: " << indexClientOut - 1 << endl;
+            // cout << "in func: " << clientHashVerifiedClients[indexClientOut] << endl;
+            cout << "infunc3: " << clientHashVerifiedClients[indexClientOut - 2] << endl;
+            cout << "infunc2: " << clientHashVerifiedClients[indexClientOut - 1] << endl;
+            cout << "infunc: " << clientHashVerifiedClients[indexClientOut] << endl;
+            cout << "size of clients hash: " << clientHashVerifiedClients.size() << endl;
+            for (size_t i = 0; i < clientHashVerifiedClients.size(); ++i) {
+                std::cout << fmt::format("CLIENT {} HASH: ", i + 1) << clientHashVerifiedClients[i] << std::endl;
+            }
+            cout << "sending pass verify signal" << endl;
+            send(clientSocket, pnS.c_str(), pnS.length(), 0);
+
+            char passBuf[200] = { 0 };
+            ssize_t passBytes = recv(clientSocket, passBuf, sizeof(passBuf) - 1, 0);
+            passBuf[passBytes] = '\0';
+            std::string passGet(passBuf);
+            passGetArg += passGet;
+            //compare the password the user entered to the hash of the server password
+            cout << "userp: " << bcrypt::generateHash(passGet) << endl;
+            cout << "serverp: " << serverHash[1] << endl;
+            if (bcrypt::validatePassword(passGet, serverHash[1]) == 1) { //bcrypt::validatePassword(passGet, serverHash[1]) == 1
+                send(clientSocket, verified.c_str(), verified.length(), 0);
+                // cout << "stored client hash in clienthash umap" << endl;            // clientHash[1] = fmt::format("{}", indexClientIn);
+                // clientHashVerifiedClients.insert(clientHashVerifiedClients.begin() + indexClientOut, 1);
+                clientHashVerifiedClients[indexClientOut] = 1;
+                cout << "updatyed: " << clientHashVerifiedClients[indexClientOut] << endl;
+                // clientHashVerifiedClients.pop_back();
+                cout << "size of clients hash: " << clientHashVerifiedClients.size() << endl;
+                // clientHashVerifiedClients.push_back(1); //error here making this function run always
+                cout << "user verified" << endl;
+            }
+            else {
+                send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                sleep(1);
+                close(clientSocket);
+                auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                connectedClients.erase(it, connectedClients.end());
+                cout << "user not verified. kicked." << endl;
+            }
+        }
+        else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1) {
+            send(clientSocket, pnO.c_str(), pnO.length(), 0);
+        }
+    }
+    //check user hash given in order to continue in the chat
+    string clientsNamesStr = "";
 
     char buffer[4096] = { 0 };
     ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
     buffer[bytesReceived] = '\0';
     std::string userStr(buffer);
 
-    if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1) {
-        send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
-        sleep(1); //so they recieve it before closing their socket
-        close(clientSocket);
-        userStr.clear();
-        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-        connectedClients.erase(it, connectedClients.end());
-        cout << "disconnected not verified user" << endl;
+    if (clientHashVerifiedClients.size() < 3) {
+        if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 && pnInt != 2) {
+            send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+            sleep(1); //so they recieve it before closing their socket
+            close(clientSocket);
+            userStr.clear();
+            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+            connectedClients.erase(it, connectedClients.end());
+            cout << "disconnected not verified user" << endl;
+        }
     }
 
     int index = userStr.find("|");
@@ -285,6 +367,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
     if (clientUsernames.size() == limOfUsers) {
         send(clientSocket, limReached.c_str(), limReached.length(), 0);
+        cout << "client username size: " << clientUsernames.size() << endl;
         cout << fmt::format("client attempted to join past the required limit of users({})", limOfUsers) << endl;
 
         auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
@@ -329,38 +412,6 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
         }
         send(clientSocket, userStr.c_str(), userStr.length(), 0);
     }
-
-
-    // set a username length max and detect if user already exists
-    // if (clientUsernames.size() != 1 || clientUsernames.size() != 0)
-    // {
-    //     if (clientUsernames.size() > 0)
-    //     {
-    //         if (std::find(clientUsernames.begin(), clientUsernames.end(), userStr) != clientUsernames.end())
-    //         {
-    //             std::cout << "2 clients of the same username detected" << endl;
-    //             std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
-    //             std::cout << "New user entered name that already exists. Kicking..." << endl;
-    //             send(clientSocket, exists.data(), sizeof(exists), 0);
-    //             std::lock_guard<std::mutex> lock(clientsMutex);
-    //             std::cout << "Starting deletion of user socket" << endl;
-    //             auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-    //             connectedClients.erase(it, connectedClients.end());
-    //             std::cout << "Removed client socket from vector" << endl; // probnably getting a segmentation fault because of deletion of client socket before userename making it non accessable
-    //             // std::lock_guard<std::mutex> lock(clientsMutex);
-
-    //             // for(int i=clientsNamesStr.length();i<0;i--){
-    //             // if(clientsNamesStr.find())
-    //             // }
-
-    //             close(clientSocket);
-    //         }
-    //     }
-    // }
-
-    // cout << "Connected clients: (";// (sopsijs,SOMEONE,ssjss,)
-    // cout << clientsNamesStr;
-    // cout << ")" << endl;
 
     if (userStr.empty()) {
         close(clientSocket);
@@ -695,7 +746,7 @@ int main() {
 
     cout << "pnInt is: " << pnInt << endl;
 
-    // createDir(path);
+    createDir(path);
 
     unsigned short PORT = 8080; //defualt port is set at 8080
 
@@ -744,52 +795,13 @@ int main() {
 
     listen(serverSocket, 5);
     std::cout << fmt::format("Server listening on port {}", PORT) << "\n";
-    uint8_t clientHashi = 0;
-
     while (true)
     {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
 
-
-        string pnS = "1";
-        string pnO = "2";
-        const string passwordGet = "This server is password protected. Enter the password to join: ";
-        const string notVerified = "Wrong password. You have been kicked.#N";
-        const string verified = "You have joined the server#V";
-        string passGetArg = "";
-
-        if (pnInt == 1) {
-            cout << "sending pass verify" << endl;
-            send(clientSocket, pnS.c_str(), pnS.length(), 0);
-            send(clientSocket, passwordGet.c_str(), passwordGet.length(), 0);
-
-            char passBuf[200] = { 0 };
-            ssize_t passBytes = recv(clientSocket, passBuf, sizeof(passBuf) - 1, 0);
-            passBuf[passBytes] = '\0';
-            std::string passGet(passBuf);
-            passGetArg += passGet;
-            //compare the password the user entered to the hash of the server password
-            cout << "userp: " << bcrypt::generateHash(passGet) << endl;
-            cout << "serverp: " << serverHash[1] << endl;
-            if (bcrypt::validatePassword(passGet, serverHash[1]) == 1) { //bcrypt::validatePassword(passGet, serverHash[1]) == 1
-                send(clientSocket, verified.c_str(), verified.length(), 0);
-                // cout << "stored client hash in clienthash umap" << endl;
-                cout << "user verified" << endl;
-            }
-            else {
-                send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
-                sleep(1);
-                close(clientSocket);
-                cout << "user not verified. kicked." << endl;
-            }
-        }
-        else if (pnInt == 2) {
-            send(clientSocket, pnO.c_str(), pnO.length(), 0);
-        }
-
-        thread(handleClient, clientSocket, serverSocket, serverHash, notVerified, passGetArg).detach();
+        thread(handleClient, clientSocket, serverSocket, serverHash, pnInt).detach();
     }
 
     close(serverSocket);

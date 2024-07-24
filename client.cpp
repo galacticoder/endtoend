@@ -326,10 +326,9 @@ int main() {
     ssize_t bytesPassSig = recv(clientSocket, passSignal, sizeof(passSignal) - 1, 0);
     passSignal[bytesPassSig] = '\0';
     string passSig(passSignal);
-    cout << "pass sig is: " << passSig << endl; //sends the pass signal and the prompt at the same time
 
     if (passSig[0] == '1') {
-        cout << passSig.substr(1, passSig.length()) << endl;
+        cout << "This server is password protected. Enter the password to join: " << endl;
         string password = getinput_getch(MODE_P);
         send(clientSocket, password.c_str(), password.length(), 0);
         // cout << "\x1b[A";
@@ -339,23 +338,17 @@ int main() {
         char passOp[200] = { 0 };
         ssize_t bytesOp = recv(clientSocket, passOp, sizeof(passOp) - 1, 0);
         passOp[bytesOp] = '\0';
-        string verifyRecv(passOp);
-        cout << "[t] verifyRecv: " << verifyRecv << endl;
-
+        string verifyRecv(passOp); //works properly now
 
         if (verifyRecv.empty()) {
             cout << "Could not verify password" << endl;
             exit(1);
         }
         else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#V") {
-            cout << "probhere 1" << endl;
             cout << verifyRecv.substr(0, verifyRecv.length() - 2) << endl;
-            cout << "probend 1" << endl;
         }
         else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#N") {
-            cout << "probhere 2" << endl;
             cout << verifyRecv.substr(0, verifyRecv.length() - 2) << endl;
-            cout << "probend 2" << endl;
             exit(1);
         }
     }
@@ -376,7 +369,7 @@ int main() {
     //get username input
     // getline(cin, user);
 
-    user = getinput_getch('N', "/|\\| ", 12); //seperate chars by '|' delimeter
+    user = getinput_getch(CLIENT_S, MODE_N, "/|\\| ", 12); //seperate chars by '|' delimeter
 
 
     cout << eraseLine;

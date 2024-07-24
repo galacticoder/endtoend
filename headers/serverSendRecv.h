@@ -155,7 +155,7 @@ struct initMenu {
         if (choice == 1) {
             cout << clearScreen;
             cout << "Enter a password: " << endl;
-            password = getinput_getch(MODE_P);
+            password = getinput_getch(SERVER_S, MODE_P);
             // storeHash[1] = hashP(password, storeHash);
             cout << endl;
             cout << eraseLine;

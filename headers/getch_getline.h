@@ -19,12 +19,17 @@
 
 #define MODE_P 'P'
 #define MODE_N 'N'
+#define CLIENT_S 'C'
+#define SERVER_S 'S'
+#define S_PATH "server-recieved-client-keys"
 
 using namespace std;
 using namespace chrono;
 
 vector <char> message;
 vector <char> modeP;
+
+char sC_M = '\0';
 
 short int getTermSizeCols() {
     struct winsize w;
@@ -34,9 +39,17 @@ short int getTermSizeCols() {
 
 void signalhandleGetch(int signum) { //for forceful leaving like using ctrl-c
     disable_conio_mode();
-    cout << "You have left the chat.\n";
-    leave();
-    exit(signum);
+    cout << eraseLine;
+    if (sC_M == SERVER_S) {
+        cout << "Server has been shutdown" << endl;
+        delIt(S_PATH);
+        exit(signum);
+    }
+    else if (sC_M == CLIENT_S) {
+        cout << "You have left the chat.\n";
+        leave();
+        exit(signum);
+    }
 }
 
 bool findIn(const char& find, const string& In) {
@@ -59,20 +72,15 @@ int readActiveUsers(const string& filepath) {
 }
 
 
-string getinput_getch(char&& MODE = 'N', const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {//N==normal//P==Password
+string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {//N==normal//P==Password
+    sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
-    //since =he while loop is always running detect if the active users.txt file changes to 3 and if it does then exit the getch input and then thatll run the while loop from the client script and recieve the third users key
-
-    // cout << eraseLine;
-
     while (true) {
         signal(SIGINT, signalhandleGetch);
-        // cout << endl << readActiveUsers("usersActive.txt") << endl; //reading random num idk what it is fix it
-        // else {
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
             cout << saveCursor;
@@ -188,10 +196,6 @@ string getinput_getch(char&& MODE = 'N', const string&& unallowed = " MYGETCHDEF
                 }
             }
             else {
-                // const char delimeter = '|';
-                // vector <char> notAllowed;
-                // cout << endl;
-                // cout << "not allowed: " << notAllowed << endl;
                 if (unallowed == " MYGETCHDEFAULT'|/") {
                     if (c != '[') {
                         if (message.size() < limit) {
