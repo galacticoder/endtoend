@@ -50,11 +50,8 @@
 //          << ", Value: " << it->second << endl;
 //     ++it;
 // }
-
-#define RED_TEXT "\033[31m" // red text color
-#define GREEN_TEXT "\033[32m" // green text color
-#define BRIGHT_BLUE_TEXT "\033[94m" // bright blue text color
-#define RESET_TEXT "\033[0m" // reset color to default
+#define PASS_N 1
+#define PASS_O 2
 
 using boost::asio::ip::tcp;
 
@@ -108,7 +105,6 @@ bool isPav(int port)
 }
 
 void signalHandleServer(int signum) {
-
     cout << eraseLine;
     cout << "Server has been shutdown" << endl;
     delIt("server-recieved-client-keys");
@@ -253,7 +249,8 @@ void updateActiveFile(auto data) {
     }
 }
 
-void handleClient(int clientSocket, int serverSocket) {
+void handleClient(int clientSocket, int serverSocket, unordered_map<int, string> serverHash, const string notVerified, string passGetArg) {
+    //check user hash given in order to continue in the chat
     string clientsNamesStr = "";
     {
         lock_guard<mutex> lock(clientsMutex);
@@ -264,6 +261,16 @@ void handleClient(int clientSocket, int serverSocket) {
     ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
     buffer[bytesReceived] = '\0';
     std::string userStr(buffer);
+
+    if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1) {
+        send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+        sleep(1); //so they recieve it before closing their socket
+        close(clientSocket);
+        userStr.clear();
+        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+        connectedClients.erase(it, connectedClients.end());
+        cout << "disconnected not verified user" << endl;
+    }
 
     int index = userStr.find("|");
     string pubkeyseri = userStr.substr(index + 1);
@@ -536,68 +543,6 @@ void handleClient(int clientSocket, int serverSocket) {
 
         std::cout << "Client Username vector size: " << clientUsernames.size() << endl;
         std::cout << "------------" << endl;
-        // string portfile = "FILEPORT.TXT";
-        // sleep(1); //actually no need for chrono just use sleep
-        // ifstream fileport(portfile);
-        // if (!fileport.is_open()) {
-        // cerr << "Could not open port file" << endl;
-        // return;
-        // }
-        // string PORTSTR;
-        // getline(fileport, PORTSTR);
-        // istringstream(PORTSTR) >> PORT;
-
-        // cout << "starting check of ports open" << endl;
-        // cout << "original port is " << PORT << endl;
-        // updatePort(PORT + 1); // check a different way
-
-        // cout << "gonna send file " << newSecSend << endl;
-        // cout << "checking port " << PORT << endl;
-        // // cout << fmt::format("pOPEN 1: {}", pOpen) << endl;
-        // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-        // if (sendFile(newSecSend) == false) {
-        // updatePort(PORT - 1); // check a different
-        // int newp = showfp();
-        // cout << "checking port " << newp << endl;
-        // cout << fmt::format("pOPEN 2: {}", newp) << endl;
-        // if (sendFile(newSecSend) == false) { //if open check second port back
-        // cout << fmt::format("file server is not open on port {}", newp) << endl;
-        // }
-        // else {
-        // // updatePort(PORT );
-        // cout << "file to CLIENT 1 SENT (A2) on port " << newp << endl;
-        // //send file to client that has their opened port 
-        // }
-        // }
-        // else {
-        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
-        // // send file to client that has their opened port
-        // }
-        // else {
-        // // updatePort(PORT + 1);
-        // // //send file to client that has their opened port
-        // // cout << "SENDING TO CLIENT (A3)" << endl;
-        // // sleep(1); //gets connection error if dont sleep for 1s because server not ready yet
-        // // sendFile(newSecSend);
-        // cout << "file to CLIENT 1 SENT (A3) on port " << PORT << endl;
-        // }
-        // }
-
-        // recvServer(pub);
-
-
-
-        // string userName = userStr;
-
-        // string some;
-
-        // int counterUsers = 0;
-        // thread t1([&]() {
-        // });
-        // t1.join(); 
-        // check if username already exists if it does then kick them
-
-        // broadcastMessage(joinMsg, clientSocket);
 
         bool isConnected = true;
 
@@ -732,11 +677,25 @@ void handleClient(int clientSocket, int serverSocket) {
 }
 
 int main() {
+    // int* pn = 0;
     static const string path = "server-recieved-client-keys";
     signal(SIGINT, signalHandleServer);
     unordered_map <int, string> serverHash;
-    initMenu startMenu(serverHash);
-    createDir(path);
+    initMenu startMenu;
+    const string hash = startMenu.initmenu(serverHash);
+    if (!hash.empty()) { //if hash isnt empty
+        serverHash[1] = hash;
+    }
+
+    string pnStr;
+    int pnInt;
+    ifstream pn("pn.txt");
+    getline(pn, pnStr);
+    istringstream(pnStr) >> pnInt;
+
+    cout << "pnInt is: " << pnInt << endl;
+
+    // createDir(path);
 
     unsigned short PORT = 8080; //defualt port is set at 8080
 
@@ -783,30 +742,54 @@ int main() {
         exit(true);
     }
 
-    std::ofstream file("PORT.txt");
-    if (file.is_open())
-    {
-        file << PORT;
-        file.close();
-    }
-    else
-    {
-        std::cout << "Warning: cannot write port to file. You may need to configure clients port manually\n";
-    }
-
     listen(serverSocket, 5);
     std::cout << fmt::format("Server listening on port {}", PORT) << "\n";
+    uint8_t clientHashi = 0;
 
     while (true)
     {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
-        // cout << "choose your pass: ";
-        // string pass;
-        // getline(cin, pass);
 
-        thread(handleClient, clientSocket, serverSocket).detach();
+
+        string pnS = "1";
+        string pnO = "2";
+        const string passwordGet = "This server is password protected. Enter the password to join: ";
+        const string notVerified = "Wrong password. You have been kicked.#N";
+        const string verified = "You have joined the server#V";
+        string passGetArg = "";
+
+        if (pnInt == 1) {
+            cout << "sending pass verify" << endl;
+            send(clientSocket, pnS.c_str(), pnS.length(), 0);
+            send(clientSocket, passwordGet.c_str(), passwordGet.length(), 0);
+
+            char passBuf[200] = { 0 };
+            ssize_t passBytes = recv(clientSocket, passBuf, sizeof(passBuf) - 1, 0);
+            passBuf[passBytes] = '\0';
+            std::string passGet(passBuf);
+            passGetArg += passGet;
+            //compare the password the user entered to the hash of the server password
+            cout << "userp: " << bcrypt::generateHash(passGet) << endl;
+            cout << "serverp: " << serverHash[1] << endl;
+            if (bcrypt::validatePassword(passGet, serverHash[1]) == 1) { //bcrypt::validatePassword(passGet, serverHash[1]) == 1
+                send(clientSocket, verified.c_str(), verified.length(), 0);
+                // cout << "stored client hash in clienthash umap" << endl;
+                cout << "user verified" << endl;
+            }
+            else {
+                send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                sleep(1);
+                close(clientSocket);
+                cout << "user not verified. kicked." << endl;
+            }
+        }
+        else if (pnInt == 2) {
+            send(clientSocket, pnO.c_str(), pnO.length(), 0);
+        }
+
+        thread(handleClient, clientSocket, serverSocket, serverHash, notVerified, passGetArg).detach();
     }
 
     close(serverSocket);

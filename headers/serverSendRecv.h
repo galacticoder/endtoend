@@ -33,13 +33,14 @@ struct initMenu {
         return w.ws_row; //lines
     }
 
-    void hashP(const string& p, unordered_map<int, string>& hashedServerP)
+    string hashP(const string& p, unordered_map<int, string>& hashedServerP)
     {
         hashedServerP[1] = bcrypt::generateHash(p);
         // bcrypt::validatePassword(p, hashedServerP[1]);
+        return bcrypt::generateHash(p);
     }
 
-    void generatePassword(unordered_map<int, string>& hashedServerP, int&& length = 8)
+    string generatePassword(unordered_map<int, string>& hashedServerP, int&& length = 8)
     {
         AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
@@ -56,6 +57,7 @@ struct initMenu {
         cout << "\x1b[A";
         hashP(pass, hashedServerP);
         cout << "Hash: " << hashedServerP[1] << endl;
+        return hashedServerP[1];
     }
 
     void print_menu(WINDOW* menu_win, int highlight)
@@ -82,10 +84,7 @@ struct initMenu {
         wrefresh(menu_win);
     }
 
-    initMenu(unordered_map<int, string>& hashServerStore) {
-        if (!hashServerStore.empty()) {
-            hashServerStore.clear();
-        }
+    string initmenu(unordered_map<int, string> hashServerStore) {
         initscr();
         clear();
         noecho();
@@ -153,31 +152,52 @@ struct initMenu {
 
         string password;
 
-        switch (choice)
-        {
-        case 1:
+        if (choice == 1) {
             cout << clearScreen;
             cout << "Enter a password: " << endl;
-            getinput_getch(MODE_P);
+            password = getinput_getch(MODE_P);
             // storeHash[1] = hashP(password, storeHash);
             cout << endl;
+            cout << eraseLine;
+            cout << "\x1b[A";
+            cout << eraseLine;
+            cout << "\x1b[A";
+            // *pn = 1;
             cout << "Password has been set for server" << endl;
-            break;
-        case 2:
+            ofstream file("pn.txt");
+            if (file.is_open()) {
+                file << "1";
+                file.close();
+            }
+            return bcrypt::generateHash(password);
+        }
+        else if (choice == 2) {
             cout << clearScreen;
             cout << "Generating password for server..." << endl;
-            generatePassword(hashServerStore);
-            break;
-        case 3:
+            password = generatePassword(hashServerStore);
+            // *pn = 1;
+            hashServerStore[1] = password;
+            ofstream file("pn.txt");
+            if (file.is_open()) {
+                file << "1";
+                file.close();
+            }
+            return password;
+        }
+        else if (choice == 3) {
             cout << clearScreen;
+            ofstream file("pn.txt");
+            if (file.is_open()) {
+                file << "2";
+                file.close();
+            }
             cout << "Server is starting up without password..." << endl;
-            break;
-        case 4:
-            exit(1);
-        default:
-            cout << "No choice has been chosen" << endl;
+            return "";
+        }
+        else if (choice == 4) {
             exit(1);
         }
+        return "";
     }
 };
 

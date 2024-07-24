@@ -322,6 +322,46 @@ int main() {
 
     cout << fmt::format("Found connection to server on port {}", PORT) << endl;
 
+    char passSignal[200] = { 0 };
+    ssize_t bytesPassSig = recv(clientSocket, passSignal, sizeof(passSignal) - 1, 0);
+    passSignal[bytesPassSig] = '\0';
+    string passSig(passSignal);
+    cout << "pass sig is: " << passSig << endl; //sends the pass signal and the prompt at the same time
+
+    if (passSig[0] == '1') {
+        cout << passSig.substr(1, passSig.length()) << endl;
+        string password = getinput_getch(MODE_P);
+        send(clientSocket, password.c_str(), password.length(), 0);
+        // cout << "\x1b[A";
+        cout << eraseLine;
+        cout << "Verifying password.." << endl;
+        sleep(1);
+        char passOp[200] = { 0 };
+        ssize_t bytesOp = recv(clientSocket, passOp, sizeof(passOp) - 1, 0);
+        passOp[bytesOp] = '\0';
+        string verifyRecv(passOp);
+        cout << "[t] verifyRecv: " << verifyRecv << endl;
+
+
+        if (verifyRecv.empty()) {
+            cout << "Could not verify password" << endl;
+            exit(1);
+        }
+        else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#V") {
+            cout << "probhere 1" << endl;
+            cout << verifyRecv.substr(0, verifyRecv.length() - 2) << endl;
+            cout << "probend 1" << endl;
+        }
+        else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#N") {
+            cout << "probhere 2" << endl;
+            cout << verifyRecv.substr(0, verifyRecv.length() - 2) << endl;
+            cout << "probend 2" << endl;
+            exit(1);
+        }
+    }
+    else if (passSig == "2") {
+    }
+
     // cout << "\u02F9\t\t\u02FA";
     for (int i = 0; i < 5;i++) {
         cout << xU;
@@ -366,11 +406,15 @@ int main() {
 
 
     // cout << "\nUserstr is: " << userStr << endl;
-    //check if userstr is equal to the client has the same name exiting message from server then it exits 
-    if (userStr.back() == '*') {
+    //check if userstr is equal to the client has the same name exiting message from server then it exits
+    if (userStr.substr(userStr.length() - 2, userStr.length()) == "#V") {
+        cout << userStr.substr(0, userStr.length() - 2) << endl;
+        exit(1);
+    }
+    else if (userStr.back() == '*') {
         userStr.pop_back();
         cout << userStr << endl;
-        close(clientSocket);
+        close(clientSocket); //client Socket is already being closed by server so no need to shutdown here
         exit(1);
     }
 
