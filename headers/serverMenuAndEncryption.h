@@ -1,5 +1,5 @@
-#ifndef serverSideSendRecv
-#define serverSideSendRecv
+#ifndef SERVERMENUANDENCRYPTION
+#define SERVERMENUANDENCRYPTION
 
 #include <iostream>
 #include <fstream>
@@ -25,8 +25,12 @@
 using namespace CryptoPP;
 using namespace std;
 
+void signalHandleMenu(int signum);
+
 struct initMenu {
+
     short int getTermSize(int* ptrCols) {
+        signal(SIGINT, signalHandleMenu);
         struct winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
         *ptrCols = w.ws_col;
@@ -35,6 +39,7 @@ struct initMenu {
 
     string hashP(const string& p, unordered_map<int, string>& hashedServerP)
     {
+        signal(SIGINT, signalHandleMenu);
         hashedServerP[1] = bcrypt::generateHash(p);
         // bcrypt::validatePassword(p, hashedServerP[1]);
         return bcrypt::generateHash(p);
@@ -42,6 +47,7 @@ struct initMenu {
 
     string generatePassword(unordered_map<int, string>& hashedServerP, int&& length = 8)
     {
+        signal(SIGINT, signalHandleMenu);
         AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
 
@@ -62,6 +68,7 @@ struct initMenu {
 
     void print_menu(WINDOW* menu_win, int highlight)
     {
+        signal(SIGINT, signalHandleMenu);
         int x, y, i;
         x = 2;
         y = 2;
@@ -85,6 +92,8 @@ struct initMenu {
     }
 
     string initmenu(unordered_map<int, string> hashServerStore) {
+        int minLim = 6;
+        signal(SIGINT, signalHandleMenu);
         initscr();
         clear();
         noecho();
@@ -156,6 +165,10 @@ struct initMenu {
             cout << clearScreen;
             cout << "Enter a password: " << endl;
             password = getinput_getch(SERVER_S, MODE_P);
+            if (password.length() < minLim) {
+                cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << endl;
+                exit(1);
+            }
             // storeHash[1] = hashP(password, storeHash);
             cout << endl;
             cout << eraseLine;
@@ -402,5 +415,14 @@ struct LoadKey {
         return "success";
     }
 };
+
+void signalHandleMenu(int signum) {
+    endwin();
+    disable_conio_mode();
+    cout << eraseLine; //
+    cout << "Server has been shutdown" << endl;
+    delIt("server-recieved-client-keys");
+    exit(signum);
+}
 
 #endif

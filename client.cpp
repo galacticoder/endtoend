@@ -52,6 +52,8 @@
 #define right1 "\033[1C" //move the cursor back to the right once
 #define RESET_TEXT "\033[0m" //reset color to default
 #define xU "\u02DF"
+#define PING "ping"
+#define PONG "pong"
 
 using namespace std;
 using namespace CryptoPP;
@@ -193,23 +195,29 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             string receivedMessage(buffer);
             string decodedMessage;
 
+            if (receivedMessage == PING) {
+                send(clientSocket, PONG, strlen(PONG), 0);
+                continue;
+            }
+
             if (receivedMessage.find('|') == string::npos) { //if not found
                 // cout << "msg from server: " << receivedMessage << endl;
                 // disable_conio_mode();
                 // cout << "b is: " << bytesReceived << endl;
                 // enable_conio_mode();
-                decodedMessage = decoding.Base64Decode(receivedMessage);
-
-                try {
-                    string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                    disable_conio_mode();
-                    cout << decryptedMessage << endl;
-                    enable_conio_mode();
-                }
-                catch (const CryptoPP::Exception& e) {
-                    // If decryption fails, it may not be an encrypted message
-                    // cout << "Failed to decrypt server message: " << e.what() << endl; //for d
-                    // cout << decodedMessage << endl;
+                if (receivedMessage != PING) {
+                    decodedMessage = decoding.Base64Decode(receivedMessage);
+                    try {
+                        string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                        disable_conio_mode();
+                        cout << decryptedMessage << endl;
+                        enable_conio_mode();
+                    }
+                    catch (const CryptoPP::Exception& e) {
+                        // If decryption fails, it may not be an encrypted message
+                        // cout << "Failed to decrypt server message: " << e.what() << endl; //for d
+                        // cout << decodedMessage << endl;
+                    }
                 }
             }
 
@@ -218,7 +226,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 // cout << "b is a: " << bytesReceived << endl;
                 // enable_conio_mode();
 
-                if (receivedMessage.find('|') != string::npos) { //if '|' not found
+                if (receivedMessage.find('|') != string::npos || receivedMessage != PING) { //if '|' not found
                     // if (receivedMessage.empty()) {
                     //     disable_conio_mode();
                     //     cout << "recieved message is empty" << endl;
@@ -329,7 +337,7 @@ int main() {
 
     if (passSig[0] == '1') {
         cout << "This server is password protected. Enter the password to join: " << endl;
-        string password = getinput_getch(MODE_P);
+        string password = getinput_getch(CLIENT_S, MODE_P);
         send(clientSocket, password.c_str(), password.length(), 0);
         // cout << "\x1b[A";
         cout << eraseLine;

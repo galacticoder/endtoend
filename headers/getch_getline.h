@@ -72,7 +72,7 @@ int readActiveUsers(const string& filepath) {
 }
 
 
-string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& unallowed = " MYGETCHDEFAULT'|", const int&& limit = getTermSizeCols()) {//N==normal//P==Password
+string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& unallowed = " MYGETCHDEFAULT'|", const int&& maxLimit = getTermSizeCols()) {//N==normal//P==Password
     sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();
@@ -198,7 +198,7 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
             else {
                 if (unallowed == " MYGETCHDEFAULT'|/") {
                     if (c != '[') {
-                        if (message.size() < limit) {
+                        if (message.size() < maxLimit) {
                             if (MODE == MODE_P) {
                                 // c = '*';
                                 message.insert(message.begin() + cursor_pos, c);
@@ -226,7 +226,7 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                     }
                     else if (findIn(c, notAllowed) == false) {
                         if (c != '[') {
-                            if (message.size() < limit) {
+                            if (message.size() < maxLimit) {
                                 if (MODE == MODE_P) {
                                     message.insert(message.begin() + cursor_pos, c);
                                     modeP.insert(modeP.begin() + cursor_pos, c);

@@ -26,7 +26,7 @@
 #include <filesystem>
 #include <ncurses.h>
 #include <map>
-#include "headers/serverSendRecv.h"
+#include "headers/serverMenuAndEncryption.h"
 
 // add certain length of username allow only
 
@@ -51,8 +51,7 @@
 //          << ", Value: " << it->second << endl;
 //     ++it;
 // }
-#define PASS_N 1
-#define PASS_O 2
+
 
 using boost::asio::ip::tcp;
 
@@ -158,19 +157,14 @@ void broadcastMessage(const string& message, int senderSocket = -1)
 // }
 // }
 
-void updatePort(int PORT) {
-    string portfile = "FILEPORT.TXT";
-    std::ofstream file(portfile);
-    if (file.is_open())
-    {
-        file << PORT;
-        file.close();
+void serverCommands() {
+    string getinput = getinput_getch(SERVER_S, MODE_N);
+
+    if (getinput == "quit") {
+        disable_conio_mode();
+        exit(1);
     }
-    else
-    {
-        cout << "Cannot write file server port to file" << endl;
-        return;
-    }
+
 }
 
 // void EncAndB64enc(string plaintext, string userStr, string lenOfUser) {
@@ -348,6 +342,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
             sleep(1); //so they recieve it before closing their socket
             close(clientSocket);
             userStr.clear();
+            clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
             auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
             connectedClients.erase(it, connectedClients.end());
             cout << "disconnected not verified user" << endl;
@@ -616,6 +611,9 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                 {
                     std::lock_guard<std::mutex> lock(clientsMutex);
                     std::cout << fmt::format("User client socket deletion: BEFORE: {}", connectedClients.size()) << endl;
+                    auto itCl = find(connectedClients.begin(), connectedClients.end(), clientSocket); //find clientSocket index
+                    int indexClientOut = itCl - connectedClients.begin();
+                    clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
                     auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
                     connectedClients.erase(it, connectedClients.end());
                     std::cout << fmt::format("User client socket deleted: AFTER: {}", connectedClients.size()) << endl;
@@ -625,25 +623,28 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                 }
 
                 std::string exitMsg = fmt::format("{} has left the chat", userStr);
-                LoadKey loadkeyandsend;
-                if (clientUsernames[0] == userStr) {
-                    int index = 0 + 1;
-                    string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                    string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
-                    cout << "UPDATED OP64: " << op64 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
-                        broadcastMessage(op64, clientSocket);
-                    }
-                }
+                if (clientUsernames.size() > 1) {
 
-                else if (clientUsernames[1] == userStr) {
-                    int index2 = 1 - 1;
-                    string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
-                    string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
-                    cout << "UPDATED OP642: " << op642 << endl;
-                    if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
-                        // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-                        broadcastMessage(op642, clientSocket);
+                    LoadKey loadkeyandsend;
+                    if (clientUsernames[0] == userStr) {
+                        int index = 0 + 1;
+                        string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
+                        string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
+                        cout << "UPDATED OP64: " << op64 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err") {
+                            broadcastMessage(op64, clientSocket);
+                        }
+                    }
+
+                    else if (clientUsernames[1] == userStr) {
+                        int index2 = 1 - 1;
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
+                        string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
+                        cout << "UPDATED OP642: " << op642 << endl;
+                        if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err") {
+                            // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                            broadcastMessage(op642, clientSocket);
+                        }
                     }
                 }
                 // std::cout << exitMsg << std::endl;
@@ -673,12 +674,6 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                     delIt("server-recieved-client-keys");
                     exit(1);
                 }
-
-                // else {
-                //     // cout << fmt::format("Clients connected: ({})", clientsNamesStr) << endl;
-                //     std::cout << "Disconnected client with same username" << endl;
-                //     close(clientSocket);
-                // }
                 lenOfUser.clear();
                 // last execution of username exists
             }
@@ -795,13 +790,13 @@ int main() {
 
     listen(serverSocket, 5);
     std::cout << fmt::format("Server listening on port {}", PORT) << "\n";
-    while (true)
-    {
+    while (true) {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, &clientLen);
 
         thread(handleClient, clientSocket, serverSocket, serverHash, pnInt).detach();
+        // thread(serverCommands).detach();
     }
 
     close(serverSocket);

@@ -38,7 +38,7 @@ void delIt(const string& formatpath) {
 void leave(const string& formatpath = formatPath, const string& fPath = fpath) {
     delIt(formatpath);
     delIt(fPath);
-    remove("usersActive.txt");
+    remove("../usersActive.txt");
     exit(1);
 }
 
