@@ -10,12 +10,20 @@
 #include "leave.h"
 #include <chrono>
 #include <fstream>
+#include <boost/asio.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <arpa/inet.h>
+#include <netinet/ip_icmp.h>
+#include <thread>
+#include <chrono>
+#include <atomic>
 
 #define eraseLine "\033[2K\r"
 #define boldMode "\033[1m"
 #define boldModeReset "\033[22m"
 #define saveCursor "\033[s"
 #define restoreCursor "\033[u"
+#define clearScreen "\033[2J\r"
 
 #define MODE_P 'P'
 #define MODE_N 'N'
@@ -26,10 +34,45 @@
 using namespace std;
 using namespace chrono;
 
-vector <char> message;
+vector <string> message;
 vector <char> modeP;
 
 char sC_M = '\0';
+
+using boost::asio::ip::tcp;
+
+void isPortOpen(const string& address, int port, std::atomic<bool>& running, unsigned int update_secs) {
+    if (address != "-1" && port != 0) {
+        const auto wait_duration = chrono::seconds(update_secs);
+        while (true) {
+            try {
+                boost::system::error_code ecCheck;
+                boost::asio::ip::address::from_string(address, ecCheck);
+                if (ecCheck) {
+                    cout << "invalid ip address: " << address << endl;
+                }
+                boost::asio::io_service io_service;
+                tcp::socket socket(io_service);
+                tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
+                socket.connect(endpoint);
+
+                if (ecCheck) {
+                    disable_conio_mode();
+                    cout << eraseLine;
+                    leave();
+                }
+
+                this_thread::sleep_for(wait_duration);
+            }
+            catch (const exception& e) {
+                running = false;
+                cout << eraseLine;
+                cout << "Server has been shutdown" << endl;
+                leave();
+            }
+        }
+    }
+}
 
 short int getTermSizeCols() {
     struct winsize w;
@@ -72,14 +115,25 @@ int readActiveUsers(const string& filepath) {
 }
 
 
-string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& unallowed = " MYGETCHDEFAULT'|", const int&& maxLimit = getTermSizeCols()) {//N==normal//P==Password
+string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string& serverIp = "-1", int PORT = 0, const string&& unallowed = " MYGETCHDEFAULT'|", const int&& maxLimit = getTermSizeCols()) {//N==normal//P==Password
     sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
+    std::atomic<bool> running{ true };
+    const unsigned int update_interval = 2; // update after every 50 milliseconds
+    std::thread pingingServer(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
+    pingingServer.detach();
+
     while (true) {
+        if (running == false) {
+            modeP.clear();
+            message.clear();
+            message.push_back("\u2702");
+            break;
+        }
         signal(SIGINT, signalhandleGetch);
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
@@ -91,8 +145,8 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                 }
             }
             else if (MODE == 'N') {
-                for (int i : message) {
-                    cout << char(i);
+                for (string i : message) {
+                    cout << i;
                 }
             }
             cout << restoreCursor;
@@ -151,8 +205,8 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                         if (message.size() + 1 != cols_out) {
                             cout << saveCursor;
                             cout << eraseLine;
-                            for (int i : message) {
-                                cout << char(i);
+                            for (string i : message) {
+                                cout << i;
                             }
                             cout << restoreCursor;
                             continue;
@@ -163,8 +217,8 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                         if (message.size() + 1 == cols_out) {
                             // exit(1);
                             cout << eraseLine;
-                            for (int i : message) {
-                                cout << char(i);
+                            for (string i : message) {
+                                cout << i;
                             }
                             cout << restoreCursor;
 
@@ -200,15 +254,17 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                     if (c != '[') {
                         if (message.size() < maxLimit) {
                             if (MODE == MODE_P) {
+                                string s(1, c);
                                 // c = '*';
-                                message.insert(message.begin() + cursor_pos, c);
+                                message.insert(message.begin() + cursor_pos, s);
                                 modeP.insert(modeP.begin() + cursor_pos, c);
                                 // cout << c;
                                 cout << "*";
                                 cursor_pos++;
                             }
                             else if (MODE == MODE_N) {
-                                message.insert(message.begin() + cursor_pos, c);
+                                string s(1, c);
+                                message.insert(message.begin() + cursor_pos, s);
                                 cout << c;
                                 cursor_pos++;
                             }
@@ -228,14 +284,16 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
                         if (c != '[') {
                             if (message.size() < maxLimit) {
                                 if (MODE == MODE_P) {
-                                    message.insert(message.begin() + cursor_pos, c);
+                                    string s(1, c);
+                                    message.insert(message.begin() + cursor_pos, s);
                                     modeP.insert(modeP.begin() + cursor_pos, c);
                                     // cout << c;
                                     cout << "*";
                                     cursor_pos++;
                                 }
                                 else if (MODE == MODE_N) {
-                                    message.insert(message.begin() + cursor_pos, c);
+                                    string s(1, c);
+                                    message.insert(message.begin() + cursor_pos, s);
                                     cout << c;
                                     cursor_pos++;
                                 }
@@ -247,17 +305,21 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string&& u
         }
     }
 
-    string message_str;
+    running = false;
     disable_conio_mode();
 
-    for (char i : message) {
+    string message_str;
+
+    for (string i : message) {
         cout << boldMode;
         message_str += i;
     }
 
     cout << boldModeReset;
     message.clear();
+    modeP.clear();
     // unallowed.clear();
+    // cout << endl;
 
     return message_str;
 }

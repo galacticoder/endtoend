@@ -54,6 +54,7 @@
 #define xU "\u02DF"
 #define PING "ping"
 #define PONG "pong"
+#define connectionSignal "C"
 
 using namespace std;
 using namespace CryptoPP;
@@ -61,61 +62,31 @@ using boost::asio::ip::tcp;
 using namespace filesystem;
 
 vector <int> clsock;
-
-// void set_conio_terminal_mode() { //set to raw mode
-//     struct termios new_termios;
-//     tcgetattr(0, &new_termios);
-//     new_termios.c_lflag &= ~ICANON; // disable line buffering
-//     new_termios.c_lflag &= ~ECHO;   // disable echo
-//     tcsetattr(0, TCSANOW, &new_termios);
-// }
-
-
-// void reset_terminal_mode() { //reset mode
-//     struct termios old_termios;
-//     tcgetattr(0, &old_termios);
-//     old_termios.c_lflag |= ICANON; // enable line buffering
-//     old_termios.c_lflag |= ECHO;   // enable echo
-//     tcsetattr(0, TCSANOW, &old_termios);
-// }
-
-// int get_char() {
-//     int ch;
-//     if (read(0, &ch, 1) < 0) {
-//         return -1;
-//     }
-//     else {
-//         return ch;
-//     }
-// }
 uint8_t leavePattern;
 
-bool isPortOpen(const string& address, int port) {
+bool isPav(const string& address, int port) {
     try {
+        boost::system::error_code ecCheck;
+        boost::asio::ip::address::from_string(address, ecCheck);
+        if (ecCheck) {
+            cout << "invalid ip address: " << address << endl;
+            // return false;
+        }
         boost::asio::io_service io_service;
         tcp::socket socket(io_service);
         tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
         socket.connect(endpoint);
+
         return true;
     }
-    catch (exception& e) {
+    catch (const exception& e) {
+        modeP.clear();
+        cout << "Server has been shutdown" << endl;
+        leave();
+        cout << "exception: " << e.what() << endl;
         return false;
     }
-}
-
-
-void sendM(string& local, int& PORT, const string msg, const string& userStr, const int clientSocket) {
-    bool serverReachable = isPortOpen(local, PORT);
-    if (serverReachable != true) { //check if server is reachable before attempting to send a message
-        cout << "Server has been shutdown" << endl;
-        close(clientSocket);
-        exit(true);
-    }
-    else {
-        send(clientSocket, msg.c_str(), msg.length(), 0);
-        // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-        cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, msg) << RESET_TEXT << endl; //print the message you sent without it doubkin g tho
-    }
+    return false; // not reachable
 }
 
 string t_w(string strIp) {
@@ -137,50 +108,10 @@ bool containsOnlyASCII(const string& stringS) {
     return true;
 }
 
-// static void d/elIt(const string& formatpath) {
-//     int del1 = 0;
-//     auto del2 = filesystem::directory_iterator(formatpath);
-//     int counter = 0;
-//     for (auto& del1 : del2) {
-//         if (del1.is_regular_file()) {
-//             filesystem::remove(del1);
-//             counter++;
-//         }
-//     }
-
-//     if (counter == 0) {
-//         cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
-//     }
-//     if (counter == 1) {
-//         cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
-//     }
-//     else if (counter > 1) {
-//         cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
-//     }
-// }
-
-// void leave(int clientSocket = clsock[0], const string& formatpath = formatPath, const string& fPath = fpath) {
-//     close(clientSocket);
-//     delIt(formatpath);
-//     delIt(fPath);
-//     exit(true);
-// }1
-
 void signalhandle(int signum) {
     cout << eraseLine;
-    // cout << erasefromc;
-    // switch (leavePattern) {
-    // case 0:
-    //     cout << "You have disconnected from the empty chat." << endl;
-    // case 1:
-    //     cout << "You have left the chat" << endl;
-    // default:
-    //     cout << "You have been kicked for having an existing username";
-    // }
-
     leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
     leave();
-    // cout << "you left" << endl;
     exit(signum);
 }
 
@@ -200,11 +131,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 continue;
             }
 
-            if (receivedMessage.find('|') == string::npos) { //if not found
-                // cout << "msg from server: " << receivedMessage << endl;
-                // disable_conio_mode();
-                // cout << "b is: " << bytesReceived << endl;
-                // enable_conio_mode();
+            if (receivedMessage.find('|') == string::npos) {
                 if (receivedMessage != PING) {
                     decodedMessage = decoding.Base64Decode(receivedMessage);
                     try {
@@ -214,16 +141,13 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                         enable_conio_mode();
                     }
                     catch (const CryptoPP::Exception& e) {
-                        // If decryption fails, it may not be an encrypted message
-                        // cout << "Failed to decrypt server message: " << e.what() << endl; //for d
-                        // cout << decodedMessage << endl;
                     }
                 }
             }
 
             if (bytesReceived < 500) {
                 // disable_conio_mode();
-                // cout << "b is a: " << bytesReceived << endl;
+                // cout << "b is a: " << bytesReceived << 
                 // enable_conio_mode();
 
                 if (receivedMessage.find('|') != string::npos || receivedMessage != PING) { //if '|' not found
@@ -238,11 +162,6 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                     continue;
                 }
             }
-            // cout << "quit is : " << receivedMessage.find_last_of("quit") << endl;
-            // cout << "len is: " << receivedMessage.length() - 1 << endl;
-            // if (receivedMessage.find_last_of("quit") == receivedMessage.length() - 1) {
-                // continue;
-            // }
 
             int firstPipe = receivedMessage.find_first_of("|");
             int secondPipe = receivedMessage.find_last_of("|");
@@ -250,7 +169,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
             string time = receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
             string user = receivedMessage.substr(0, firstPipe);
 
-            // cout << "encoded recieved: " << receivedMessage << endl;
+            // cout << "encoded recieved: " << receivedMessage << endl
             // cout << "cipher recieved: " << cipher << endl;
             // decodedMessage = Base64Decode(receivedMessage);
             decodedMessage = decoding.Base64Decode(cipher);
@@ -272,8 +191,8 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
                 }
             }
             catch (const CryptoPP::Exception& e) {
-                // If decryption fails, it may not be an encrypted message
-                // cout << "Failed to decrypt message: " << e.what() << endl;
+                // If decryption failsit may not be an encrypted message
+                // cout << "Failed to decryptge: " << e.what() << endl;
                 // cout << decodedMessage << endl;
             }
         }
@@ -286,7 +205,7 @@ static bool createDir(const string& dirName)
     {
         if (exists(dirName))
         {
-            // cout << fmt::format("The directory ({}) already exists", dirName) << endl;
+            // cout << fmt::format("The directory ({}) already exists";
             return true;
         }
         else {
@@ -299,7 +218,7 @@ static bool createDir(const string& dirName)
 }
 
 int main() {
-    // cout << clearsrc << endl;
+    // cout << clearsrc << en
     // leavePattern == 
     char serverIp[30] = "127.0.0.1"; //change to the server ip //192.168.0.205
     ifstream file("PORT.txt");
@@ -330,18 +249,36 @@ int main() {
 
     cout << fmt::format("Found connection to server on port {}", PORT) << endl;
 
+    send(clientSocket, connectionSignal, strlen(connectionSignal), 0);//
+
+    // std::atomic<bool> running{ true };
+    // const unsigned int update_interval = 2; // update after every 50 milliseconds
+    // std::thread pingingServerClientSide(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
+    // pingingServerClientSide.detach();
+
     char passSignal[200] = { 0 };
     ssize_t bytesPassSig = recv(clientSocket, passSignal, sizeof(passSignal) - 1, 0);
     passSignal[bytesPassSig] = '\0';
     string passSig(passSignal);
 
-    if (passSig[0] == '1') {
+    if (passSig.back() == '*') {
+        passSig.pop_back();
+        cout << passSig << endl;
+        close(clientSocket); //client Socket is already being closed by servero noneed to shutdown 
+        exit(1);
+    }
+
+    else if (passSig[0] == '1') {
         cout << "This server is password protected. Enter the password to join: " << endl;
-        string password = getinput_getch(CLIENT_S, MODE_P);
+        string password = getinput_getch(CLIENT_S, MODE_P, serverIp, PORT);
         send(clientSocket, password.c_str(), password.length(), 0);
         // cout << "\x1b[A";
         cout << eraseLine;
-        cout << "Verifying password.." << endl;
+        if (password != "\u2702") {
+            // cout << "some";
+            cout << eraseLine;
+            cout << "Verifying password.." << endl;
+        }
         sleep(1);
         char passOp[200] = { 0 };
         ssize_t bytesOp = recv(clientSocket, passOp, sizeof(passOp) - 1, 0);
@@ -374,17 +311,17 @@ int main() {
         cout << xU;
     }
     cout << endl;
-    //get username input
+    //get username in
     // getline(cin, user);
 
-    user = getinput_getch(CLIENT_S, MODE_N, "/|\\| ", 12); //seperate chars by '|' delimeter
+    user = getinput_getch(CLIENT_S, MODE_N, serverIp, PORT, "/|\\| ", 12); //seperate chars by '|' delimeter
 
 
     cout << eraseLine;
     cout << "Username: " << boldMode << user << boldModeReset << endl;
 
     // string* user;
-    // getstr(&string); //append from vector to string and return from function back to string and save it in the string provided in arg
+    // getstr(&string); //append from vectoro string and return from function back to string and save it in the string provided in arg
 
 
 
@@ -412,13 +349,6 @@ int main() {
         cout << userStr.substr(0, userStr.length() - 2) << endl;
         exit(1);
     }
-    else if (userStr.back() == '*') {
-        userStr.pop_back();
-        cout << userStr << endl;
-        close(clientSocket); //client Socket is already being closed by server so no need to shutdown here
-        exit(1);
-    }
-
     else if (userStr.back() == '@') {
         cout << userStr.substr(0, userStr.length() - 1) << endl;
         close(clientSocket);
@@ -481,10 +411,6 @@ int main() {
         close(clientSocket);
         leave();
     }
-
-    // int last = (pub.find_last_of("-p")) - 2;
-    // int lastS = (pub.find_last_of("/")) + 1;
-    // string userSent = pub.substr(lastS, last);
 
 
     RSA::PublicKey receivedPublicKey;
@@ -564,7 +490,7 @@ int main() {
         leavePattern = 0;
         while (true) {
             this_thread::sleep_for(chrono::seconds(2));
-            // close(clientSocket);
+            // thread(isPortOpen, serverAddress, PORT).detach();
             signal(SIGINT, signalhandle);
             activeInt = readActiveUsers(usersActivePath);
             if (activeInt > 1) {
@@ -576,17 +502,7 @@ int main() {
         ssize_t btSec = recv(clientSocket, sec, sizeof(sec), 0);
         sec[btSec] = '\0';
         string secKey(sec);
-        // cout << "ORIGINAL SEC KEY: " << secKey << endl;
 
-        // // cout << "seckey bytes: " << sizeof(secKey) << endl;
-        // if (sizeof(secKey) < 100) { //change this to adapt to the bottom code
-        //     int indexInt = secKey.find_first_of("/") + 1;
-        //     secKey = secKey.substr(indexInt);
-        //     secKey = secKey.insert(0, formatPath, 0, formatPath.length());
-        //     // cout << fmt::format("Formatted 1 secKey: {}", secKey) << endl;
-        // }
-
-            //keys-from-server/someone-pubkeyfromserver.der
         int firstPipe;
         int secondPipe;
         string pubUser;
@@ -629,23 +545,7 @@ int main() {
                 recievePub2.saveFile(secKey, decodedData2);
             }
         }
-        // cout << "now seckey: " << secKey << endl;
-        // }
 
-        // if (pubUser.length() > 12 || pubUser.length() < 3) {
-        //     //SO WHEN IT PRINTS OUT SECKEY AND YOU CAN SEE WHATS GOING ON SPLIT THE KEY DATA WITH THE USERNAME AND PATH IF THEY CAME TOGETHER.
-        //     cout << "Pub user could not format properly" << endl;
-        //     close(clientSocket);
-        //     delIt(formatPath);
-        //     delIt(fpath);
-        //     exit(1);
-        // }
-        // cout << encodedData2 << endl;
-        // cout << "stage 1 complete" << endl;
-        // cout << "stage 2 complete" << endl;
-        // cout << "stage 3 complete" << endl;
-
-        // ifstream file(secKey, ios::binary);
         if (is_regular_file(secKey)) {
             cout << fmt::format("Recieved {}'s pub key", pubUser) << endl;
             // file.close();
@@ -747,7 +647,7 @@ int main() {
         // cout << "ciphertext length on client: " << cipherText.length();
 
         //need to send key, iv, and message with a pipe delimeter all at once because of data loss
-        bool serverReachable = isPortOpen(serverIp, PORT);
+        bool serverReachable = isPav(serverIp, PORT);
         if (serverReachable != true) { //check if server is reachable before attempting to send a message
             cout << "Server has been shutdown" << endl; //put in function
             close(clientSocket);

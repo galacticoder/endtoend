@@ -2,10 +2,10 @@
 #define LEAVE
 
 #include <iostream>
-// #include <unistd.h>
 #include <fmt/core.h>
 #include <filesystem>
 
+#define eraseLine "\033[2K\r"
 
 using namespace std;
 using namespace filesystem;
@@ -36,6 +36,7 @@ void delIt(const string& formatpath) {
 }
 
 void leave(const string& formatpath = formatPath, const string& fPath = fpath) {
+    disable_conio_mode();
     delIt(formatpath);
     delIt(fPath);
     remove("../usersActive.txt");
