@@ -647,44 +647,45 @@ int main() {
         // cout << "ciphertext length on client: " << cipherText.length();
 
         //need to send key, iv, and message with a pipe delimeter all at once because of data loss
-        bool serverReachable = isPav(serverIp, PORT);
-        if (serverReachable != true) { //check if server is reachable before attempting to send a message
-            cout << "Server has been shutdown" << endl; //put in function
-            close(clientSocket);
-            leave();
+        // bool serverReachable = isPav(serverIp, PORT);
+        // if (serverReachable != true) { //check if server is reachable before attempting to send a message
+        //     cout << "Server has been shutdown" << endl; //put in function
+        //     close(clientSocket);
+        //     leave();
+        // }
+        // else {
+        //commented out top code cuz it calls that again after the server disconnected which isnt needed since we set auto disconnecting when the server shuts off
+        send(clientSocket, newenc.c_str(), newenc.length(), 0);
+        auto now = chrono::system_clock::now();
+        time_t currentTime = chrono::system_clock::to_time_t(now);
+        tm* localTime = localtime(&currentTime);
+
+        bool isPM = localTime->tm_hour >= 12;
+        string stringFormatTime = asctime(localTime);
+
+        int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+        stringstream ss;
+        ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+        string formattedTime = ss.str();
+
+        regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+        smatch match;
+        if (regex_search(stringFormatTime, match, time_pattern))
+        {
+            string str = match.str(0);
+            size_t pos = stringFormatTime.find(str);
+            stringFormatTime.replace(pos, str.length(), formattedTime);
         }
-        else {
-            send(clientSocket, newenc.c_str(), newenc.length(), 0);
-            auto now = chrono::system_clock::now();
-            time_t currentTime = chrono::system_clock::to_time_t(now);
-            tm* localTime = localtime(&currentTime);
-
-            bool isPM = localTime->tm_hour >= 12;
-            string stringFormatTime = asctime(localTime);
-
-            int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-            stringstream ss;
-            ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-            string formattedTime = ss.str();
-
-            regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-            smatch match;
-            if (regex_search(stringFormatTime, match, time_pattern))
-            {
-                string str = match.str(0);
-                size_t pos = stringFormatTime.find(str);
-                stringFormatTime.replace(pos, str.length(), formattedTime);
-            }
-            // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
-            cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
-            // printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
-        }
-        // cout << cipherText << endl;
-
-        //bathroom break
-
+        // send(clientSocket, publicKey.c_str(), publicKey.length(), 0);
+        cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime); //print the message you sent without it doubkin g tho
+        // printw("%s(You): %s\t\t\t\t%s", userStr.c_str(), message.c_str(), stringFormatTime.c_str()); //print the message you sent without it doubkin g tho
     }
+    // cout << cipherText << endl;
+
+    //bathroom break
+
+// }
     close(clientSocket);
     return 0;
 }
