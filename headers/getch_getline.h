@@ -1,15 +1,14 @@
 #ifndef IGETLINE
 #define IGETLINE
 
-#include "linux_conio.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "leave.h"
 #include <chrono>
 #include <fstream>
+#include <filesystem>
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <arpa/inet.h>
@@ -17,6 +16,8 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include "leave.h"
+#include "linux_conio.h"
 
 #define eraseLine "\033[2K\r"
 #define boldMode "\033[1m"
@@ -33,6 +34,7 @@
 
 using namespace std;
 using namespace chrono;
+using namespace filesystem;
 
 vector <string> message;
 vector <char> modeP;
@@ -40,6 +42,46 @@ vector <char> modeP;
 char sC_M = '\0';
 
 using boost::asio::ip::tcp;
+
+string keyPath = "keys-from-server/";
+string yourkeypath = "your-keys/";
+
+void delIterate(const string& keyPath) {
+    try {
+        int del1 = 0;
+        auto del2 = directory_iterator(keyPath);
+        int counter = 0;
+        for (auto& del1 : del2) {
+            if (del1.is_regular_file()) {
+                remove(del1);
+                counter++;
+            }
+        }
+
+        if (counter == 0) {
+            cout << fmt::format("There was nothing to delete from path '{}'", keyPath) << endl;
+        }
+        if (counter == 1) {
+            cout << fmt::format("{} key in filepath ({}) have been deleted", counter, keyPath) << endl;
+        }
+        else if (counter > 1) {
+            cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, keyPath) << endl;
+        }
+        remove(keyPath);
+        cout << "Deleted directory '" << keyPath << "'" << endl;
+    }
+    catch (const exception& e) {
+        cout << "";
+    }
+}
+
+void leaveChat(const string& formatpath = keyPath, const string& fPath = yourkeypath) {
+    disable_conio_mode();
+    delIterate(formatpath);
+    delIterate(fPath);
+    remove("usersActive.txt");
+    exit(1);
+}
 
 void isPortOpen(const string& address, int port, std::atomic<bool>& running, unsigned int update_secs) {
     if (address != "-1" && port != 0) {
@@ -59,7 +101,7 @@ void isPortOpen(const string& address, int port, std::atomic<bool>& running, uns
                 if (ecCheck) {
                     disable_conio_mode();
                     cout << eraseLine;
-                    leave();
+                    leaveChat();
                 }
 
                 this_thread::sleep_for(wait_duration);
@@ -68,7 +110,7 @@ void isPortOpen(const string& address, int port, std::atomic<bool>& running, uns
                 running = false;
                 cout << eraseLine;
                 cout << "Server has been shutdown" << endl;
-                leave();
+                leaveChat();
             }
         }
     }
@@ -85,12 +127,13 @@ void signalhandleGetch(int signum) { //for forceful leaving like using ctrl-c
     cout << eraseLine;
     if (sC_M == SERVER_S) {
         cout << "Server has been shutdown" << endl;
-        delIt(S_PATH);
+        // delIt(S_PATH);
+        remove(S_PATH); //delete directory
         exit(signum);
     }
     else if (sC_M == CLIENT_S) {
         cout << "You have left the chat.\n";
-        leave();
+        leaveChat();
         exit(signum);
     }
 }
@@ -123,7 +166,7 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string& se
     short int cols_out = getTermSizeCols();
 
     std::atomic<bool> running{ true };
-    const unsigned int update_interval = 2; // update after every 50 milliseconds
+    const unsigned int update_interval = 2; //update every 2 seconds
     std::thread pingingServer(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
     pingingServer.detach();
 
@@ -137,18 +180,29 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string& se
         signal(SIGINT, signalhandleGetch);
         short int cols = getTermSizeCols();
         if (message.size() < cols) {
+            // cout << "\x1b[C";
             cout << saveCursor;
             cout << eraseLine;
+            // cout << saveCursor;
             if (MODE == 'P') {
+                // cout << saveCursor;
+                // cursor_pos++;
                 for (int i : modeP) {
                     cout << '*';
                 }
             }
             else if (MODE == 'N') {
+                // cout << ">";
+                // cout << "\x1b[C";
+                // cout << saveCursor;
+                // cursor_pos++;
                 for (string i : message) {
                     cout << i;
                 }
             }
+            // cout << "\x1b[C";
+            // cout << saveCursor;
+
             cout << restoreCursor;
         }
         else if (message.size() + 1 == cols) {
@@ -251,6 +305,7 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string& se
             }
             else {
                 if (unallowed == " MYGETCHDEFAULT'|/") {
+                    cout << "\x1b[C";
                     if (c != '[') {
                         if (message.size() < maxLimit) {
                             if (MODE == MODE_P) {
@@ -281,6 +336,7 @@ string getinput_getch(char sC = CLIENT_S, char&& MODE = MODE_N, const string& se
                         continue;
                     }
                     else if (findIn(c, notAllowed) == false) {
+                        // cout << "\x1b[C";
                         if (c != '[') {
                             if (message.size() < maxLimit) {
                                 if (MODE == MODE_P) {

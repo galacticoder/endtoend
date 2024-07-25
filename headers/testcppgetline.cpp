@@ -65,6 +65,7 @@ string getinput_getch(const int&& limit = getTermSizeCols()) {
         if (message.size() < cols) {
             cout << saveCursor;
             cout << eraseLine;
+            cout << ">";
             for (int i : message) {
                 cout << char(i);
             }

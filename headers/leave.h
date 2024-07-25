@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fmt/core.h>
 #include <filesystem>
+#include "getch_getline.h"
+#include "linux_conio.h"
 
 #define eraseLine "\033[2K\r"
 
@@ -14,24 +16,31 @@ string formatPath = "keys-from-server/";
 string fpath = "your-keys/";
 
 void delIt(const string& formatpath) {
-    int del1 = 0;
-    auto del2 = filesystem::directory_iterator(formatpath);
-    int counter = 0;
-    for (auto& del1 : del2) {
-        if (del1.is_regular_file()) {
-            filesystem::remove(del1);
-            counter++;
+    try {
+        int del1 = 0;
+        auto del2 = directory_iterator(formatpath);
+        int counter = 0;
+        for (auto& del1 : del2) {
+            if (del1.is_regular_file()) {
+                remove(del1);
+                counter++;
+            }
         }
-    }
 
-    if (counter == 0) {
-        cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
+        if (counter == 0) {
+            cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
+        }
+        if (counter == 1) {
+            cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
+        }
+        else if (counter > 1) {
+            cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
+        }
+        remove(formatPath);
+        cout << "Deleted directory '" << formatPath << "'" << endl;
     }
-    if (counter == 1) {
-        cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
-    }
-    else if (counter > 1) {
-        cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
+    catch (const exception& e) {
+        cout << "";
     }
 }
 
@@ -39,9 +48,8 @@ void leave(const string& formatpath = formatPath, const string& fPath = fpath) {
     disable_conio_mode();
     delIt(formatpath);
     delIt(fPath);
-    remove("../usersActive.txt");
+    remove("usersActive.txt");
     exit(1);
 }
-
 
 #endif

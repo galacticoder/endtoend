@@ -19,8 +19,10 @@
 #include "bcrypt/include/bcrypt.h"
 #include "rsa.h"
 #include "getch_getline.h"
+#include "leave.h"
 
 #define clearScreen "\033[2J\r"
+const unsigned int KEYSIZE = 4096;
 
 using namespace CryptoPP;
 using namespace std;
@@ -28,7 +30,6 @@ using namespace std;
 void signalHandleMenu(int signum);
 
 struct initMenu {
-
     short int getTermSize(int* ptrCols) {
         signal(SIGINT, signalHandleMenu);
         struct winsize w;
@@ -214,46 +215,61 @@ struct initMenu {
     }
 };
 
-struct Enc {
-    Enc() = default;
-    string enc(RSA::PublicKey& pubkey, string& plain) {
+struct makeServerKey {
+    makeServerKey(const std::string privateKeyFile, const std::string publicKeyFile, unsigned int keySize = KEYSIZE) {
+        AutoSeededRandomPool rng;
+        RSA::PrivateKey privateKey;
+        privateKey.GenerateRandomWithKeySize(rng, keySize);
+
+        RSA::PublicKey publicKey(privateKey);
+
+        {
+            FileSink file(privateKeyFile.c_str());
+            privateKey.DEREncode(file);
+        }
+        {
+            FileSink file(publicKeyFile.c_str());
+            publicKey.DEREncode(file);
+        }
+
+        cout << "Rsa key pair generated" << endl;
+    }
+};
+struct encServer {
+    encServer() = default;
+    string Enc(RSA::PublicKey& pubkey, string& plain) {
         // try {
         AutoSeededRandomPool rng; //using diff rng for better randomness
         string cipher;
         RSAES_OAEP_SHA512_Encryptor e(pubkey); //make sure to push rsa.h or you get errors cuz its modified to sha512 instead of sha1 for better security
         StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher))); //nested for better verification of both key loading
         return cipher;
-        // }
-        // catch (const Exception& e) {
-        //     string pu = "user-keys/pub";
-        //     string pr = "user-keys/prv";
-        //     auto pubdel = std::filesystem::directory_iterator(pu);
-        //     int puddel = 0;
-        //     for (auto& puddel : pubdel)
-        //     {
-        //         if (puddel.is_regular_file())
-        //         {
-        //             std::filesystem::remove(puddel);
-        //         }
-        //     }
-        //     auto prvdel = std::filesystem::directory_iterator(pr);
-        //     int prvdel2 = 0;
-        //     for (auto& prvdel2 : prvdel)
-        //     {
-        //         if (prvdel2.is_regular_file())
-        //         {
-        //             std::filesystem::remove(prvdel2);
-        //         }
-        //     }
-        //     const string err = "error";
-        //     return err;
-        // }
     }
 
     std::string Base64Encode(const std::string& input) {
         std::string encoded;
         StringSource(input, true, new Base64Encoder(new StringSink(encoded), false));
         return encoded;
+    }
+};
+struct DecServer {
+    DecServer() = default;
+    string dec(RSA::PrivateKey& prvkey, string& cipher) {
+        AutoSeededRandomPool rng; //using diff rng for better randomness
+        string decrypted;
+        RSAES_OAEP_SHA512_Decryptor d(prvkey);//modified to decrypt sha512
+        StringSource ss2(cipher, true, new PK_DecryptorFilter(rng, d, new StringSink(decrypted)));
+        return decrypted;
+    }
+    std::string Base64Decode(const std::string& input) {
+        std::string decoded;
+        StringSource(input, true, new Base64Decoder(new StringSink(decoded)));
+        return decoded;
+    }
+    string hexdecode(string& encoded) {
+        string decoded;
+        CryptoPP::StringSource ssv(encoded, true /*pump all*/, new CryptoPP::HexDecoder(new CryptoPP::StringSink(decoded)));
+        return decoded;
     }
 };
 struct Send {
@@ -374,32 +390,31 @@ struct LoadKey {
         try {
             ifstream fileopencheck(publicKeyFile, ios::binary);
             if (fileopencheck.is_open()) {
-                FileSource file(publicKeyFile.c_str(), true /*pumpAll*/);
+                FileSource file(publicKeyFile.c_str(), true); //pumpall
                 publickey.BERDecode(file);
                 cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
             }
             else {
-                cout << fmt::format("could not open file at file path '{}'", publicKeyFile) << endl;
+                cout << fmt::format("Could not open file at file path '{}'", publicKeyFile) << endl;
             }
         }
         catch (const Exception& e) {
-            std::cerr << fmt::format("error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
+            std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
             return false;
         }
 
         return true;
     }
     string loadPubAndEncrypt(const std::string& publicKeyFile, string& plaintext) {
-        Enc encrypt;
+        encServer encrypt;
         RSA::PublicKey publickey;
         try {
             ifstream fileopencheck(publicKeyFile, ios::binary);
             if (fileopencheck.is_open()) {
-                FileSource file(publicKeyFile.c_str(), true /*pumpAll*/);
+                FileSource file(publicKeyFile.c_str(), true);//pumpAll
                 publickey.BERDecode(file);
                 cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
-                string encrypted = encrypt.enc(publickey, plaintext);
-                // string base64encoded = ;
+                string encrypted = encrypt.Enc(publickey, plaintext);
                 return encrypt.Base64Encode(encrypted);
             }
             else {
@@ -414,14 +429,31 @@ struct LoadKey {
 
         return "success";
     }
+    bool loadPrv(const std::string& privateKeyFile, RSA::PrivateKey& privateKey) {
+        try {
+            FileSource file(privateKeyFile.c_str(), true);
+            privateKey.BERDecode(file);
+            cout << "Loaded RSA Private key successfuly" << endl;
+        }
+        catch (const Exception& e) {
+            std::cerr << "Error loading private rsa key: " << e.what() << std::endl;
+            return false;
+        }
+        return true;
+    }
 };
 
 void signalHandleMenu(int signum) {
     endwin();
     disable_conio_mode();
-    cout << eraseLine; //
+    cout << eraseLine;
     cout << "Server has been shutdown" << endl;
-    delIt("server-recieved-client-keys");
+    if (remove(S_PATH) == 1) {
+        cout << fmt::format("Deleted directory '{}'", S_PATH) << endl;
+    }
+    if (remove("Server-Keys") == 1) {
+        cout << "Deleted directory 'Server-Keys'" << endl;
+    }
     exit(signum);
 }
 

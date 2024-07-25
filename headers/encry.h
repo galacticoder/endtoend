@@ -13,6 +13,7 @@
 #include <cryptopp/filters.h>
 #include <filesystem>
 #include "rsa.h"
+#include "leave.h"
 
 // #include <vector>
 
@@ -95,19 +96,11 @@ struct Enc {
             return cipher;
         }
         catch (const Exception& e) {
-            string pu = "../your-keys";
-            auto keyDel = std::filesystem::directory_iterator(pu);
-            int keyCount = 0;
-            for (auto& keyDeleting : keyDel)
-            {
-                if (keyDeleting.is_regular_file())
-                {
-                    std::filesystem::remove(keyDeleting);
-                }
-            }
-            const string err = "error";
-            return err;
+            cout << "Error with encrypting" << endl;
+            leave();
         }
+        const string err = "error";
+        return err;
     }
 
     std::string Base64Encode(const std::string& input) {
@@ -231,13 +224,11 @@ struct Recieve {
 
         while ((bytesRead = recv(clientSocket, buffer.data(), buffer.size(), 0)) > 0)
         {
-            receivedData.append(buffer.data(), bytesRead); //probably problem here
+            receivedData.append(buffer.data(), bytesRead);
             if (receivedData.size() == bytesRead) {
                 break;
             }
         }
-        // cout << "RECIEVED DATA: " << receivedData.size() << endl;
-        // cout << "BYTES READ: " << bytesRead << endl;
 
         if (bytesRead == -1)
         {
