@@ -16,7 +16,7 @@
 #include <csignal>
 #include <unistd.h>
 #include <unordered_map>
-#include "bcrypt/include/bcrypt.h"
+#include "bcrypt.h"
 #include "rsa.h"
 #include "getch_getline.h"
 #include "leave.h"
