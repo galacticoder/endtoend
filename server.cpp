@@ -27,7 +27,7 @@
 #include <ncurses.h>
 #include <map>
 #include <atomic>
-#include "headers/serverMenuAndEncryption.h"
+#include "headers/header-files/serverMenuAndEncryption.h"
 
 // add certain length of username allow only
 
@@ -669,7 +669,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
 int main()
 {
-    const string userPath = "headers/usersActive.txt";
+    const string userPath = "txt-files/usersActive.txt";
     const string path = "server-recieved-client-keys";
     const string serverKeysPath = "Server-Keys";
     signal(SIGINT, signalHandleServer);

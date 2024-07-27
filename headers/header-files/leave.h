@@ -11,7 +11,7 @@
 
 #define eraseLine "\033[2K\r"
 
-void delIt(const string& formatpath);
-void leave(const string& formatpath = formatPath, const string& fPath = fpath);
+void delIt(const string &formatpath);
+void leave(const string &formatpath = formatPath, const string &fPath = fpath);
 
 #endif

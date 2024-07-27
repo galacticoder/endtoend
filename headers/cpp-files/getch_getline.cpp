@@ -14,17 +14,17 @@
 #include <chrono>
 #include <atomic>
 #include <cryptopp/cryptlib.h>
-#include "leave.h"
-#include "linux_conio.h"
-#include "encry.h"
-#include "getch_getline.h"
+#include "../header-files/leave.h"
+#include "../header-files/linux_conio.h"
+#include "../header-files/encry.h"
+#include "../header-files/getch_getline.h"
 
 using namespace std;
 using namespace chrono;
 using namespace filesystem;
 
-vector <string> message;
-vector <char> modeP;
+vector<string> message;
+vector<char> modeP;
 
 char sC_M = '\0';
 
@@ -52,14 +52,19 @@ using boost::asio::ip::tcp;
 //     }
 // }
 
-void isPortOpen(const string& address, int port, std::atomic<bool>& running, unsigned int update_secs) {
-    if (address != "-1" && port != 0) {
+void isPortOpen(const string &address, int port, std::atomic<bool> &running, unsigned int update_secs)
+{
+    if (address != "-1" && port != 0)
+    {
         const auto wait_duration = chrono::seconds(update_secs);
-        while (true) {
-            try {
+        while (true)
+        {
+            try
+            {
                 boost::system::error_code ecCheck;
                 boost::asio::ip::address::from_string(address, ecCheck);
-                if (ecCheck) {
+                if (ecCheck)
+                {
                     cout << "invalid ip address: " << address << endl;
                 }
                 boost::asio::io_service io_service;
@@ -67,7 +72,8 @@ void isPortOpen(const string& address, int port, std::atomic<bool>& running, uns
                 tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
                 socket.connect(endpoint);
 
-                if (ecCheck) {
+                if (ecCheck)
+                {
                     disable_conio_mode();
                     cout << eraseLine;
                     leave();
@@ -75,7 +81,8 @@ void isPortOpen(const string& address, int port, std::atomic<bool>& running, uns
 
                 this_thread::sleep_for(wait_duration);
             }
-            catch (const exception& e) {
+            catch (const exception &e)
+            {
                 running = false;
                 cout << eraseLine;
                 cout << "Server has been shutdown" << endl;
@@ -85,38 +92,46 @@ void isPortOpen(const string& address, int port, std::atomic<bool>& running, uns
     }
 }
 
-short int getTermSizeCols() {
+short int getTermSizeCols()
+{
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     return w.ws_col;
 }
 
-void signalhandleGetch(int signum) { //for forceful leaving like using ctrl-c
+void signalhandleGetch(int signum)
+{ // for forceful leaving like using ctrl-c
     disable_conio_mode();
     cout << eraseLine;
-    if (sC_M == SERVER_S) {
+    if (sC_M == SERVER_S)
+    {
         cout << "Server has been shutdown" << endl;
         // delIt(S_PATH);
-        remove(S_PATH); //delete directory
+        remove(S_PATH); // delete directory
         exit(signum);
     }
-    else if (sC_M == CLIENT_S) {
+    else if (sC_M == CLIENT_S)
+    {
         cout << "You have left the chat.\n";
         leave();
         exit(signum);
     }
 }
 
-bool findIn(const char& find, const string& In) {
-    for (int i = 0; i < In.length(); i++) {
-        if (In[i] == find) {
+bool findIn(const char &find, const string &In)
+{
+    for (int i = 0; i < In.length(); i++)
+    {
+        if (In[i] == find)
+        {
             return true;
         }
     }
     return false;
 }
 
-int readActiveUsers(const string& filepath) {
+int readActiveUsers(const string &filepath)
+{
     string active;
     int activeInt;
 
@@ -126,37 +141,39 @@ int readActiveUsers(const string& filepath) {
     return activeInt;
 }
 
-
-string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&& maxLimit, const string& serverIp, int PORT) {//N==normal//P==Password
+string getinput_getch(char sC, char &&MODE, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
+{ // N==normal//P==Password
     sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
-    std::atomic<bool> running{ true };
-    const unsigned int update_interval = 2; //update every 2 seconds
+    std::atomic<bool> running{true};
+    const unsigned int update_interval = 2; // update every 2 seconds
     std::thread pingingServer(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
     pingingServer.detach();
 
-    while (true) {
-        if (running == false) {
+    while (true)
+    {
+        if (running == false)
+        {
             disable_conio_mode();
             modeP.clear();
             message.clear();
             message.push_back("\u2702");
             break;
         }
-        //run a funciton here so its better and faster ig
-        //detect if users active.txt is equal to "2!"
-        // else if (runningFile == false) {
-        //     Recieve recievePub;
-        //     LoadKey loadp;
-        //     char name[4096] = { 0 };
-        //     ssize_t bt = recv(clientSocket, name, sizeof(name), 0);
-        //     name[bt] = '\0';
-        //     string pub(name);
-        //     const string keyPath = "keys-from-server/";
+        // run a funciton here so its better and faster ig
+        // detect if users active.txt is equal to "2!"
+        //  else if (runningFile == false) {
+        //      Recieve recievePub;
+        //      LoadKey loadp;
+        //      char name[4096] = { 0 };
+        //      ssize_t bt = recv(clientSocket, name, sizeof(name), 0);
+        //      name[bt] = '\0';
+        //      string pub(name);
+        //      const string keyPath = "keys-from-server/";
 
         //     int indexInt = pub.find_first_of("/") + 1;
         //     pub = pub.substr(indexInt);
@@ -194,28 +211,33 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
         //         leave();
         //     }
         // }
-        //do not break at the end
-        //run it only once till it changes again to "1!"
+        // do not break at the end
+        // run it only once till it changes again to "1!"
         signal(SIGINT, signalhandleGetch);
         short int cols = getTermSizeCols();
-        if (message.size() < cols) {
+        if (message.size() < cols)
+        {
             // cout << "\x1b[C";
             cout << saveCursor;
             cout << eraseLine;
             // cout << saveCursor;
-            if (MODE == 'P') {
+            if (MODE == 'P')
+            {
                 // cout << saveCursor;
                 // cursor_pos++;
-                for (int i : modeP) {
+                for (int i : modeP)
+                {
                     cout << '*';
                 }
             }
-            else if (MODE == 'N') {
+            else if (MODE == 'N')
+            {
                 // cout << ">";
                 // cout << "\x1b[C";
                 // cout << saveCursor;
                 // cursor_pos++;
-                for (string i : message) {
+                for (string i : message)
+                {
                     cout << i;
                 }
             }
@@ -224,79 +246,102 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
 
             cout << restoreCursor;
         }
-        else if (message.size() + 1 == cols) {
+        else if (message.size() + 1 == cols)
+        {
         }
         cout << boldMode;
-        if (_kbhit()) { //do other keys ignore like page up and stuff
+        if (_kbhit())
+        { // do other keys ignore like page up and stuff
             char c = _getch();
-            if (c == '\n') { //break on enter
+            if (c == '\n')
+            { // break on enter
                 break;
             }
-            else if (c == '\033') { //page and stuff keys
+            else if (c == '\033')
+            { // page and stuff keys
                 continue;
                 char next1 = _getch();
                 char next2 = _getch();
-                if (next1 == '[') {
-                    if (next2 == '6') { // page down
+                if (next1 == '[')
+                {
+                    if (next2 == '6')
+                    {                          // page down
                         char next3 = _getch(); // discard the tilde character
-                        if (next3 == '~') {
+                        if (next3 == '~')
+                        {
                             continue;
                         }
                     }
                 }
             }
 
-            else if (int(c) == 65) { //up
+            else if (int(c) == 65)
+            { // up
                 continue;
             }
-            else if (int(c) == 66) { //down
+            else if (int(c) == 66)
+            { // down
                 continue;
             }
-            else if (int(c) == 67) { //right
-                if (cursor_pos != message.size()) {
+            else if (int(c) == 67)
+            { // right
+                if (cursor_pos != message.size())
+                {
                     cout << "\x1b[C";
                     cursor_pos++;
                     cout << saveCursor;
                 }
             }
-            else if (int(c) == 68) { //left
-                if (cursor_pos > 0) {
+            else if (int(c) == 68)
+            { // left
+                if (cursor_pos > 0)
+                {
                     cout << "\x1b[D";
                     cursor_pos--;
                     cout << saveCursor;
                 }
             }
-            else if (int(c) == 70) { //end
+            else if (int(c) == 70)
+            { // end
                 continue;
             }
-            else if (int(c) == 126) { //page down 
+            else if (int(c) == 126)
+            { // page down
                 continue;
             }
-            else if (int(c) == 127) { //backspace
-                if (cursor_pos < message.size()) {
-                    if (cursor_pos < 1) {
-                        if (message.size() + 1 != cols_out) {
+            else if (int(c) == 127)
+            { // backspace
+                if (cursor_pos < message.size())
+                {
+                    if (cursor_pos < 1)
+                    {
+                        if (message.size() + 1 != cols_out)
+                        {
                             cout << saveCursor;
                             cout << eraseLine;
-                            for (string i : message) {
+                            for (string i : message)
+                            {
                                 cout << i;
                             }
                             cout << restoreCursor;
                             continue;
                         }
                     }
-                    else {
+                    else
+                    {
                         cout << saveCursor;
-                        if (message.size() + 1 == cols_out) {
+                        if (message.size() + 1 == cols_out)
+                        {
                             // exit(1);
                             cout << eraseLine;
-                            for (string i : message) {
+                            for (string i : message)
+                            {
                                 cout << i;
                             }
                             cout << restoreCursor;
-
                         }
-                        else {
+                        else
+                        {
                             cout << restoreCursor;
                             cout << "\b \b";
                             message.erase(message.begin() + cursor_pos - 1);
@@ -306,13 +351,15 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
                             cursor_pos--;
                         }
                     }
-
                 }
-                else if (cursor_pos == message.size()) {
-                    if (cursor_pos == 0) {
+                else if (cursor_pos == message.size())
+                {
+                    if (cursor_pos == 0)
+                    {
                         continue;
                     }
-                    else {
+                    else
+                    {
                         cout << "\b \b";
                         message.pop_back();
                         message.shrink_to_fit();
@@ -322,12 +369,17 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
                     }
                 }
             }
-            else {
-                if (unallowed == " MYGETCHDEFAULT'|/") {
+            else
+            {
+                if (unallowed == " MYGETCHDEFAULT'|/")
+                {
                     cout << "\x1b[C";
-                    if (c != '[') {
-                        if (message.size() < maxLimit) {
-                            if (MODE == MODE_P) {
+                    if (c != '[')
+                    {
+                        if (message.size() < maxLimit)
+                        {
+                            if (MODE == MODE_P)
+                            {
                                 string s(1, c);
                                 // c = '*';
                                 message.insert(message.begin() + cursor_pos, s);
@@ -336,7 +388,8 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
                                 cout << "*";
                                 cursor_pos++;
                             }
-                            else if (MODE == MODE_N) {
+                            else if (MODE == MODE_N)
+                            {
                                 string s(1, c);
                                 message.insert(message.begin() + cursor_pos, s);
                                 cout << c;
@@ -345,23 +398,31 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
                         }
                     }
                 }
-                else if (unallowed != " MYGETCHDEFAULT'|/") {
+                else if (unallowed != " MYGETCHDEFAULT'|/")
+                {
                     string notAllowed = "";
 
-                    if (unallowed.length() != 0) {
-                        for (int i = 0; i < unallowed.length(); i += 2) {
+                    if (unallowed.length() != 0)
+                    {
+                        for (int i = 0; i < unallowed.length(); i += 2)
+                        {
                             notAllowed += unallowed[i];
                             // continue;
                         }
                     }
-                    if (findIn(c, notAllowed) == true) {
+                    if (findIn(c, notAllowed) == true)
+                    {
                         continue;
                     }
-                    else if (findIn(c, notAllowed) == false) {
+                    else if (findIn(c, notAllowed) == false)
+                    {
                         // cout << "\x1b[C";
-                        if (c != '[') {
-                            if (message.size() < maxLimit) {
-                                if (MODE == MODE_P) {
+                        if (c != '[')
+                        {
+                            if (message.size() < maxLimit)
+                            {
+                                if (MODE == MODE_P)
+                                {
                                     string s(1, c);
                                     message.insert(message.begin() + cursor_pos, s);
                                     modeP.insert(modeP.begin() + cursor_pos, c);
@@ -369,7 +430,8 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
                                     cout << "*";
                                     cursor_pos++;
                                 }
-                                else if (MODE == MODE_N) {
+                                else if (MODE == MODE_N)
+                                {
                                     string s(1, c);
                                     message.insert(message.begin() + cursor_pos, s);
                                     cout << c;
@@ -388,7 +450,8 @@ string getinput_getch(char sC, char&& MODE, const string&& unallowed, const int&
 
     string message_str;
 
-    for (string i : message) {
+    for (string i : message)
+    {
         cout << boldMode;
         message_str += i;
     }

@@ -16,20 +16,20 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
- /* This password hashing algorithm was designed by David Mazieres
-  * <dm@lcs.mit.edu> and works as follows:
-  *
-  * 1. state := InitState ()
-  * 2. state := ExpandKey (state, salt, password)
-  * 3. REPEAT rounds:
-  *    	state := ExpandKey (state, 0, password)
-  *    state := ExpandKey (state, 0, salt)
-  * 4. ctext := "OrpheanBeholderScryDoubt"
-  * 5. REPEAT 64:
-  *    	ctext := Encrypt_ECB (state, ctext);
-  * 6. RETURN Concatenate (salt, ctext);
-  *
-  */
+/* This password hashing algorithm was designed by David Mazieres
+ * <dm@lcs.mit.edu> and works as follows:
+ *
+ * 1. state := InitState ()
+ * 2. state := ExpandKey (state, salt, password)
+ * 3. REPEAT rounds:
+ *    	state := ExpandKey (state, 0, password)
+ *    state := ExpandKey (state, 0, salt)
+ * 4. ctext := "OrpheanBeholderScryDoubt"
+ * 5. REPEAT 64:
+ *    	ctext := Encrypt_ECB (state, ctext);
+ * 6. RETURN Concatenate (salt, ctext);
+ *
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +37,7 @@
 #include <sys/types.h>
 #include <string.h>
 
-#include "node_blf.h"
+#include "../header-files/node_blf.h"
 
 #include "bcrypt.h"
 #include "openbsd.h"
@@ -46,24 +46,24 @@
 #define snprintf _snprintf
 #endif
 
-  // #if !defined(__APPLE__) && !defined(__MACH__)
-  // #include "bsd/stdlib.h"
-  // #endif
+// #if !defined(__APPLE__) && !defined(__MACH__)
+// #include "bsd/stdlib.h"
+// #endif
 
-  /* This implementation is adaptable to current computing power.
-   * You can have up to 2^31 rounds which should be enough for some
-   * time to come.
-   */
+/* This implementation is adaptable to current computing power.
+ * You can have up to 2^31 rounds which should be enough for some
+ * time to come.
+ */
 
 using namespace std;
 
-static void encode_base64(u_int8_t*, u_int8_t*, u_int16_t);
-static void decode_base64(u_int8_t*, u_int16_t, u_int8_t*);
+static void encode_base64(u_int8_t *, u_int8_t *, u_int16_t);
+static void decode_base64(u_int8_t *, u_int16_t, u_int8_t *);
 
-const static char* error = ":";
+const static char *error = ":";
 
 const static u_int8_t Base64Code[] =
-"./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	"./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 const static u_int8_t index_64[128] = {
 	255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -78,14 +78,14 @@ const static u_int8_t index_64[128] = {
 	255, 255, 255, 255, 255, 255, 28, 29, 30,
 	31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
 	41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-	51, 52, 53, 255, 255, 255, 255, 255 };
+	51, 52, 53, 255, 255, 255, 255, 255};
 #define CHAR64(c) ((c) > 127 ? 255 : index_64[(c)])
 
 static void
-decode_base64(u_int8_t* buffer, u_int16_t len, u_int8_t* data)
+decode_base64(u_int8_t *buffer, u_int16_t len, u_int8_t *data)
 {
-	u_int8_t* bp = buffer;
-	u_int8_t* p = data;
+	u_int8_t *bp = buffer;
+	u_int8_t *p = data;
 	u_int8_t c1, c2, c3, c4;
 	while (bp < buffer + len)
 	{
@@ -117,7 +117,7 @@ decode_base64(u_int8_t* buffer, u_int16_t len, u_int8_t* data)
 	}
 }
 
-void encode_salt(char* salt, u_int8_t* csalt, char minor, u_int16_t clen, u_int8_t logr)
+void encode_salt(char *salt, u_int8_t *csalt, char minor, u_int16_t clen, u_int8_t logr)
 {
 	salt[0] = '$';
 	salt[1] = BCRYPT_VERSION;
@@ -127,7 +127,7 @@ void encode_salt(char* salt, u_int8_t* csalt, char minor, u_int16_t clen, u_int8
 	// Max rounds are 31
 	snprintf(salt + 4, 4, "%2.2u$", logr & 0x001F);
 
-	encode_base64((u_int8_t*)salt + 7, csalt, clen);
+	encode_base64((u_int8_t *)salt + 7, csalt, clen);
 }
 
 /* Generates a salt for this version of crypt.
@@ -135,7 +135,7 @@ void encode_salt(char* salt, u_int8_t* csalt, char minor, u_int16_t clen, u_int8
    seems sensible.
    from: http://mail-index.netbsd.org/tech-crypto/2002/05/24/msg000204.html
 */
-void bcrypt_gensalt(char minor, u_int8_t log_rounds, u_int8_t* seed, char* gsalt)
+void bcrypt_gensalt(char minor, u_int8_t log_rounds, u_int8_t *seed, char *gsalt)
 {
 	if (log_rounds < 4)
 		log_rounds = 4;
@@ -148,7 +148,7 @@ void bcrypt_gensalt(char minor, u_int8_t log_rounds, u_int8_t* seed, char* gsalt
 /* We handle $Vers$log2(NumRounds)$salt+passwd$
    i.e. $2$04$iwouldntknowwhattosayetKdJ6iFtacBqJdKe6aW7ou */
 
-void node_bcrypt(const char* key, size_t key_len, const char* salt, char* encrypted)
+void node_bcrypt(const char *key, size_t key_len, const char *salt, char *encrypted)
 {
 	blf_ctx state;
 	u_int32_t rounds, i, k;
@@ -221,7 +221,7 @@ void node_bcrypt(const char* key, size_t key_len, const char* salt, char* encryp
 	}
 
 	/* We dont want the base64 salt but the raw data */
-	decode_base64(csalt, BCRYPT_MAXSALT, (u_int8_t*)salt);
+	decode_base64(csalt, BCRYPT_MAXSALT, (u_int8_t *)salt);
 	salt_len = BCRYPT_MAXSALT;
 	if (minor <= 'a')
 		key_len = (u_int8_t)(key_len + (minor >= 'a' ? 1 : 0));
@@ -237,10 +237,10 @@ void node_bcrypt(const char* key, size_t key_len, const char* salt, char* encryp
 	/* Setting up S-Boxes and Subkeys */
 	Blowfish_initstate(&state);
 	Blowfish_expandstate(&state, csalt, salt_len,
-		(u_int8_t*)key, key_len);
+						 (u_int8_t *)key, key_len);
 	for (k = 0; k < rounds; k++)
 	{
-		Blowfish_expand0state(&state, (u_int8_t*)key, key_len);
+		Blowfish_expand0state(&state, (u_int8_t *)key, key_len);
 		Blowfish_expand0state(&state, csalt, salt_len);
 	}
 
@@ -273,16 +273,16 @@ void node_bcrypt(const char* key, size_t key_len, const char* salt, char* encryp
 
 	snprintf(encrypted + i, 4, "%2.2u$", logr & 0x001F);
 
-	encode_base64((u_int8_t*)encrypted + i + 3, csalt, BCRYPT_MAXSALT);
-	encode_base64((u_int8_t*)encrypted + strlen(encrypted), ciphertext,
-		4 * BCRYPT_BLOCKS - 1);
+	encode_base64((u_int8_t *)encrypted + i + 3, csalt, BCRYPT_MAXSALT);
+	encode_base64((u_int8_t *)encrypted + strlen(encrypted), ciphertext,
+				  4 * BCRYPT_BLOCKS - 1);
 	memset(&state, 0, sizeof(state));
 	memset(ciphertext, 0, sizeof(ciphertext));
 	memset(csalt, 0, sizeof(csalt));
 	memset(cdata, 0, sizeof(cdata));
 }
 
-u_int32_t bcrypt_get_rounds(const char* hash)
+u_int32_t bcrypt_get_rounds(const char *hash)
 {
 	/* skip past the leading "$" */
 	if (!hash || *(hash++) != '$')
@@ -300,10 +300,10 @@ u_int32_t bcrypt_get_rounds(const char* hash)
 }
 
 static void
-encode_base64(u_int8_t* buffer, u_int8_t* data, u_int16_t len)
+encode_base64(u_int8_t *buffer, u_int8_t *data, u_int16_t len)
 {
-	u_int8_t* bp = buffer;
-	u_int8_t* p = data;
+	u_int8_t *bp = buffer;
+	u_int8_t *p = data;
 	u_int8_t c1, c2;
 	while (p < data + len)
 	{
@@ -332,7 +332,7 @@ encode_base64(u_int8_t* buffer, u_int8_t* data, u_int16_t len)
 	*bp = '\0';
 }
 
-std::string bcrypt::generateHash(const std::string& password, unsigned int rounds)
+std::string bcrypt::generateHash(const std::string &password, unsigned int rounds)
 {
 	char salt[_SALT_LEN];
 
@@ -349,7 +349,7 @@ std::string bcrypt::generateHash(const std::string& password, unsigned int round
 	return hash;
 }
 
-bool bcrypt::validatePassword(const std::string& password, const std::string& hash)
+bool bcrypt::validatePassword(const std::string &password, const std::string &hash)
 {
 	std::string got(61, '\0');
 	node_bcrypt(password.c_str(), password.size(), hash.c_str(), &got[0]);
