@@ -251,9 +251,10 @@ bool createDir(const string &dirName)
 
 int main()
 {
+    const string portPath = "txt-files/PORT.txt";
     const string usersActivePath = "txt-files/usersActive.txt";
     char serverIp[30] = "127.0.0.1"; // change to the server ip //192.168.0.205
-    ifstream file("PORT.txt");
+    ifstream file(portPath);
     string PORTSTR;
     getline(file, PORTSTR);
     int PORT;
