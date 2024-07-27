@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef RSAENC
 #define RSAENC
 
@@ -14,7 +16,6 @@
 #include <filesystem>
 #include "rsa.h"
 #include "leave.h"
-
 // #include <vector>
 
 

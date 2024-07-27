@@ -33,6 +33,7 @@
 #include <bits/stdc++.h>
 #include <csignal>
 #include <vector>
+#include <atomic>
 #include "headers/encry.h"
 #include "headers/getch_getline.h" // including my own getline function i made for better user input allows arrow keys and stuff
 #include "headers/leave.h"
@@ -44,8 +45,6 @@
 
 //To run: g++ -o client client.cpp -lcryptopp -lfmt
 
-#define formatPath "keys-from-server/"
-#define fpath "your-keys/"
 #define GREEN_TEXT "\033[32m" //green text color
 // #define erasebeg "\033[2K\r" //erase from beggining
 #define clearsrc "\033[2J\r" //clears screen and return cursor
@@ -62,33 +61,35 @@ using namespace CryptoPP;
 using boost::asio::ip::tcp;
 using namespace filesystem;
 
+int clsockC = 0;
+
 vector <int> clsock;
+vector <string> usersActiveVector;
 uint8_t leavePattern;
+// bool isPav(const string& address, int port) {
+//     try {
+//         boost::system::error_code ecCheck;
+//         boost::asio::ip::address::from_string(address, ecCheck);
+//         if (ecCheck) {
+//             cout << "invalid ip address: " << address << endl;
+//             // return false;
+//         }
+//         boost::asio::io_service io_service;
+//         tcp::socket socket(io_service);
+//         tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
+//         socket.connect(endpoint);
 
-bool isPav(const string& address, int port) {
-    try {
-        boost::system::error_code ecCheck;
-        boost::asio::ip::address::from_string(address, ecCheck);
-        if (ecCheck) {
-            cout << "invalid ip address: " << address << endl;
-            // return false;
-        }
-        boost::asio::io_service io_service;
-        tcp::socket socket(io_service);
-        tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
-        socket.connect(endpoint);
-
-        return true;
-    }
-    catch (const exception& e) {
-        modeP.clear();
-        cout << "Server has been shutdown" << endl;
-        leave();
-        cout << "exception: " << e.what() << endl;
-        return false;
-    }
-    return false; // not reachable
-}
+//         return true;
+//     }
+//     catch (const exception& e) {
+//         modeP.clear();
+//         cout << "Server has been shutdown" << endl;
+//         leave();
+//         cout << "exception: " << e.what() << endl;
+//         return false;
+//     }
+//     return false; // not reachable
+// }
 
 string t_w(string strIp) {
     strIp.erase(strIp.begin(), find_if(strIp.begin(), strIp.end(), [](unsigned char ch) {
@@ -113,7 +114,38 @@ void signalhandle(int signum) {
     cout << eraseLine;
     leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
     leave();
+    auto it = std::remove(clsock.begin(), clsock.end(), clsockC);
+    clsock.erase(it, clsock.end());
     exit(signum);
+}
+
+// void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs) {
+//     const auto wait_duration = chrono::seconds(update_secs);
+//     ifstream openFile(usersActivePath);
+//     string active;
+//     while (true) {
+//         try {
+//             if (openFile.is_open()) {
+//                 getline(openFile, active);
+//             }
+//             if (active == "2!") {
+//                 running = false;
+//             }
+//             this_thread::sleep_for(wait_duration);
+//         }
+//         catch (const exception& e) {
+//             running = false;
+//         }
+//     }
+// }
+
+void receiveUsersActiveFile(const string usersActivePath, int clientSocket) {
+    Recieve recieveActiveFile;
+    while (true) {
+        std::string encodedData = recieveActiveFile.receiveBase64Data(clientSocket);
+        std::vector<uint8_t> decodedData = recieveActiveFile.base64Decode(encodedData);
+        recieveActiveFile.saveFile(usersActivePath, decodedData);
+    }
 }
 
 void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
@@ -180,8 +212,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey) {
     }
 }
 
-static bool createDir(const string& dirName)
-{
+bool createDir(const string& dirName) {
     if (!create_directories(dirName))
     {
         if (exists(dirName))
@@ -198,6 +229,7 @@ static bool createDir(const string& dirName)
 }
 
 int main() {
+    const string usersActivePath = "headers/usersActive.txt";
     char serverIp[30] = "127.0.0.1"; //change to the server ip //192.168.0.205
     ifstream file("PORT.txt");
     string PORTSTR;
@@ -266,7 +298,7 @@ int main() {
     else if (passSig[0] == '1') {
         Enc encryptServerPass;
         cout << serverPassMsg << endl;
-        string password = getinput_getch(CLIENT_S, MODE_P, serverIp, PORT);
+        string password = getinput_getch(CLIENT_S, MODE_P, "", getTermSizeCols(), serverIp, PORT);
         cout << eraseLine;
         string encryptedPassword = encryptServerPass.enc(serverPublicKey, password);
         encryptedPassword = encryptServerPass.Base64Encode(encryptedPassword);
@@ -281,7 +313,7 @@ int main() {
         char passOp[200] = { 0 };
         ssize_t bytesOp = recv(clientSocket, passOp, sizeof(passOp) - 1, 0);
         passOp[bytesOp] = '\0';
-        string verifyRecv(passOp); //works properly now
+        string verifyRecv(passOp); //works properly 
 
         if (verifyRecv.empty()) {
             cout << "Could not verify password" << endl;
@@ -307,16 +339,18 @@ int main() {
         cout << xU;
     }
     cout << endl;
-    user = getinput_getch(CLIENT_S, MODE_N, serverIp, PORT, "/|\\| ", 12); //seperate chars by '|' delimeter
+    user = getinput_getch(CLIENT_S, MODE_N, "/|\\| ", 12, serverIp, PORT); //seperate chars by '|'delimeter
 
 
     cout << eraseLine;
-    cout << "Username: " << boldMode << user << boldModeReset << endl;
-
-    if (user.empty() || user.length() > 12 || user.length() <= 3) { //set these on top
-        cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
-        close(clientSocket);
-        exit(1);
+    if (user != "\u2702") {
+        cout << "Username: " << boldMode << user << boldModeReset << endl;
+        if (user.empty() || user.length() > 12 || user.length() <= 3) { //set these on top
+            disable_conio_mode();
+            cout << "Invalid username. Disconnecting from server\n"; //username cant be less than 3 or morew tjhan 12
+            close(clientSocket);
+            exit(1);
+        }
     }
 
     send(clientSocket, user.c_str(), sizeof(user), 0);
@@ -337,7 +371,9 @@ int main() {
         exit(1);
     }
 
+    clsockC += clientSocket;
     clsock.push_back(clientSocket);
+
     RSA::PrivateKey privateKey;
     RSA::PublicKey publicKey;
     static const string fPath = "your-keys/";
@@ -349,15 +385,20 @@ int main() {
     static string pu = fmt::format("{}{}-pubkey.der", fpath, user);
     static string pr = fmt::format("{}{}-privkey.der", fpath, user);
     KeysMake keys(pr, pu); //generates our keys
+
     LoadKey keyLoader;
+
     if (!keyLoader.loadPrv(pr, privateKey) || !keyLoader.loadPub(pu, publicKey)) {
         cout << "Your keys cannot be loaded. Exiting." << endl;
         close(clientSocket);
         leave();
     }
+    else {
+        cout << "Your keys have been loaded" << endl;
+    }
 
+    //recv active file
     Recieve recvActive;
-    static const string usersActivePath = "usersActive.txt";
     string encodedData = recvActive.receiveBase64Data(clientSocket);
     vector<uint8_t> decodedData = recvActive.base64Decode(encodedData);
     recvActive.saveFile(usersActivePath, decodedData);
@@ -372,6 +413,7 @@ int main() {
         cout << "Public key sent to server" << endl;
     }
 
+    //read the active users
     ifstream opent(usersActivePath);
     string active;
     int activeInt;
@@ -382,9 +424,13 @@ int main() {
     }
     else {
         cout << "Could not open the usersActive.txt file to read" << endl;
+        auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+        clsock.erase(it, clsock.end());
         close(clientSocket);
         leave();
     }
+
+    //-------
 
     RSA::PublicKey receivedPublicKey;
 
@@ -421,6 +467,8 @@ int main() {
         }
         else {
             cout << "Public key file does not exist. Exiting.." << endl;
+            auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+            clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
         }
@@ -441,8 +489,11 @@ int main() {
         else {
 
             cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
+            auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+            clsock.erase(it, clsock.end());
             close(clientSocket);
-            exit(1);
+            leave();
+            // exit(1);
         }
     }
     else if (activeInt == 1) {
@@ -480,6 +531,8 @@ int main() {
             }
             else {
                 cout << "Couldnt format sec key" << endl;
+                auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+                clsock.erase(it, clsock.end());
                 close(clientSocket);
                 leave();
             }
@@ -503,6 +556,8 @@ int main() {
         }
         else {
             cout << fmt::format("{}'s public key file does not exist", pubUser) << endl;
+            auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+            clsock.erase(it, clsock.end());
             close(clientSocket);
             cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
             leave();
@@ -523,25 +578,36 @@ int main() {
         }
         else {
             cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
+            auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+            clsock.erase(it, clsock.end());
             close(clientSocket);
-            exit(1);
+            leave();
         }
     }
 
     thread receiver(receiveMessages, clientSocket, privateKey);
     receiver.detach();
+    // thread usersActiveRecv(receiveUsersActiveFile, usersActivePath, clientSocket);
+    // usersActiveRecv.detach();
+
+    // std::atomic<bool> runningFile{ true };
+    // const unsigned int update_interval_file = 2;
+    // std::thread readingActiveFile(readUsersActiveFile, usersActivePath, std::ref(runningFile), update_interval_file);
+    // readingActiveFile.detach();
 
     string message;
     signal(SIGINT, signalhandle);
 
     while (true) {
-        message = getinput_getch();
+        message = getinput_getch(CLIENT_S, MODE_N, "", getTermSizeCols(), serverIp, PORT);
         cout << endl;
         cout << "\033[A";
         cout << "\r";
         cout << "\033[K";
         if (t_w(message) == "/quit") {
             cout << "You have left the chat\n";
+            auto it = std::remove(clsock.begin(), clsock.end(), clientSocket);
+            clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
             break;
