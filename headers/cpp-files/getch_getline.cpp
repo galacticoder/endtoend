@@ -19,6 +19,10 @@
 #include "../header-files/encry.h"
 #include "../header-files/getch_getline.h"
 
+#define s_path_getch "server-keys"
+#define sk_path_getch "server-recieved-client-keys"
+#define active_path "txt-files/usersActive.txt"
+
 using namespace std;
 using namespace chrono;
 using namespace filesystem;
@@ -77,6 +81,7 @@ void isPortOpen(const string &address, int port, std::atomic<bool> &running, uns
                     disable_conio_mode();
                     cout << eraseLine;
                     leave();
+                    exit(1);
                 }
 
                 this_thread::sleep_for(wait_duration);
@@ -87,6 +92,7 @@ void isPortOpen(const string &address, int port, std::atomic<bool> &running, uns
                 cout << eraseLine;
                 cout << "Server has been shutdown" << endl;
                 leave();
+                exit(1);
             }
         }
     }
@@ -106,14 +112,15 @@ void signalhandleGetch(int signum)
     if (sC_M == SERVER_S)
     {
         cout << "Server has been shutdown" << endl;
-        // delIt(S_PATH);
-        remove(S_PATH); // delete directory
+        leave(s_path_getch, sk_path_getch);
+        leaveFile(active_path);
         exit(signum);
     }
     else if (sC_M == CLIENT_S)
     {
         cout << "You have left the chat.\n";
         leave();
+        leaveFile(active_path);
         exit(signum);
     }
 }

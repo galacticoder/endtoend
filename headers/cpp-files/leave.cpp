@@ -10,36 +10,59 @@
 using namespace std;
 using namespace filesystem;
 
-void delIt(const string &formatpath)
+void delIt(const string &path)
 {
     try
     {
-        int del1 = 0;
-        auto del2 = directory_iterator(formatpath);
-        int counter = 0;
-        for (auto &del1 : del2)
+        if (is_directory(path))
         {
-            if (del1.is_regular_file())
+
+            int del1 = 0;
+            auto del2 = directory_iterator(path);
+            int counter = 0;
+            for (auto &del1 : del2)
             {
-                remove(del1);
-                counter++;
+                if (del1.is_regular_file())
+                {
+                    remove(del1);
+                    counter++;
+                }
+            }
+
+            if (counter == 0)
+            {
+                cout << fmt::format("There was nothing to delete from path '{}'", path) << endl;
+            }
+            if (counter == 1)
+            {
+                cout << fmt::format("{} key in filepath ({}) have been deleted", counter, path) << endl;
+            }
+            else if (counter > 1)
+            {
+                cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, path) << endl;
+            }
+            remove(path);
+            cout << "Deleted directory '" << path << "'" << endl;
+        }
+        else if (is_regular_file(path))
+        {
+            try
+            {
+                remove(path);
+                if (!is_regular_file(path))
+                {
+                    cout << fmt::format("Deleted file '{}'", path) << endl;
+                }
+                else
+                {
+                    cout << "Could not delete file: " << path << endl;
+                }
+            }
+            catch (const exception &e)
+            {
+                cout << "";
             }
         }
-
-        if (counter == 0)
-        {
-            cout << fmt::format("There was nothing to delete from path '{}'", formatpath) << endl;
-        }
-        if (counter == 1)
-        {
-            cout << fmt::format("{} key in filepath ({}) have been deleted", counter, formatpath) << endl;
-        }
-        else if (counter > 1)
-        {
-            cout << fmt::format("{} keys in filepath ({}) have been deleted", counter, formatpath) << endl;
-        }
-        remove(formatPath);
-        cout << "Deleted directory '" << formatPath << "'" << endl;
     }
     catch (const exception &e)
     {
@@ -47,11 +70,17 @@ void delIt(const string &formatpath)
     }
 }
 
-void leave(const string &formatpath, const string &fPath)
+void leave(const string &path, const string &fPath)
 {
     disable_conio_mode();
-    delIt(formatpath);
+    delIt(path);
     delIt(fPath);
-    remove("usersActive.txt");
-    exit(1);
+    // exit(1);
+}
+
+void leaveFile(const string &path)
+{
+    disable_conio_mode();
+    delIt(path);
+    // exit(1);
 }

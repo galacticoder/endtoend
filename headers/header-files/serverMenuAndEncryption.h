@@ -184,12 +184,6 @@ struct initMenu
             cout << "\x1b[A";
             // *pn = 1;
             cout << "Password has been set for server" << endl;
-            ofstream file("pn.txt");
-            if (file.is_open())
-            {
-                file << "1";
-                file.close();
-            }
             return bcrypt::generateHash(password);
         }
         else if (choice == 2)
@@ -199,23 +193,11 @@ struct initMenu
             password = generatePassword(hashServerStore);
             // *pn = 1;
             hashServerStore[1] = password;
-            ofstream file("pn.txt");
-            if (file.is_open())
-            {
-                file << "1";
-                file.close();
-            }
             return password;
         }
         else if (choice == 3)
         {
             cout << clearScreen;
-            ofstream file("pn.txt");
-            if (file.is_open())
-            {
-                file << "2";
-                file.close();
-            }
             cout << "Server is starting up without password..." << endl;
             return "";
         }

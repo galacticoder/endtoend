@@ -52,9 +52,10 @@
 #define right1 "\033[1C"     // move the cursor back to the right once
 #define RESET_TEXT "\033[0m" // reset color to default
 #define xU "\u02DF"
-#define PING "ping"
-#define PONG "pong"
 #define connectionSignal "C"
+
+#define S_KEYS "server-keys/"
+#define usersActivePath "txt-files/usersActive.txt"
 
 using namespace std;
 using namespace CryptoPP;
@@ -119,8 +120,8 @@ void signalhandle(int signum)
     cout << eraseLine;
     leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
     leave();
-    auto it = std::remove(clsock.begin(), clsock.end(), clsockC);
-    clsock.erase(it, clsock.end());
+    // leave(usersActivePath);
+    leaveFile(usersActivePath);
     exit(signum);
 }
 
@@ -144,7 +145,7 @@ void signalhandle(int signum)
 //     }
 // }
 
-void receiveUsersActiveFile(const string usersActivePath, int clientSocket)
+void receiveUsersActiveFile(int clientSocket)
 {
     Recieve recieveActiveFile;
     while (true)
@@ -169,27 +170,18 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey)
             string receivedMessage(buffer);
             string decodedMessage;
 
-            if (receivedMessage == PING)
-            {
-                send(clientSocket, PONG, strlen(PONG), 0);
-                continue;
-            }
-
             if (receivedMessage.find('|') == string::npos)
             {
-                if (receivedMessage != PING)
+                decodedMessage = decoding.Base64Decode(receivedMessage);
+                try
                 {
-                    decodedMessage = decoding.Base64Decode(receivedMessage);
-                    try
-                    {
-                        string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                        disable_conio_mode();
-                        cout << decryptedMessage << endl;
-                        enable_conio_mode();
-                    }
-                    catch (const CryptoPP::Exception &e)
-                    {
-                    }
+                    string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                    disable_conio_mode();
+                    cout << decryptedMessage << endl;
+                    enable_conio_mode();
+                }
+                catch (const CryptoPP::Exception &e)
+                {
                 }
             }
 
@@ -199,7 +191,7 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey)
                 // cout << "b is a: " << bytesReceived <<
                 // enable_conio_mode();
 
-                if (receivedMessage.find('|') != string::npos || receivedMessage != PING)
+                if (receivedMessage.find('|') != string::npos)
                 { // if '|' not found
                     disable_conio_mode();
                     cout << receivedMessage << endl;
@@ -252,7 +244,6 @@ bool createDir(const string &dirName)
 int main()
 {
     const string portPath = "txt-files/PORT.txt";
-    const string usersActivePath = "txt-files/usersActive.txt";
     char serverIp[30] = "127.0.0.1"; // change to the server ip //192.168.0.205
     ifstream file(portPath);
     string PORTSTR;
@@ -285,16 +276,16 @@ int main()
 
     send(clientSocket, connectionSignal, strlen(connectionSignal), 0);
     const string formatpath = "keys-from-server/";
-    createDir(formatPath);
+    createDir(S_KEYS);
 
     // recieve server pub key
-    string serverPubPath = fmt::format("{}server-pubkey.der", formatPath);
+    string serverPubPath = fmt::format("{}server-pubkey.der", S_KEYS);
     Recieve recieveServerKey;
     string serverPubKeyBuff = recieveServerKey.receiveBase64Data(clientSocket);
     vector<uint8_t> decodedDataServerPub = recieveServerKey.base64Decode(serverPubKeyBuff);
     recieveServerKey.saveFile(serverPubPath, decodedDataServerPub);
 
-    RSA::PublicKey serverPublicKey;
+    RSA::PublicKey serverPublicKey; //
     LoadKey loadServerKey;
 
     if (loadServerKey.loadPub(serverPubPath, serverPublicKey))
@@ -306,6 +297,7 @@ int main()
         cout << "Cannot load server's public key. Exiting." << endl;
         close(clientSocket);
         leave();
+        exit(1);
     }
     //-----------
     char passSignal[200] = {0};
@@ -431,6 +423,7 @@ int main()
         cout << "Your keys cannot be loaded. Exiting." << endl;
         close(clientSocket);
         leave();
+        exit(1);
     }
     else
     {
@@ -447,7 +440,7 @@ int main()
     Send sendtoserver;
     if (is_regular_file(pu))
     {
-        vector<uint8_t> fi = sendtoserver.readFile(pu); // file path is a string to the file path
+        vector<uint8_t> fi = sendtoserver.readFile(pu); // file path is a string to the file pat
         string ed4 = sendtoserver.b64EF(fi);
         cout << fmt::format("Sending public key ({}) to server: {}", pu, ed4) << endl;
         sendtoserver.sendBase64Data(clientSocket, ed4); // send encoded key
@@ -471,6 +464,7 @@ int main()
         clsock.erase(it, clsock.end());
         close(clientSocket);
         leave();
+        exit(1);
     }
 
     //-------
@@ -517,6 +511,7 @@ int main()
             clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
+            exit(1);
         }
 
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
@@ -543,6 +538,8 @@ int main()
             clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
+            exit(1);
+
             // exit(1);
         }
     }
@@ -591,6 +588,7 @@ int main()
                 clsock.erase(it, clsock.end());
                 close(clientSocket);
                 leave();
+                exit(1);
             }
         }
 
@@ -621,6 +619,7 @@ int main()
             close(clientSocket);
             cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
             leave();
+            exit(1);
         }
 
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
@@ -646,6 +645,7 @@ int main()
             clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
+            exit(1);
         }
     }
 
@@ -676,7 +676,8 @@ int main()
             clsock.erase(it, clsock.end());
             close(clientSocket);
             leave();
-            break;
+            exit(1);
+            // brea
         }
         else if (message.empty())
         { // skips empty message
