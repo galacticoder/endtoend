@@ -39,8 +39,8 @@
 
 #include "../header-files/node_blf.h"
 
-#include "bcrypt.h"
-#include "openbsd.h"
+#include "../header-files/bcrypt.h"
+#include "../header-files/openbsd.h"
 
 #ifdef _WIN32
 #define snprintf _snprintf
