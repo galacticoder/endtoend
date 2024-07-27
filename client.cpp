@@ -118,11 +118,26 @@ bool containsOnlyASCII(const string &stringS)
 void signalhandle(int signum)
 {
     cout << eraseLine;
-    leavePattern == 0 ? cout << "You have disconnected from the empty chat." << endl : cout << "You have left the chat" << endl;
-    leave();
-    // leave(usersActivePath);
-    leaveFile(usersActivePath);
-    exit(signum);
+    if (leavePattern == 0)
+    {
+        cout << "You have disconnected from the empty chat." << endl;
+        leave();
+        leaveFile(usersActivePath);
+        exit(signum);
+    }
+    else if (leavePattern == 1)
+    {
+        cout << "You have left the chat" << endl;
+        leave();
+        leaveFile(usersActivePath);
+        exit(signum);
+    }
+    else if (leavePattern == 90)
+    {
+        leave();
+        leaveFile(usersActivePath);
+        exit(signum);
+    }
 }
 
 // void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs) {
@@ -170,7 +185,26 @@ void receiveMessages(int clientSocket, RSA::PrivateKey privateKey)
             string receivedMessage(buffer);
             string decodedMessage;
 
-            if (receivedMessage.find('|') == string::npos)
+            if (receivedMessage.substr(receivedMessage.length() - 2, receivedMessage.length()) == "#N")
+            {
+                leavePattern = 90;
+                Dec decNV;
+                receivedMessage = receivedMessage.substr(0, receivedMessage.length() - 2);
+                decNV.Base64Decode(receivedMessage);
+                try
+                {
+                    string decNVS = decrypt.dec(privateKey, decodedMessage);
+                    disable_conio_mode();
+                    cout << decNVS << endl;
+                    raise(SIGINT);
+                }
+                catch (const CryptoPP::Exception &e)
+                {
+                    raise(SIGINT);
+                }
+            }
+
+            else if (receivedMessage.find('|') == string::npos)
             {
                 decodedMessage = decoding.Base64Decode(receivedMessage);
                 try
