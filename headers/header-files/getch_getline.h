@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <atomic>
+#include <openssl/ssl.h>
 
 #define eraseLine "\033[2K\r"
 #define boldMode "\033[1m"
@@ -27,6 +28,6 @@ short int getTermSizeCols();
 void signalhandleGetch(int signum);
 bool findIn(const char &find, const string &In);
 int readActiveUsers(const string &filepath);
-string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
+string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, SSL *clientSocket = NULL, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
 
 #endif

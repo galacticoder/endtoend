@@ -14,6 +14,7 @@
 #include <chrono>
 #include <atomic>
 #include <cryptopp/cryptlib.h>
+#include <openssl/ssl.h>
 #include "../header-files/leave.h"
 #include "../header-files/linux_conio.h"
 #include "../header-files/encry.h"
@@ -56,33 +57,37 @@ using boost::asio::ip::tcp;
 //     }
 // }
 
+SSL *sslPub;
+
 void isPortOpen(const string &address, int port, std::atomic<bool> &running, unsigned int update_secs)
 {
     if (address != "-1" && port != 0)
     {
+        std::string pingMsg = "PING";
         const auto wait_duration = chrono::seconds(update_secs);
         while (true)
         {
             try
             {
-                boost::system::error_code ecCheck;
-                boost::asio::ip::address::from_string(address, ecCheck);
-                if (ecCheck)
-                {
-                    cout << "invalid ip address: " << address << endl;
-                }
-                boost::asio::io_service io_service;
-                tcp::socket socket(io_service);
-                tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
-                socket.connect(endpoint);
+                SSL_write(sslPub, pingMsg.c_str(), pingMsg.size());
+                // boost::system::error_code ecCheck;
+                // boost::asio::ip::address::from_string(address, ecCheck);
+                // if (ecCheck)
+                // {
+                //     cout << "invalid ip address: " << address << endl;
+                // }
+                // boost::asio::io_service io_service;
+                // tcp::socket socket(io_service);
+                // tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
+                // socket.connect(endpoint);
 
-                if (ecCheck)
-                {
-                    disable_conio_mode();
-                    cout << eraseLine;
-                    leave();
-                    exit(1);
-                }
+                // if (ecCheck)
+                // {
+                //     disable_conio_mode();
+                //     cout << eraseLine;
+                //     leave();
+                //     exit(1);
+                // }
 
                 this_thread::sleep_for(wait_duration);
             }
@@ -148,8 +153,10 @@ int readActiveUsers(const string &filepath)
     return activeInt;
 }
 
-string getinput_getch(char sC, char &&MODE, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
+string getinput_getch(char sC, char &&MODE, SSL *clientSocket, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
 { // N==normal//P==Password
+    // causing closing ssl connections when pinging?
+    sslPub = clientSocket;
     sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();

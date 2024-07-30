@@ -18,17 +18,31 @@
 #include <unistd.h>
 #include <unordered_map>
 #include "bcrypt.h"
-#include "rsa.h"
+// #include "rsa.h"
 #include "getch_getline.h"
 #include "leave.h"
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+// #include <openssl/rsa.h>
+// #include <openssl/bn.h>
 
+#define SERVER_KEYPATH "server-keys"
+#define SRCPATH "server-recieved-client-keys/"
+#define userPath "txt-files/usersActive.txt"
 #define clearScreen "\033[2J\r"
 const unsigned int KEYSIZE = 4096;
 
-using namespace CryptoPP;
 using namespace std;
 
 void signalHandleMenu(int signum);
+void passVals(int &sock);
+
+int serverSock;
+SSL_CTX *serverCtx;
 
 struct initMenu
 {
@@ -52,7 +66,7 @@ struct initMenu
     string generatePassword(unordered_map<int, string> &hashedServerP, int &&length = 8)
     {
         signal(SIGINT, signalHandleMenu);
-        AutoSeededRandomPool random;
+        CryptoPP::AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
 
         // make thing for dont include
@@ -97,6 +111,7 @@ struct initMenu
 
     string initmenu(unordered_map<int, string> hashServerStore)
     {
+        // serverSock += serverSocket;
         int minLim = 6;
         signal(SIGINT, signalHandleMenu);
         initscr();
@@ -209,63 +224,361 @@ struct initMenu
     }
 };
 
+struct LoadKey
+{
+    LoadKey() = default;
+    EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile)
+    {
+        BIO *bio = BIO_new_file(privateKeyFile.c_str(), "r");
+        if (!bio)
+        {
+            std::cerr << "Error loading private pem key: ";
+            ERR_print_errors_fp(stderr);
+            return nullptr;
+        }
+
+        EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
+        BIO_free(bio);
+
+        if (!pkey)
+        {
+            std::cerr << "Error loading private pem key: ";
+            ERR_print_errors_fp(stderr);
+        }
+
+        cout << "Loaded PEM Private key file (" << privateKeyFile << ") successfuly" << endl;
+
+        return pkey;
+    }
+
+    EVP_PKEY *LoadPubOpenssl(const std::string &publicKeyFile)
+    {
+        BIO *bio = BIO_new_file(publicKeyFile.c_str(), "r");
+        if (!bio)
+        {
+            ERR_print_errors_fp(stderr);
+            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << endl;
+            return nullptr;
+        }
+
+        EVP_PKEY *pkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+        BIO_free(bio);
+
+        if (!pkey)
+        {
+            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << endl;
+            ERR_print_errors_fp(stderr);
+        }
+        cout << "Loaded PEM Public key file (" << publicKeyFile << ") successfuly" << endl;
+
+        return pkey;
+    }
+};
+
 struct makeServerKey
 {
-    makeServerKey(const std::string privateKeyFile, const std::string publicKeyFile, unsigned int keySize = KEYSIZE)
+    // change the constructor to make a selfsigned cert
+    makeServerKey(const std::string &keyfile, const std::string &certFile, const std::string &pubKey)
     {
-        AutoSeededRandomPool rng;
-        RSA::PrivateKey privateKey;
-        privateKey.GenerateRandomWithKeySize(rng, keySize);
+        int rc;
+        EVP_PKEY *pkey = nullptr;
+        X509 *x509 = nullptr;
+        // RSA *rsa = nullptr;
+        // BIGNUM *bn = nullptr;
+        BIO *bio = nullptr;
 
-        RSA::PublicKey publicKey(privateKey);
+        // make rsa key here
+        pkey = EVP_PKEY_new();
+        EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+        EVP_PKEY_keygen_init(pctx);
+        EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, KEYSIZE);
+        EVP_PKEY_keygen(pctx, &pkey);
+        // rsa = RSA_new();
+        // bn = BN_new();
+        // BN_set_word(bn, RSA_F4);
+        // rc = RSA_generate_key_ex(rsa, KEYSIZE, bn, nullptr);
+        // if (rc != 1)
+        // {
+        //     ERR_print_errors_fp(stderr);
+        //     if (pkey)
+        //         EVP_PKEY_free(pkey);
+        //     if (x509)
+        //         X509_free(x509);
+        // }
+        // creating the cert
+        x509 = X509_new();
+        ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+        X509_gmtime_adj(X509_get_notBefore(x509), 0);
+        X509_gmtime_adj(X509_get_notAfter(x509), 31536000L); // for a year set idk why but just leave it
+        X509_set_pubkey(x509, pkey);
 
+        X509_NAME *name = X509_get_subject_name(x509);
+
+        // set the details for cert
+        X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (unsigned char *)"US", -1, -1, 0);
+        X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (unsigned char *)"organization", -1, -1, 0);
+        X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char *)"common name", -1, -1, 0);
+
+        X509_set_issuer_name(x509, name);
+        X509_sign(x509, pkey, EVP_sha3_512());
+        // write prv key to file
+        bio = BIO_new_file(keyfile.c_str(), "w");
+        PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr);
+        BIO_free_all(bio);
+
+        // write cert to file
+        bio = BIO_new_file(certFile.c_str(), "w");
+        PEM_write_bio_X509(bio, x509);
+        BIO_free_all(bio);
+
+        // clean up
+        EVP_PKEY_free(pkey);
+        X509_free(x509);
+        EVP_PKEY_CTX_free(pctx);
+
+        OpenSSL_add_all_algorithms();
+        ERR_load_crypto_strings();
+
+        FILE *certFileOpen = fopen(certFile.c_str(), "r");
+        if (!certFileOpen)
         {
-            FileSink file(privateKeyFile.c_str());
-            privateKey.DEREncode(file);
-        }
-        {
-            FileSink file(publicKeyFile.c_str());
-            publicKey.DEREncode(file);
+            std::cerr << "Error opening cert file: " << std::endl;
         }
 
-        cout << "Rsa key pair generated" << endl;
+        X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
+        fclose(certFileOpen);
+        if (!cert)
+        {
+            std::cerr << "Error reading certificate" << std::endl;
+        }
+
+        EVP_PKEY *pubkey = X509_get_pubkey(cert);
+        if (!pubkey)
+        {
+            std::cerr << "Error extracting pubkey from cert" << std::endl;
+            X509_free(cert);
+        }
+
+        FILE *pubkeyfile = fopen(pubKey.c_str(), "w");
+        if (!pubkeyfile)
+        {
+            std::cerr << "Error opening pub key file: " << pubKey << std::endl;
+            EVP_PKEY_free(pubkey);
+            X509_free(cert);
+        }
+
+        if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
+        {
+            std::cerr << "Error writing public key to file" << std::endl;
+        }
+
+        fclose(pubkeyfile);
+        EVP_PKEY_free(pubkey);
+        X509_free(cert);
+        ERR_free_strings();
+    }
+    // makeServerKey(const std::string &privateKeyFile, const std::string &publicKeyFile, int bits = KEYSIZE)
+    // {
+    //     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    //     if (!ctx)
+    //     {
+    //         ERR_print_errors_fp(stderr);
+    //         exit(EXIT_FAILURE);
+    //     }
+
+    //     if (EVP_PKEY_keygen_init(ctx) <= 0)
+    //     {
+    //         ERR_print_errors_fp(stderr);
+    //         EVP_PKEY_CTX_free(ctx);
+    //         exit(EXIT_FAILURE);
+    //     }
+
+    //     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0)
+    //     {
+    //         ERR_print_errors_fp(stderr);
+    //         EVP_PKEY_CTX_free(ctx);
+    //         exit(EXIT_FAILURE);
+    //     }
+
+    //     EVP_PKEY *pkey = NULL;
+    //     if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
+    //     {
+    //         ERR_print_errors_fp(stderr);
+    //         EVP_PKEY_CTX_free(ctx);
+    //         exit(EXIT_FAILURE);
+    //     }
+
+    //     EVP_PKEY_CTX_free(ctx);
+
+    //     BIO *privateKeyBio = BIO_new_file(privateKeyFile.c_str(), "w+");
+    //     PEM_write_bio_PrivateKey(privateKeyBio, pkey, NULL, NULL, 0, NULL, NULL);
+    //     BIO_free_all(privateKeyBio);
+
+    //     BIO *publicKeyBio = BIO_new_file(publicKeyFile.c_str(), "w+");
+    //     PEM_write_bio_PUBKEY(publicKeyBio, pkey);
+    //     BIO_free_all(publicKeyBio);
+
+    //     EVP_PKEY_free(pkey);
+    // }
+};
+
+struct initOpenSSL
+{
+    initOpenSSL() = default;
+    void InitOpenssl()
+    {
+        SSL_load_error_strings();
+        OpenSSL_add_ssl_algorithms();
+    }
+
+    // creating context
+    SSL_CTX *createCtx()
+    {
+        const SSL_METHOD *method = SSLv23_server_method();
+        SSL_CTX *ctx = SSL_CTX_new(method);
+        if (!ctx)
+        {
+            ERR_print_errors_fp(stderr);
+            raise(SIGINT);
+        }
+        return ctx;
+    }
+    // config context
+    void configCtx(SSL_CTX *ctx, string &certPath, string &PrvKey)
+    {
+        const char *cpath = certPath.c_str();
+        const char *pkey = PrvKey.c_str();
+        std::cout << fmt::format("Private key path passed: {}", pkey) << std::endl;
+        std::cout << fmt::format("Cert path passed: {}", cpath) << std::endl;
+        if (SSL_CTX_use_certificate_file(ctx, cpath, SSL_FILETYPE_PEM) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            std::cout << "Could not find cert file at path: " << cpath << std::endl;
+            // cout << "\n1\n"
+            //      << endl;
+            // exit(1);
+            raise(SIGINT);
+        }
+        if (SSL_CTX_use_PrivateKey_file(ctx, pkey, SSL_FILETYPE_PEM) <= 0)
+        {
+            {
+                ERR_print_errors_fp(stderr);
+                // cout << "\n2\n"
+                //      << endl;
+                // exit(1);
+                raise(SIGINT);
+            }
+        }
+        const char *cipherList = "ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:";
+
+        if (SSL_CTX_set_cipher_list(ctx, cipherList) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            exit(EXIT_FAILURE);
+        }
     }
 };
 struct encServer
 {
     encServer() = default;
-    string Enc(RSA::PublicKey &pubkey, string &plain)
-    {
-        // try {
-        AutoSeededRandomPool rng; // using diff rng for better randomness
-        string cipher;
-        RSAES_OAEP_SHA512_Encryptor e(pubkey);                                                 // make sure to push rsa.h or you get errors cuz its modified to sha512 instead of sha1 for better security
-        StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher))); // nested for better verification of both key loading
-        return cipher;
-    }
-
     std::string Base64Encode(const std::string &input)
     {
         std::string encoded;
-        StringSource(input, true, new Base64Encoder(new StringSink(encoded), false));
+        CryptoPP::StringSource(input, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
         return encoded;
+    }
+
+    std::string hexencode(string &cipher)
+    {
+        string encoded;
+        CryptoPP::StringSource(cipher, true, new CryptoPP::HexDecoder(new CryptoPP::StringSink(encoded)));
+        cout << encoded << endl;
+        return encoded;
+    }
+
+    std::string Enc(EVP_PKEY *pkey, const std::string &data)
+    {
+        EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+        if (!ctx)
+        {
+            ERR_print_errors_fp(stderr);
+            return "";
+        }
+
+        if (EVP_PKEY_encrypt_init(ctx) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "";
+        }
+
+        size_t out_len;
+        if (EVP_PKEY_encrypt(ctx, nullptr, &out_len, reinterpret_cast<const unsigned char *>(data.c_str()), data.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "";
+        }
+
+        std::string out(out_len, '\0');
+        if (EVP_PKEY_encrypt(ctx, reinterpret_cast<unsigned char *>(&out[0]), &out_len, reinterpret_cast<const unsigned char *>(data.c_str()), data.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "err";
+        }
+
+        EVP_PKEY_CTX_free(ctx);
+        out.resize(out_len);
+
+        // out = hexencode(out);
+
+        return out;
     }
 };
 struct DecServer
 {
     DecServer() = default;
-    string dec(RSA::PrivateKey &prvkey, string &cipher)
+    string dec(EVP_PKEY *pkey, const std::string &encrypted_data)
     {
-        AutoSeededRandomPool rng; // using diff rng for better randomness
-        string decrypted;
-        RSAES_OAEP_SHA512_Decryptor d(prvkey); // modified to decrypt sha512
-        StringSource ss2(cipher, true, new PK_DecryptorFilter(rng, d, new StringSink(decrypted)));
-        return decrypted;
+        EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+        if (!ctx)
+        {
+            ERR_print_errors_fp(stderr);
+            return "";
+        }
+
+        if (EVP_PKEY_decrypt_init(ctx) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "";
+        }
+
+        size_t out_len;
+        if (EVP_PKEY_decrypt(ctx, nullptr, &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "";
+        }
+
+        std::string out(out_len, '\0');
+        if (EVP_PKEY_decrypt(ctx, reinterpret_cast<unsigned char *>(&out[0]), &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(ctx);
+            return "";
+        }
+
+        EVP_PKEY_CTX_free(ctx);
+        out.resize(out_len); // Adjust the size of the string
+        return out;
     }
     std::string Base64Decode(const std::string &input)
     {
         std::string decoded;
-        StringSource(input, true, new Base64Decoder(new StringSink(decoded)));
+        CryptoPP::StringSource(input, true, new CryptoPP::Base64Decoder(new CryptoPP::StringSink(decoded)));
         return decoded;
     }
     string hexdecode(string &encoded)
@@ -278,57 +591,61 @@ struct DecServer
 struct Send
 {
     Send() = default;
-    // std::vector<uint8_t> buffer = readFile(filePath); file path is a string to the file path
-    // std::string encodedData = b64EF(buffer);
-    // sendBase64Data(clientSocket, encodedData);
-    std::string b64EF(const std::vector<uint8_t> &data)
+    // string buffer = struct.readFile(filePath); file path is a string to the file path
+    // string encodedData = struct.b64EF(string buffer);
+    // struct.sendBase64Data(clientSocket, encodedData);
+    std::string b64EF(string &data)
     {
         std::string encoded;
-        CryptoPP::StringSource ss(data.data(), data.size(), true,
-                                  new CryptoPP::Base64Encoder(
-                                      new CryptoPP::StringSink(encoded),
-                                      false // do not add line breaks
-                                      ));
+        CryptoPP::StringSource(data, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
         return encoded;
     }
 
-    std::vector<uint8_t> readFile(const std::string &filePath)
+    std::string readFile(const std::string &filePath)
     {
-        std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+        std::ifstream file(filePath);
         if (!file.is_open())
         {
-            cout << "cannot open file " << filePath << endl;
-            throw std::runtime_error("Could not open file");
+            throw std::runtime_error(fmt::format("Could not open file: {}", filePath));
         }
 
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
+        string buffer;
+        string line;
 
-        std::vector<uint8_t> buffer(size);
-        if (!file.read(reinterpret_cast<char *>(buffer.data()), size))
+        while (getline(file, buffer))
         {
-            throw std::runtime_error("Error reading file");
+            buffer.push_back('\n');
         }
 
+        file.close();
         return buffer;
     }
 
-    void sendBase64Data(int socket, const std::string &encodedData)
+    void sendKey(SSL *clientSocket, const std::string pemk)
     {
-        ssize_t sentBytes = send(socket, encodedData.c_str(), encodedData.size(), 0);
+        SSL_write(clientSocket, pemk.c_str(), pemk.size());
+    }
+
+    void sendBase64Data(SSL *socket, const std::string &encodedData)
+    {
+        ssize_t sentBytes = SSL_write(socket, encodedData.c_str(), encodedData.size());
         if (sentBytes == -1)
         {
-            cout << "error sending: " << encodedData << endl;
-            throw std::runtime_error("Error sending data");
+            cout << "Error sending: " << encodedData << endl;
+            throw std::runtime_error(fmt::format("Error sending data: {}", encodedData));
         }
     }
-    void broadcastBase64Data(int clientSocket, const std::string &encodedData, vector<int> &connectedClients)
+
+    void broadcastBase64Data(int clientSocket, const std::string &encodedData, vector<int> &connectedClients, vector<SSL *> &tlsSocks)
     {
-        for (int clientSocket : connectedClients)
+        for (int i = 0; i < connectedClients.size(); i++)
         {
-            if (clientSocket != clientSocket)
+            for (int i = 0; i < connectedClients.size(); i++)
             {
-                send(clientSocket, encodedData.c_str(), encodedData.length(), 0);
+                if (connectedClients[i] != clientSocket)
+                {
+                    SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
+                }
             }
         }
     }
@@ -340,35 +657,35 @@ struct Recieve
     // std::string encodedData = receiveBase64Data(clientSocket);
     // std::vector<uint8_t> decodedData = base64Decode(encodedData);
     // saveFile(filePath, decodedData);
-    std::vector<uint8_t> base64Decode(const std::string &encodedData)
+    std::string base64Decode(const std::string &encodedData)
     {
-        std::vector<uint8_t> decoded;
-        CryptoPP::StringSource ss(encodedData, true,
-                                  new CryptoPP::Base64Decoder(
-                                      new CryptoPP::VectorSink(decoded)));
+        std::string decoded;
+        CryptoPP::StringSource(encodedData, true, new CryptoPP::Base64Decoder(new CryptoPP::StringSink(decoded)));
         return decoded;
     }
 
-    void saveFile(const std::string &filePath, const std::vector<uint8_t> &buffer)
+    void saveFile(const std::string &filePath, const string &buffer)
     {
-        std::ofstream file(filePath, std::ios::binary);
+        std::ofstream file(filePath);
         if (!file.is_open())
         {
-            cout << "couldnt open " << filePath << endl;
-            throw std::runtime_error("Could not open file to write");
+            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
         }
 
-        file.write(reinterpret_cast<const char *>(buffer.data()), buffer.size());
+        file << buffer;
+
         if (!file)
         {
             throw std::runtime_error("Error writing to file");
         }
     }
-    std::string receiveBase64Data(int clientSocket)
+    std::string receiveBase64Data(SSL *clientSocket)
     {
-        std::vector<char> buffer(4096);
         std::string receivedData;
-        ssize_t bytesRead = recv(clientSocket, buffer.data(), buffer.size(), 0);
+        std::vector<char> buffer(4096);
+        ssize_t bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
+
+        // cout << "BT: " << bytesRead << endl;
 
         while (bytesRead > 0) // its gonna keep appending without a stop condition
         {
@@ -389,79 +706,17 @@ struct Recieve
 
         return receivedData;
     }
-};
 
-struct LoadKey
-{
-    LoadKey() = default;
-    bool loadPub(const std::string &publicKeyFile)
+    std::string read_pem_key(const std::string &path)
     {
-        RSA::PublicKey publickey;
-        try
+        std::ifstream file(path);
+        if (!file.is_open())
         {
-            ifstream fileopencheck(publicKeyFile, ios::binary);
-            if (fileopencheck.is_open())
-            {
-                FileSource file(publicKeyFile.c_str(), true); // pumpall
-                publickey.BERDecode(file);
-                cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
-            }
-            else
-            {
-                cout << fmt::format("Could not open file at file path '{}'", publicKeyFile) << endl;
-            }
+            std::cout << "Could not open pem file" << std::endl;
         }
-        catch (const Exception &e)
-        {
-            std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
-            return false;
-        }
-
-        return true;
-    }
-    string loadPubAndEncrypt(const std::string &publicKeyFile, string &plaintext)
-    {
-        encServer encrypt;
-        RSA::PublicKey publickey;
-        try
-        {
-            ifstream fileopencheck(publicKeyFile, ios::binary);
-            if (fileopencheck.is_open())
-            {
-                FileSource file(publicKeyFile.c_str(), true); // pumpAll
-                publickey.BERDecode(file);
-                cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
-                string encrypted = encrypt.Enc(publickey, plaintext);
-                return encrypt.Base64Encode(encrypted);
-            }
-            else
-            {
-                cout << fmt::format("Could not open public key at file path '{}'", publicKeyFile) << endl;
-                return "err";
-            }
-        }
-        catch (const Exception &e)
-        {
-            std::cerr << fmt::format("Error loading public rsa key from path {}: {}", publicKeyFile, e.what()) << endl;
-            return "err";
-        }
-
-        return "success";
-    }
-    bool loadPrv(const std::string &privateKeyFile, RSA::PrivateKey &privateKey)
-    {
-        try
-        {
-            FileSource file(privateKeyFile.c_str(), true);
-            privateKey.BERDecode(file);
-            cout << "Loaded RSA Private key successfuly" << endl;
-        }
-        catch (const Exception &e)
-        {
-            std::cerr << "Error loading private rsa key: " << e.what() << std::endl;
-            return false;
-        }
-        return true;
+        std::string pemKey((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        return pemKey;
     }
 };
 
@@ -471,15 +726,26 @@ void signalHandleMenu(int signum)
     disable_conio_mode();
     cout << eraseLine;
     cout << "Server has been shutdown" << endl;
-    if (remove(S_PATH) == 1)
-    {
-        cout << fmt::format("Deleted directory '{}'", S_PATH) << endl;
-    }
-    if (remove("Server-Keys") == 1)
-    {
-        cout << "Deleted directory 'Server-Keys'" << endl;
-    }
+    leave(S_PATH, SERVER_KEYPATH);
+    leaveFile(userPath);
+    close(serverSock);
+    SSL_CTX_free(serverCtx);
+    EVP_cleanup();
     exit(signum);
+}
+
+void passVals(int &sock, SSL_CTX *ctxPass)
+{
+    serverSock += sock;
+    if (serverSock == sock)
+    {
+        std::cout << fmt::format("Server passed val [{}] to serverMenuAndEncryption.h", sock) << std::endl;
+    }
+    serverCtx = ctxPass;
+    if (serverCtx == ctxPass)
+    {
+        std::cout << "Server passed val ctx to serverMenuAndEncryption.h" << std::endl;
+    }
 }
 
 #endif

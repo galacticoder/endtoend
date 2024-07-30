@@ -28,10 +28,9 @@
 #include <map>
 #include <atomic>
 #include "headers/header-files/serverMenuAndEncryption.h"
+#include "headers/header-files/hostHttp.h"
 
-#define SERVER_KEYPATH "server-keys"
 #define userPath "txt-files/usersActive.txt"
-#define SRCPATH "server-recieved-client-keys/"
 
 // To run: g++ -std=c++20 -o server server.cpp -lcryptopp -lfmt //haha so old
 
@@ -49,6 +48,10 @@ vector<int> uids;
 vector<string> clientUsernames;
 mutex clientsMutex;
 vector<int> clientHashVerifiedClients;
+vector<SSL *> tlsSocks;
+
+int serverSocket;
+SSL_CTX *ctx;
 
 bool isPav(int port)
 {
@@ -92,6 +95,9 @@ void signalHandleServer(int signum)
     cout << "Server has been shutdown" << endl;
     leave(S_PATH, SERVER_KEYPATH);
     leaveFile(userPath);
+    close(serverSocket);
+    SSL_CTX_free(ctx);
+    EVP_cleanup();
     // if (!is_directory(S_PATH)
     // {
     //     cout << "1" << endl;
@@ -122,14 +128,17 @@ static bool createDir(const string &dirName)
     return true;
 }
 
-void broadcastMessage(const string &message, int senderSocket = -1)
+void broadcastMessage(const string &message, SSL *senderSocket, int &senderSock)
 {
     lock_guard<mutex> lock(clientsMutex);
-    for (int clientSocket : connectedClients)
+    for (int i = 0; i < connectedClients.size(); i++)
     {
-        if (clientSocket != senderSocket)
+        for (int i = 0; i < connectedClients.size(); i++)
         {
-            send(clientSocket, message.c_str(), message.length(), 0);
+            if (connectedClients[i] != senderSock)
+            {
+                SSL_write(tlsSocks[i], message.c_str(), message.length());
+            }
         }
     }
 }
@@ -211,7 +220,7 @@ void updateActiveFile(auto data)
     // }
 }
 
-bool checkPassHash(const string &passGetArg, int clientSocket, unordered_map<int, string> &serverHash, int &pnInt, int &indexClientOut, const string &username)
+bool checkPassHash(const string &passGetArg, SSL *clientSocket, int clsock, unordered_map<int, string> &serverHash, int &pnInt, int &indexClientOut, const string &username)
 {
     string notVerified = "You have been kicked from the server for not inputting the correct password#N";
     try
@@ -220,42 +229,79 @@ bool checkPassHash(const string &passGetArg, int clientSocket, unordered_map<int
         {
             if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 && pnInt != 2)
             {
-                const string newP = fmt::format("{}{}-pubkeyfromclient.der", SRCPATH, username);
+                const string newP = fmt::format("{}{}-pubkeyfromclient.pem", SRCPATH, username);
                 if (is_regular_file(newP)) // if found key on server
                 {
                     LoadKey loadp;
-                    const string notVENC = loadp.loadPubAndEncrypt(newP, notVerified);
-                    if (notVENC != "err")
+                    encServer enc;
+                    EVP_PKEY *keyLoading = loadp.LoadPubOpenssl(newP);
+                    string notVENC = "";
+                    if (keyLoading)
                     {
-                        send(clientSocket, notVENC.c_str(), notVENC.length(), 0);
-                        sleep(1); // so they recieve it before closing their socket
-                        close(clientSocket);
-                        clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-                        connectedClients.erase(it, connectedClients.end());
-                        cout << "disconnected not verified user with encrypted message" << endl;
-                        return true;
+                        const string encd = enc.Base64Encode(enc.Enc(keyLoading, notVerified));
+                        notVENC += encd;
                     }
                     else
                     {
-                        send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                        // close server
+                    }
+                    /*encrypt notVerified string after loading pub and store it in a string names notVENC*/
+                    if (keyLoading)
+                    {
+                        if (notVENC != "err")
+                        {
+                            SSL_write(clientSocket, notVENC.c_str(), notVENC.length());
+                            sleep(1); // so they recieve it before closing their socket
+                            SSL_shutdown(clientSocket);
+                            SSL_free(clientSocket);
+                            close(clsock);
+                            clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
+
+                            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
+                            connectedClients.erase(it, connectedClients.end());
+
+                            auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                            tlsSocks.erase(ittls, tlsSocks.end());
+
+                            cout << "disconnected not verified user with encrypted message" << endl;
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
                         sleep(1); // so they recieve it before closing their socket
-                        close(clientSocket);
+                        // close(clientSocket);
+                        SSL_shutdown(clientSocket);
+                        SSL_free(clientSocket);
+                        close(clsock);
                         clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+
+                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                         connectedClients.erase(it, connectedClients.end());
+
+                        auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                        tlsSocks.erase(ittls, tlsSocks.end());
+
                         cout << "disconnected not verified user" << endl;
                         return true;
                     }
                 }
                 else
                 {
-                    send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                    SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
                     sleep(1); // so they recieve it before closing their socket
-                    close(clientSocket);
+                    SSL_shutdown(clientSocket);
+                    SSL_free(clientSocket);
+                    close(clsock);
                     clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-                    auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+
+                    auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                     connectedClients.erase(it, connectedClients.end());
+
+                    auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                    tlsSocks.erase(ittls, tlsSocks.end());
+
                     cout << "disconnected not verified user" << endl;
                     return true;
                 }
@@ -264,12 +310,19 @@ bool checkPassHash(const string &passGetArg, int clientSocket, unordered_map<int
     }
     catch (exception &e)
     {
-        send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+        SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
         sleep(1); // so they recieve it before closing their socket
-        close(clientSocket);
+        SSL_shutdown(clientSocket);
+        SSL_free(clientSocket);
+        close(clsock);
         clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+
+        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
         connectedClients.erase(it, connectedClients.end());
+
+        auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+        tlsSocks.erase(ittls, tlsSocks.end());
+
         cout << "disconnected not verified user" << endl;
         cout << "Exception was: " << e.what() << endl;
         return true;
@@ -277,14 +330,14 @@ bool checkPassHash(const string &passGetArg, int clientSocket, unordered_map<int
     return true;
 }
 
-void handleClient(int clientSocket, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath)
+void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath)
 {
     // end = * == user attempted to join the chat past the limit allowed
     // end = @ == user attempted to join the chat with an already existing username in the chat
     try
     {
         char pingbuf[200] = {0};
-        ssize_t pingb = recv(clientSocket, pingbuf, sizeof(pingbuf) - 1, 0);
+        ssize_t pingb = SSL_read(clientSocket, pingbuf, sizeof(pingbuf) - 1);
         pingbuf[pingb] = '\0';
         std::string pingStr(pingbuf);
 
@@ -295,14 +348,19 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                 cout << "RUNNING HANDLE CLIENT" << endl;
                 // send the servers public key
                 Send sendServerPubKey;
-                vector<uint8_t> serverPubKeyBuff = sendServerPubKey.readFile(serverPubKeyPath);
-                string encodedDataPub = sendServerPubKey.b64EF(serverPubKeyBuff);
-                sendServerPubKey.sendBase64Data(clientSocket, encodedDataPub);
+                Recieve readServerPubKey;
+                // string serverPubKeyBuff = sendServerPubKey.readFile(serverPubKeyPath);
+                // string encodedDataPub = sendServerPubKey.b64EF(serverPubKeyBuff);
+                std::string pkeyServer = readServerPubKey.read_pem_key(serverPubKeyPath);
+                sendServerPubKey.sendKey(clientSocket, pkeyServer);
+
+                std::cout << "encoded data sent: " << pkeyServer;
                 cout << "Server pub key sent to client" << endl;
                 //-------------
                 {
                     lock_guard<mutex> lock(clientsMutex);
-                    connectedClients.push_back(clientSocket);
+                    connectedClients.push_back(clsock);
+                    tlsSocks.push_back(clientSocket);
                 }
 
                 for (size_t i = 0; i < connectedClients.size(); ++i)
@@ -315,15 +373,19 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                 if (clientUsernames.size() == limOfUsers)
                 {
-                    send(clientSocket, limReached.c_str(), limReached.length(), 0);
+                    SSL_write(clientSocket, limReached.c_str(), limReached.length());
                     cout << "client username size: " << clientUsernames.size() << endl;
                     cout << fmt::format("client attempted to join past the required limit of users({})", limOfUsers) << endl;
-                    auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                    auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                     connectedClients.erase(it, connectedClients.end());
+                    auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                    tlsSocks.erase(ittls, tlsSocks.end());
                     cout << "removed client socket of user that attempted to join past limit from vector" << endl;
                     cout << "connectedClients vector size: " << connectedClients.size() << endl;
 
-                    close(clientSocket);
+                    SSL_shutdown(clientSocket);
+                    SSL_free(clientSocket);
+                    close(clsock);
                 }
 
                 int clientHashi = 0;
@@ -336,7 +398,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                 unordered_map<int, string> clientHash;
 
-                auto itCl = find(connectedClients.begin(), connectedClients.end(), clientSocket); // find clientSocket index
+                auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
                 int indexClientOut = itCl - connectedClients.begin();
                 cout << "IndexClientOut: " << indexClientOut << endl;
 
@@ -350,6 +412,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                 {
                     std::cout << fmt::format("CLIENT {} HASH: ", i + 1) << clientHashVerifiedClients[i] << std::endl;
                 }
+                //
 
                 cout << "OUPUYT: " << clientHashVerifiedClients[indexClientOut] << endl;
                 cout << "id up: " << indexClientOut - 1 << endl;
@@ -365,19 +428,20 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         }
                         cout << "sending pass verify signal" << endl;
                         sleep(1);
-                        send(clientSocket, pnS.c_str(), pnS.length(), 0);
+                        SSL_write(clientSocket, pnS.c_str(), pnS.size());
 
                         Recieve passGetRecv;
                         string passGet = passGetRecv.receiveBase64Data(clientSocket);
-
+                        //
                         cout << "Pass cipher recieved from client: " << passGet << endl;
 
                         LoadKey loadServerKey;
-                        RSA::PrivateKey serverPrivate;
+                        EVP_PKEY *serverPrivate;
+                        EVP_PKEY *pkey = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
 
                         cout << "Loading server private key" << endl;
 
-                        if (loadServerKey.loadPrv(serverPrvKeyPath, serverPrivate))
+                        if (pkey)
                         {
                             cout << "Loaded server private key for decryption of passGet" << endl;
                         }
@@ -385,6 +449,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         {
                             cout << "Could not load server private key for decryption. Killing server." << endl;
                             close(serverSocket);
+                            /*clean up properly*/
                             leave(serverKeysPath, S_PATH);
                             exit(1);
                         }
@@ -401,7 +466,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         cout << "serverp: " << serverHash[1] << endl;
                         if (bcrypt::validatePassword(passGet, serverHash[1]) == 1)
                         { // bcrypt::validatePassword(passGet, serverHash[1]) == 1
-                            send(clientSocket, verified.c_str(), verified.length(), 0);
+                            SSL_write(clientSocket, verified.c_str(), verified.length());
                             clientHashVerifiedClients[indexClientOut] = 1;
                             cout << "updatyed: " << clientHashVerifiedClients[indexClientOut] << endl;
                             cout << "size of clients hash: " << clientHashVerifiedClients.size() << endl;
@@ -409,23 +474,27 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         }
                         else
                         {
-                            send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                            SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
                             sleep(1);
-                            close(clientSocket);
-                            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                            SSL_shutdown(clientSocket);
+                            SSL_free(clientSocket);
+                            close(clsock);
+                            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                             connectedClients.erase(it, connectedClients.end());
+                            auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                            tlsSocks.erase(ittls, tlsSocks.end());
                             cout << "user not verified. kicked." << endl;
                         }
                     }
                     else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1)
                     {
-                        send(clientSocket, pnO.c_str(), pnO.length(), 0);
+                        SSL_write(clientSocket, pnO.c_str(), pnO.length());
                     }
                 }
                 string clientsNamesStr = "";
 
                 char buffer[4096] = {0};
-                ssize_t bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+                ssize_t bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer) - 1);
                 buffer[bytesReceived] = '\0';
                 std::string userStr(buffer);
 
@@ -433,13 +502,17 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                 {
                     if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 && pnInt != 2)
                     {
-                        send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
+                        SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
                         sleep(1); // so they recieve it before closing their socket
-                        close(clientSocket);
+                        SSL_shutdown(clientSocket);
+                        SSL_free(clientSocket);
+                        close(clsock);
                         userStr.clear();
                         clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                         connectedClients.erase(it, connectedClients.end());
+                        auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                        tlsSocks.erase(ittls, tlsSocks.end());
                         cout << "disconnected not verified user" << endl;
                     }
                 }
@@ -456,14 +529,18 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         if (clientUsernames[i] == userStr)
                         {
                             cout << "client with the same username detected. kicking.." << endl;
-                            send(clientSocket, exists.c_str(), exists.length(), 0);
+                            SSL_write(clientSocket, exists.c_str(), exists.length());
 
-                            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                             connectedClients.erase(it, connectedClients.end());
+                            auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                            tlsSocks.erase(ittls, tlsSocks.end());
                             cout << "removed client with the same username socket from vector" << endl;
                             cout << "connectedClients vector size: " << connectedClients.size() << endl;
 
-                            close(clientSocket);
+                            SSL_shutdown(clientSocket);
+                            SSL_free(clientSocket);
+                            close(clsock);
                             userStr.clear();
                         }
                     }
@@ -477,18 +554,20 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                             userStr[i] = '_';
                         } // also check for slashes
                     }
-                    send(clientSocket, userStr.c_str(), userStr.length(), 0);
+                    SSL_write(clientSocket, userStr.c_str(), userStr.length());
                 }
 
                 if (userStr.empty())
                 {
-                    close(clientSocket);
+                    SSL_shutdown(clientSocket);
+                    SSL_free(clientSocket);
+                    close(clsock);
                     cout << "Closed client username empty" << endl;
                 }
 
                 else
                 {
-                    if (checkPassHash(passGetArg, clientSocket, serverHash, pnInt, indexClientOut, userStr) != false)
+                    if (checkPassHash(passGetArg, clientSocket, clsock, serverHash, pnInt, indexClientOut, userStr) != false)
                     {
                         clientUsernames.push_back(userStr);
                         cout << "username added to client vector usernames" << endl;
@@ -496,8 +575,8 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         cout << "client SIZE: " << clientUsernames.size() << endl;
 
                         Send usersactive;
-                        std::vector<uint8_t> activeBuf = usersactive.readFile(userPath); // file path is a string to the file path
-                        std::string ed = usersactive.b64EF(activeBuf);
+                        string activeBuf = usersactive.readFile(userPath); // file path is a string to the file path
+                        string ed = usersactive.b64EF(activeBuf);
                         usersactive.sendBase64Data(clientSocket, ed);
 
                         std::string joinMsg = fmt::format("{} has joined the chat", userStr);
@@ -506,7 +585,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                         const string only = "\nYou are the only user in this chat you cannot send messages until another user joins";
 
-                        string pub = fmt::format("keys-server/{}-pubkeyserver.der", userStr);
+                        string pub = fmt::format("keys-server/{}-pubkeyserver.pem", userStr);
 
                         Recieve pubrecvserver;
 
@@ -514,14 +593,15 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                         if (clientUsernames.size() == 1)
                         {
-                            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+                            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr);
                         }
                         else if (clientUsernames.size() > 1)
                         {
-                            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
+                            serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
                         }
+
                         std::string encodedData = pubrecvserver.receiveBase64Data(clientSocket);
-                        std::vector<uint8_t> decodedData = pubrecvserver.base64Decode(encodedData);
+                        std::string decodedData = pubrecvserver.base64Decode(encodedData);
                         pubrecvserver.saveFile(serverRecv, decodedData);
 
                         static const string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
@@ -529,26 +609,31 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         {
                             cout << "public key exists" << endl;
                             LoadKey loadpub;
-                            if (!loadpub.loadPub(serverRecv))
+                            EVP_PKEY *pkeyloader = loadpub.LoadPubOpenssl(serverRecv);
+                            if (!pkeyloader) /*if it didnt load*/
                             {
                                 cout << "CANNOT LOAD USER PUB KEY. KICKING" << endl;
-                                send(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length(), 0);
-                                close(clientSocket);
+                                SSL_write(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length());
+                                SSL_shutdown(clientSocket);
+                                SSL_free(clientSocket);
+                                close(clsock);
                             } // test load the key
                         }
                         else
                         {
                             cout << "PUBLIC KEY FILE DOES NOT EXIST" << endl;
-                            send(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length(), 0);
-                            close(clientSocket);
+                            SSL_write(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length());
+                            SSL_shutdown(clientSocket);
+                            SSL_free(clientSocket);
+                            close(clsock);
                         }
 
                         cout << "recv" << endl;
                         cout << "Encoded key: " << encodedData << endl;
 
                         // file paths
-                        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[0]); // this path is to send the pub key of client 1 to the client that connects
-                        string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[0]);
+                        string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[0]); // this path is to send the pub key of client 1 to the client that connects
+                        string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[0]);
 
                         Send sendtoclient;
 
@@ -557,9 +642,9 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                         {
                             std::cout << fmt::format("sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
                             // send the file path to save as on client side
-                            send(clientSocket, clientSavePathAs.data(), clientSavePathAs.length(), 0);
+                            SSL_write(clientSocket, clientSavePathAs.data(), clientSavePathAs.length());
                             cout << "sleeping 1 sec" << endl;
-                            std::vector<uint8_t> fi = sendtoclient.readFile(sendToClient2); // file path is a string to the file path
+                            std::string fi = sendtoclient.readFile(sendToClient2); // file path is a string to the file path
                             std::string encodedData = sendtoclient.b64EF(fi);
                             sendtoclient.sendBase64Data(clientSocket, encodedData); // send encoded key
                         }
@@ -578,14 +663,14 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                             if (clientUsernames.size() == 2)
                             {
-                                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.der", clientUsernames[1]);
+                                string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[1]);
                                 cout << fmt::format("sending to user 1: {}", client1toSavePathAs) << endl;
-                                send(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length(), 0);
+                                SSL_write(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length());
                             }
                             cout << "SENDING TO CLIENT 1" << endl;
                             sleep(1);
-                            string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[1]);
-                            std::vector<uint8_t> fi2 = sendtoclient.readFile(sendToClient1); // file path is a string to the file path //error when reading the file
+                            string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                            std::string fi2 = sendtoclient.readFile(sendToClient1); // file path is a string to the file path //error when reading the file
                             std::string encodedDataClient = sendtoclient.b64EF(fi2);
                             sendtoclient.sendBase64Data(clientSocket, encodedDataClient); // send encoded key
                             cout << "file to CLIENT 1 SENT" << endl;
@@ -616,50 +701,72 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
 
                         while (isConnected)
                         {
-                            if (checkPassHash(passGetArg, clientSocket, serverHash, pnInt, indexClientOut, userStr) != false)
+                            if (checkPassHash(passGetArg, clientSocket, clsock, serverHash, pnInt, indexClientOut, userStr) != false)
                             {
-                                bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+                                bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer));
                                 if (bytesReceived <= 0 || strcmp(buffer, "quit") == 0)
                                 { // the quit word is useless because the quit message doesnt get sent to the user
                                     isConnected = false;
                                     {
                                         std::lock_guard<std::mutex> lock(clientsMutex);
                                         std::cout << fmt::format("User client socket deletion: BEFORE: {}", connectedClients.size()) << endl;
-                                        auto itCl = find(connectedClients.begin(), connectedClients.end(), clientSocket); // find clientSocket index
+                                        auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
                                         // int indexClientOut = itCl - connectedClients.begin();
                                         clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-                                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
+                                        auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                                         connectedClients.erase(it, connectedClients.end());
+                                        auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                                        tlsSocks.erase(ittls, tlsSocks.end());
                                         std::cout << fmt::format("User client socket deleted: AFTER: {}", connectedClients.size()) << endl;
                                         std::cout << "------------" << endl;
                                         std::cout << fmt::format("{} has left the chat", userStr) << endl;
                                     }
 
                                     std::string exitMsg = fmt::format("{} has left the chat", userStr);
+                                    encServer encryptOp;
                                     if (clientUsernames.size() > 1)
                                     {
                                         LoadKey loadkeyandsend;
                                         if (clientUsernames[0] == userStr)
                                         {
                                             int index = 0 + 1;
-                                            string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index]);
-                                            string op64 = loadkeyandsend.loadPubAndEncrypt(pathpub, exitMsg);
-                                            cout << "UPDATED OP64: " << op64 << endl;
-                                            if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err")
+                                            string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[index]);
+                                            EVP_PKEY *keyLoad = loadkeyandsend.LoadPubOpenssl(pathpub);
+                                            if (keyLoad)
                                             {
-                                                broadcastMessage(op64, clientSocket);
+                                                string op64 = encryptOp.Base64Encode(encryptOp.Enc(keyLoad, exitMsg));
+                                                // op64 is the encrypted text
+                                                cout << "UPDATED OP64: " << op64 << endl;
+                                                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err")
+                                                {
+                                                    broadcastMessage(op64, clientSocket, clsock);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                /*make some code here that exits the server if the key cant be loaded*/
                                             }
                                         }
                                         else if (clientUsernames[1] == userStr)
                                         {
                                             int index2 = 1 - 1;
-                                            string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", clientUsernames[index2]);
-                                            string op642 = loadkeyandsend.loadPubAndEncrypt(pathpub2, exitMsg);
-                                            cout << "UPDATED OP642: " << op642 << endl;
-                                            if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err")
+                                            string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[index2]);
+                                            EVP_PKEY *keyLoad2 = loadkeyandsend.LoadPubOpenssl(pathpub2);
+
+                                            if (keyLoad2)
                                             {
-                                                // send(connectedClients[index2], op642.c_str(), op642.length(), 0);
-                                                broadcastMessage(op642, clientSocket);
+                                                string op642 = encryptOp.Base64Encode(encryptOp.Enc(keyLoad2, exitMsg));
+                                                // op64 is the encrypted text
+                                                cout << "UPDATED OP642: " << op642 << endl;
+                                                if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err")
+                                                {
+                                                    // SSL_write(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                                                    broadcastMessage(op642, clientSocket, clsock);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                /*make some code here that exits the server if the key cant be loaded*/
                                             }
                                         }
                                     }
@@ -673,7 +780,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                                     std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << endl;
                                     std::cout << fmt::format("Clients in chat: {} ", clientUsernames.size()) << endl;
                                     cout << "Deleting user pubkey" << endl;
-                                    string pubfiletodel = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.der", userStr);
+                                    string pubfiletodel = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr);
 
                                     remove(pubfiletodel);
                                     if (!is_regular_file(pubfiletodel))
@@ -730,7 +837,7 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
                                             stringFormatTime.replace(pos, str.length(), formattedTime);
                                         }
                                         string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                                        broadcastMessage(formattedCipher, clientSocket);
+                                        broadcastMessage(formattedCipher, clientSocket, clsock);
                                     }
                                 }
                             }
@@ -765,23 +872,6 @@ void handleClient(int clientSocket, int serverSocket, unordered_map<int, string>
     }
 }
 
-void checkPassHash(std::string &passGetArg, std::unordered_map<int, std::string> &serverHash, int pnInt, int &clientSocket, const std::string &notVerified, std::string &userStr, int indexClientOut)
-{
-    if (clientHashVerifiedClients.size() < 3)
-    {
-        if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 && pnInt != 2)
-        {
-            send(clientSocket, notVerified.c_str(), notVerified.length(), 0);
-            sleep(1); // so they recieve it before closing their socket
-            close(clientSocket);
-            userStr.clear();
-            clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
-            auto it = std::remove(connectedClients.begin(), connectedClients.end(), clientSocket);
-            connectedClients.erase(it, connectedClients.end());
-            cout << "disconnected not verified user" << endl;
-        }
-    }
-}
 int main()
 {
     int pnInt;
@@ -824,7 +914,7 @@ int main()
 
     t1.join();
 
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (serverSocket < 0)
     {
@@ -858,50 +948,79 @@ int main()
     createDir(S_PATH);
     createDir(SERVER_KEYPATH);
 
-    string server_priv_path = serverKeysPath + "/server-privkey.der";
-    string server_pub_path = serverKeysPath + "/server-pubkey.der";
+    string server_priv_path = serverKeysPath + "/server-privkey.pem";
+    string server_pub_path = serverKeysPath + "/server-pubkey.pem";
+    string server_cert_path = serverKeysPath + "/server-cert.pem";
 
-    cout << "Generating server keys.." << endl;
-    makeServerKey serverKey(server_priv_path, server_pub_path);
-    cout << fmt::format("Saved server keys in path '{}'", serverKeysPath) << endl;
+    std::cout << "Generating server keys.." << std::endl;
+    makeServerKey serverKey(server_priv_path, server_cert_path, server_pub_path);
+    std::cout << fmt::format("Saved server keys in path '{}'", serverKeysPath) << std::endl;
 
     LoadKey loadServerKeys;
-    if (loadServerKeys.loadPub(server_pub_path))
+    EVP_PKEY *pubKey = loadServerKeys.LoadPubOpenssl(server_pub_path);
+    if (pubKey)
     {
-        cout << "Server's public key has been loaded" << endl;
+        std::cout << "Server's public key has been loaded" << std::endl;
     }
     else
     {
-        cout << "Cannot load server's public key. Killing server." << endl;
+        std::cout << "Cannot load server's public key. Killing server." << std::endl;
         close(serverSocket);
         leave(serverKeysPath, S_PATH);
         exit(1);
     }
 
-    RSA::PrivateKey serverPrivKey;
+    // RSA::PrivateKey serverPrivKe
+    EVP_PKEY *prvKey = loadServerKeys.LoadPrvOpenssl(server_priv_path);
 
-    if (loadServerKeys.loadPrv(server_priv_path, serverPrivKey))
+    if (prvKey)
     {
-        cout << "Server's private key has been loaded" << endl;
+        cout << "Server's private key (cert) has been loaded" << endl;
+        passVals(serverSocket, ctx);
     }
     else
     {
-        cout << "Cannot load server's private key. Killing server." << endl;
+        cout << "Cannot load server's private key (cert). Killing server." << endl;
         close(serverSocket);
         leave(serverKeysPath, S_PATH);
         exit(1);
     }
 
+    initOpenSSL inito;
+    inito.InitOpenssl();
+    ctx = inito.createCtx();
+    std::cout << "Configuring server ctx" << std::endl;
+    inito.configCtx(ctx, server_cert_path, server_priv_path);
+    std::cout << "Done configuring server ctx" << std::endl;
+
+    std::cout << "Server is now accepting connections" << std::endl;
+
+    std::cout << "Started hosting server cert key" << std::endl;
+    // sleep(1);
+    thread(startHost).detach();
+    //
     while (true)
     {
         sockaddr_in clientAddress;
         socklen_t clientLen = sizeof(clientAddress);
         int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientLen);
 
-        thread(handleClient, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path).detach();
-        // thread(serverCommands).detach()
+        SSL *ssl_cl = SSL_new(ctx);
+        SSL_set_fd(ssl_cl, clientSocket);
+
+        if (SSL_accept(ssl_cl) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            raise(SIGINT);
+        }
+
+        thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path).detach();
+        // thread(serverCommands).de
     }
 
     close(serverSocket);
+    SSL_CTX_free(ctx);
+    EVP_cleanup();
+
     return 0;
 }
