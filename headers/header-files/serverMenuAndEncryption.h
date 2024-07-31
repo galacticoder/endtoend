@@ -277,72 +277,13 @@ struct LoadKey
 
 struct makeServerKey
 {
-    // change the constructor to make a selfsigned cert
-    makeServerKey(const std::string &keyfile, const std::string &certFile, const std::string &pubKey)
+    void extractPubKey(const std::string certFile, const std::string &pubKey)
     {
-        int rc;
-        EVP_PKEY *pkey = nullptr;
-        X509 *x509 = nullptr;
-        // RSA *rsa = nullptr;
-        // BIGNUM *bn = nullptr;
-        BIO *bio = nullptr;
-
-        // make rsa key here
-        pkey = EVP_PKEY_new();
-        EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
-        EVP_PKEY_keygen_init(pctx);
-        EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, KEYSIZE);
-        EVP_PKEY_keygen(pctx, &pkey);
-        // rsa = RSA_new();
-        // bn = BN_new();
-        // BN_set_word(bn, RSA_F4);
-        // rc = RSA_generate_key_ex(rsa, KEYSIZE, bn, nullptr);
-        // if (rc != 1)
-        // {
-        //     ERR_print_errors_fp(stderr);
-        //     if (pkey)
-        //         EVP_PKEY_free(pkey);
-        //     if (x509)
-        //         X509_free(x509);
-        // }
-        // creating the cert
-        x509 = X509_new();
-        ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
-        X509_gmtime_adj(X509_get_notBefore(x509), 0);
-        X509_gmtime_adj(X509_get_notAfter(x509), 31536000L); // for a year set idk why but just leave it
-        X509_set_pubkey(x509, pkey);
-
-        X509_NAME *name = X509_get_subject_name(x509);
-
-        // set the details for cert
-        X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (unsigned char *)"US", -1, -1, 0);
-        X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (unsigned char *)"organization", -1, -1, 0);
-        X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char *)"common name", -1, -1, 0);
-
-        X509_set_issuer_name(x509, name);
-        X509_sign(x509, pkey, EVP_sha3_512());
-        // write prv key to file
-        bio = BIO_new_file(keyfile.c_str(), "w");
-        PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr);
-        BIO_free_all(bio);
-
-        // write cert to file
-        bio = BIO_new_file(certFile.c_str(), "w");
-        PEM_write_bio_X509(bio, x509);
-        BIO_free_all(bio);
-
-        // clean up
-        EVP_PKEY_free(pkey);
-        X509_free(x509);
-        EVP_PKEY_CTX_free(pctx);
-
-        OpenSSL_add_all_algorithms();
-        ERR_load_crypto_strings();
-
         FILE *certFileOpen = fopen(certFile.c_str(), "r");
         if (!certFileOpen)
         {
-            std::cerr << "Error opening cert file: " << std::endl;
+            std::cerr << "Error opening cert file: " << certFile << std::endl;
+            return;
         }
 
         X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
@@ -350,6 +291,7 @@ struct makeServerKey
         if (!cert)
         {
             std::cerr << "Error reading certificate" << std::endl;
+            return;
         }
 
         EVP_PKEY *pubkey = X509_get_pubkey(cert);
@@ -357,6 +299,7 @@ struct makeServerKey
         {
             std::cerr << "Error extracting pubkey from cert" << std::endl;
             X509_free(cert);
+            return;
         }
 
         FILE *pubkeyfile = fopen(pubKey.c_str(), "w");
@@ -365,6 +308,7 @@ struct makeServerKey
             std::cerr << "Error opening pub key file: " << pubKey << std::endl;
             EVP_PKEY_free(pubkey);
             X509_free(cert);
+            return;
         }
 
         if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
@@ -376,6 +320,93 @@ struct makeServerKey
         EVP_PKEY_free(pubkey);
         X509_free(cert);
         ERR_free_strings();
+    }
+    // change the constructor to make a selfsigned cert
+    makeServerKey(const std::string &keyfile, const std::string &certFile, const std::string &pubKey)
+    {
+        EVP_PKEY *pkey = nullptr;
+        X509 *x509 = nullptr;
+        EVP_PKEY_CTX *pctx = nullptr;
+        BIO *bio = nullptr;
+
+        OpenSSL_add_all_algorithms();
+        ERR_load_crypto_strings();
+
+        pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
+        if (!pctx)
+        {
+            ERR_print_errors_fp(stderr);
+            return;
+        }
+
+        if (EVP_PKEY_keygen_init(pctx) <= 0 ||
+            EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, KEYSIZE) <= 0 ||
+            EVP_PKEY_keygen(pctx, &pkey) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_CTX_free(pctx);
+            return;
+        }
+        EVP_PKEY_CTX_free(pctx);
+
+        x509 = X509_new();
+        if (!x509)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_free(pkey);
+            return;
+        }
+
+        ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+        X509_gmtime_adj(X509_get_notBefore(x509), 0);
+        X509_gmtime_adj(X509_get_notAfter(x509), 31536000L); // 1year
+        X509_set_pubkey(x509, pkey);
+
+        X509_NAME *name = X509_get_subject_name(x509);
+        X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (unsigned char *)"US", -1, -1, 0);
+        X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (unsigned char *)"organization", -1, -1, 0);
+        X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char *)"common name", -1, -1, 0);
+
+        X509_set_issuer_name(x509, name);
+        if (X509_sign(x509, pkey, EVP_sha3_512()) == 0)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_free(pkey);
+            X509_free(x509);
+            return;
+        }
+
+        bio = BIO_new_file(keyfile.c_str(), "w");
+        if (!bio)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_free(pkey);
+            X509_free(x509);
+            return;
+        }
+        if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr) != 1)
+        {
+            ERR_print_errors_fp(stderr);
+        }
+        BIO_free_all(bio);
+
+        bio = BIO_new_file(certFile.c_str(), "w");
+        if (!bio)
+        {
+            ERR_print_errors_fp(stderr);
+            EVP_PKEY_free(pkey);
+            X509_free(x509);
+            return;
+        }
+        if (PEM_write_bio_X509(bio, x509) != 1)
+        {
+            ERR_print_errors_fp(stderr);
+        }
+        BIO_free_all(bio);
+
+        EVP_PKEY_free(pkey);
+        X509_free(x509);
+        extractPubKey(certFile, pubKey);
     }
     // makeServerKey(const std::string &privateKeyFile, const std::string &publicKeyFile, int bits = KEYSIZE)
     // {
@@ -679,6 +710,23 @@ struct Recieve
             throw std::runtime_error("Error writing to file");
         }
     }
+
+    void saveFilePem(const std::string &filePath, const string &buffer)
+    {
+        std::ofstream file(filePath, std::ios::binary);
+        if (!file.is_open())
+        {
+            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
+        }
+
+        file << buffer;
+
+        if (!file)
+        {
+            throw std::runtime_error("Error writing to file");
+        }
+    }
+
     std::string receiveBase64Data(SSL *clientSocket)
     {
         std::string receivedData;

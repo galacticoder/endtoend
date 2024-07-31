@@ -124,6 +124,50 @@ struct LoadKey
 
     //     return true;
     // }
+    void extractPubKey(const std::string certFile, const std::string &pubKey)
+    {
+        FILE *certFileOpen = fopen(certFile.c_str(), "r");
+        if (!certFileOpen)
+        {
+            std::cerr << "Error opening cert file: " << certFile << std::endl;
+            return;
+        }
+
+        X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
+        fclose(certFileOpen);
+        if (!cert)
+        {
+            std::cerr << "Error reading certificate" << std::endl;
+            return;
+        }
+
+        EVP_PKEY *pubkey = X509_get_pubkey(cert);
+        if (!pubkey)
+        {
+            std::cerr << "Error extracting pubkey from cert" << std::endl;
+            X509_free(cert);
+            return;
+        }
+
+        FILE *pubkeyfile = fopen(pubKey.c_str(), "w");
+        if (!pubkeyfile)
+        {
+            std::cerr << "Error opening pub key file: " << pubKey << std::endl;
+            EVP_PKEY_free(pubkey);
+            X509_free(cert);
+            return;
+        }
+
+        if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
+        {
+            std::cerr << "Error writing public key to file" << std::endl;
+        }
+
+        fclose(pubkeyfile);
+        EVP_PKEY_free(pubkey);
+        X509_free(cert);
+        ERR_free_strings();
+    }
 
     EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile)
     {
@@ -391,6 +435,18 @@ struct Recieve
     // std::string encodedData = receiveBase64Data(clientSocket);
     // std::vector<uint8_t> decodedData = base64Decode(encodedData);
     // saveFile(filePath, decodedData);
+    std::string read_pem_key(const std::string &path)
+    {
+        std::ifstream file(path);
+        if (!file.is_open())
+        {
+            std::cout << "Could not open pem file" << std::endl;
+        }
+        std::string pemKey((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        return pemKey;
+    }
+
     std::string base64Decode(const std::string &encodedData)
     {
         std::string decoded;
@@ -401,6 +457,22 @@ struct Recieve
     void saveFile(const std::string &filePath, const string &buffer)
     {
         std::ofstream file(filePath);
+        if (!file.is_open())
+        {
+            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath)); // here
+        }
+
+        file << buffer;
+        // cout << "buffer: " <<
+
+        if (!file)
+        {
+            throw std::runtime_error("Error writing to file");
+        }
+    }
+    void saveFilePem(const std::string &filePath, const string &buffer)
+    {
+        std::ofstream file(filePath, std::ios::binary);
         if (!file.is_open())
         {
             throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
@@ -433,8 +505,12 @@ struct Recieve
 
         if (bytesRead == -1)
         {
+            // cout << "err here" << endl;
             throw std::runtime_error("Error receiving data");
+            // cout << "err here 2" << endl;
         }
+
+        // cout << "file recvd" << endl;
 
         return receivedData;
     }

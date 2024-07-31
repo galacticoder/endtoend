@@ -23,11 +23,11 @@ using namespace std;
 
 // void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs);
 // void delIterate(const string& keyPath);
-void isPortOpen(const string &address, int port, std::atomic<bool> &running, unsigned int update_secs);
+void isPortOpen(const std::string &address, int port, std::atomic<bool> &running, unsigned int update_secs);
 short int getTermSizeCols();
 void signalhandleGetch(int signum);
 bool findIn(const char &find, const string &In);
 int readActiveUsers(const string &filepath);
-string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, SSL *clientSocket = NULL, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
+string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, const std::string cert = "NONE", const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
 
 #endif

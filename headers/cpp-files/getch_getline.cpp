@@ -7,12 +7,13 @@
 #include <fstream>
 #include <filesystem>
 #include <boost/asio.hpp>
-#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 #include <arpa/inet.h>
 #include <netinet/ip_icmp.h>
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include <stdexcept>
 #include <cryptopp/cryptlib.h>
 #include <openssl/ssl.h>
 #include "../header-files/leave.h"
@@ -27,6 +28,7 @@
 using namespace std;
 using namespace chrono;
 using namespace filesystem;
+using namespace boost;
 
 vector<string> message;
 vector<char> modeP;
@@ -57,9 +59,24 @@ using boost::asio::ip::tcp;
 //     }
 // }
 
-SSL *sslPub;
+std::string ca_cert_content;
 
-void isPortOpen(const string &address, int port, std::atomic<bool> &running, unsigned int update_secs)
+std::string read_file(const std::string &filename)
+{
+
+    std::ifstream file(filename, std::ios::binary | std::ios::ate);
+    if (!file)
+    {
+        throw std::runtime_error("Unable to open file: " + filename);
+    }
+    std::ifstream::pos_type file_size = file.tellg();
+    std::string file_content(file_size, '\0');
+    file.seekg(0, std::ios::beg);
+    file.read(&file_content[0], file_size);
+    return file_content;
+};
+
+void isPortOpen(const std::string &address, int port, std::atomic<bool> &running, unsigned int update_secs)
 {
     if (address != "-1" && port != 0)
     {
@@ -69,29 +86,27 @@ void isPortOpen(const string &address, int port, std::atomic<bool> &running, uns
         {
             try
             {
-                SSL_write(sslPub, pingMsg.c_str(), pingMsg.size());
-                // boost::system::error_code ecCheck;
-                // boost::asio::ip::address::from_string(address, ecCheck);
-                // if (ecCheck)
-                // {
-                //     cout << "invalid ip address: " << address << endl;
-                // }
-                // boost::asio::io_service io_service;
-                // tcp::socket socket(io_service);
-                // tcp::endpoint endpoint(boost::asio::ip::address::from_string(address), port);
-                // socket.connect(endpoint);
 
-                // if (ecCheck)
-                // {
-                //     disable_conio_mode();
-                //     cout << eraseLine;
-                //     leave();
-                //     exit(1);
-                // }
+                asio::io_context io_context;
+                asio::ssl::context ssl_context(asio::ssl::context::tls_client);
 
+                ssl_context.add_certificate_authority(asio::buffer(ca_cert_content));
+
+                asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(io_context, ssl_context);
+
+                asio::ip::tcp::resolver resolver(io_context);
+                asio::ip::tcp::resolver::query query(address, std::to_string(port));
+                asio::ip::tcp::resolver::iterator endpoints = resolver.resolve(query);
+
+                asio::connect(ssl_stream.lowest_layer(), endpoints);
+                ssl_stream.handshake(asio::ssl::stream_base::client);
+
+                ssl_stream.shutdown();
+                ssl_stream.lowest_layer().close();
                 this_thread::sleep_for(wait_duration);
             }
-            catch (const exception &e)
+
+            catch (const std::exception &e)
             {
                 running = false;
                 cout << eraseLine;
@@ -153,31 +168,31 @@ int readActiveUsers(const string &filepath)
     return activeInt;
 }
 
-string getinput_getch(char sC, char &&MODE, SSL *clientSocket, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
+string getinput_getch(char sC, char &&MODE, const std::string certPath, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
 { // N==normal//P==Password
     // causing closing ssl connections when pinging?
-    sslPub = clientSocket;
+    ca_cert_content = certPath;
     sC_M = sC;
     setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
 
-    std::atomic<bool> running{true};
-    const unsigned int update_interval = 2; // update every 2 seconds
-    std::thread pingingServer(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
-    pingingServer.detach();
+    // std::atomic<bool> running{true};
+    // const unsigned int update_interval = 2; // update every 2 seconds
+    // std::thread pingingServer(isPortOpen, serverIp, PORT, std::ref(running), update_interval);
+    // pingingServer.detach();
 
     while (true)
     {
-        if (running == false)
-        {
-            disable_conio_mode();
-            modeP.clear();
-            message.clear();
-            message.push_back("\u2702");
-            break;
-        }
+        // if (running == false)
+        // {
+        //     disable_conio_mode();
+        //     modeP.clear();
+        //     message.clear();
+        //     message.push_back("\u2702");
+        //     break;
+        // }
         // run a funciton here so its better and faster ig
         // detect if users active.txt is equal to "2!"
         //  else if (runningFile == false) {
@@ -459,7 +474,7 @@ string getinput_getch(char sC, char &&MODE, SSL *clientSocket, const string &&un
         }
     }
 
-    running = false;
+    // running = false;
     disable_conio_mode();
 
     string message_str;

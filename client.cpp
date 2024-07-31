@@ -73,6 +73,7 @@ vector<std::string> usersActiveVector;
 vector<SSL *> tlsSock;
 vector<SSL_CTX *> sslStore;
 uint8_t leavePattern;
+int con = 0;
 // bool isPav(const string& address, int port) {
 //     try {
 //         boost::system::error_code ecCheck;
@@ -123,13 +124,23 @@ bool containsOnlyASCII(const string &stringS)
 
 void signalhandle(int signum)
 {
-    int indexClientOut = 0;
-    SSL_shutdown(tlsSock[indexClientOut]);
-    SSL_free(tlsSock[indexClientOut]);
-    close(clsockC);
-    SSL_CTX_free(sslStore[0]);
-    EVP_cleanup();
-    cout << eraseLine;
+    if (con == 1)
+    {
+        int indexClientOut = 0;
+        std::cout << "Vec: " << tlsSock[indexClientOut] << std::endl;
+        cout << "Shutting down client" << endl;
+        SSL_shutdown(tlsSock[indexClientOut]);
+        cout << "Freeing client" << endl;
+        SSL_free(tlsSock[indexClientOut]);
+        cout << "Closing socket" << endl;
+        close(clsockC);
+        cout << "Freeing 2" << endl;
+        SSL_CTX_free(sslStore[0]);
+        cout << "Evp cleanup" << endl;
+        EVP_cleanup();
+        cout << "Done" << endl;
+        cout << eraseLine;
+    }
     if (leavePattern == 0)
     {
         cout << "You have disconnected from the empty chat." << endl;
@@ -289,12 +300,24 @@ bool createDir(const string &dirName)
     return true;
 }
 
+void sendPem(const std::string &pempath, BIO *bio)
+{
+    if (BIO_write(bio, pempath.c_str(), pempath.size()) <= 0)
+    {
+        std::cout << "Could not send '" << pempath << "' to server" << endl;
+        BIO_free_all(bio);
+        raise(SIGINT);
+    }
+    std::cout << fmt::format("File ({}) has been sent to server", pempath) << std::endl;
+}
+
 int main()
 {
+    signal(SIGINT, signalhandle);
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
-
+    leavePattern = 90;
     createDir(S_KEYS);
     char serverIp[30] = "127.0.0.1"; // change to the server ip //192.168.0.205
     const string portPath = "txt-files/PORT.txt";
@@ -304,9 +327,12 @@ int main()
     int PORT;
     istringstream(PORTSTR) >> PORT;
     std::cout << "Starting client" << std::endl;
+    createDir(fpath);
+    createDir(formatPath);
     // generate keys here and load them into the context config
     std::string pu = fmt::format("{}{}-pubkey.pem", fpath, "mykey");
-    std::string cert = "server-cert.pem";
+    std::string puserver = fmt::format("{}{}-pubkey.pem", formatPath, "server");
+    std::string cert = fmt::format("{}server-cert.pem", formatPath);
     std::string pr = fmt::format("{}{}-privkey.pem", fpath, "mykey");
     std::cout << "Initialized paths" << std::endl;
     initOpenSSL initializeTls;
@@ -317,18 +343,27 @@ int main()
     SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
     sslStore.push_back(ctx);
     cout << "Ctx Created" << endl;
-    // cout << "Generating keys" << endl;
-    // KeysMake genKeys(pr, pu
-    // cout << "Keys have been generated" << endl;
+    cout << "Generating keys" << endl;
+    KeysMake genKeys(pr, pu);
+    cout << "Keys have been generated" << endl;
     std::cout << "Fetching server cert file" << std::endl;
     // fetch_and_save_certificate(serverIp, "80", cert);
-    const std::string get = fmt::format("curl -o {} http://{}:{}/", cert, serverIp, 80);
-    system(get.c_str());
+    const std::string get = fmt::format("curl -o {} http://{}:{}/ > /dev/null 2>&1", cert, serverIp, 80);
+    int result = system(get.c_str());
+    // cout << "Result: " << result << endl;
+    if (result != 0)
+    {
+        std::cout << "Could not get server cert file for secure tls connection" << std::endl;
+        raise(SIGINT);
+    }
     cout << "Configuring ctx" << endl;
     initializeTls.configureContext(ctx, cert);
     cout << "Context has been configured" << endl;
-
-    signal(SIGINT, signalhandle);
+    std::cout << "Extracting server public key from cert" << std::endl;
+    LoadKey load;
+    load.extractPubKey(cert, puserver);
+    std::cout << "Extracted server public key from cert and stored in: " << puserver << std::endl;
+    // std::filesystem::rename(cert, fmt::format("{}server-cert.pem", formatPath));
 
     string user;
     int startSock = socket(AF_INET, SOCK_STREAM, 0);
@@ -346,12 +381,11 @@ int main()
 
     if (connect(startSock, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
     {
+        // fprintf(stderr, "connect: %s\n", strerror(errno));
         cout << "Cannot connect to server\n";
         close(startSock);
         return 1;
     }
-
-    cout << "here" << endl;
 
     SSL *ssl = SSL_new(ctx);
 
@@ -364,16 +398,14 @@ int main()
 
     SSL_set_fd(ssl, startSock);
 
-    cout << "done" << endl;
-
     if (SSL_connect(ssl) <= 0)
     {
         ERR_print_errors_fp(stderr);
         raise(SIGINT);
     }
 
-    cout << "done2" << endl;
     clsockC += startSock;
+    con = 1;
     tlsSock.push_back(ssl);
     cout << fmt::format("Found connection to server on port {}", PORT) << endl;
     // std::cout << "Connected with " << SSL_get_cipher(ssl) << " encryption" << std::endl;
@@ -383,8 +415,6 @@ int main()
     static const string fPath = "your-keys/";
 
     // check if directories exist if they dont then create them
-    createDir(fpath);
-    createDir(formatPath);
 
     // recieve server pub key
     LoadKey loads;
@@ -392,13 +422,14 @@ int main()
     Recieve recieveServerKey;
     std::string serverPubKeyBuff = recieveServerKey.getPemKey(ssl, serverPubPath);
     EVP_PKEY *rsaKey = loads.loadPemEVP(serverPubKeyBuff);
-    cout << "Serverkeybuf: " << serverPubKeyBuff << endl;
+    // cout << "Serverkeybuf: " << serverPubKeyBuff << endl;
     // std::string decodedDataServerPub = recieveServerKey.base64Decode(severPubKeyBuff);
 
     // recieveServerKey.saveFile(serverPubPath, serverPubKeyBuff);
 
     LoadKey loadServerKey;
     EVP_PKEY *serverPublicKey = loadServerKey.LoadPubOpenssl(serverPubPath); //
+    // std::filesystem::rename(serverPubPath, fmt::format("{}server-pubkey.pem", formatPath));
 
     if (serverPublicKey) /*if server key is loaded*/
     {
@@ -439,7 +470,7 @@ int main()
     {
         Enc encryptServerPass;
         cout << serverPassMsg << endl;
-        string password = getinput_getch(CLIENT_S, MODE_P, ssl, "", getTermSizeCols(), serverIp, PORT);
+        string password = getinput_getch(CLIENT_S, MODE_P, cert, "", getTermSizeCols(), serverIp, PORT);
         cout << eraseLine;
         string encryptedPassword = encryptServerPass.enc(serverPublicKey, password);
         encryptedPassword = encryptServerPass.Base64Encode(encryptedPassword);
@@ -460,7 +491,9 @@ int main()
         if (verifyRecv.empty())
         {
             cout << "Could not verify password" << endl;
-            exit(1);
+            // exit(1);
+            leavePattern = 90;
+            raise(SIGINT);
         }
         else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#V")
         {
@@ -469,7 +502,9 @@ int main()
         else if (verifyRecv.substr(verifyRecv.length() - 2, verifyRecv.length()) == "#N")
         {
             cout << verifyRecv.substr(0, verifyRecv.length() - 2) << endl;
-            exit(1);
+            leavePattern = 90;
+            raise(SIGINT);
+            // exit(1);
         }
     }
     else if (passSig == "2")
@@ -487,7 +522,7 @@ int main()
         cout << xU;
     }
     cout << endl;
-    user = getinput_getch(CLIENT_S, MODE_N, ssl, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
+    user = getinput_getch(CLIENT_S, MODE_N, cert, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
 
     cout << eraseLine;
     if (user != "\u2702")
@@ -497,15 +532,9 @@ int main()
         { // set these on top
             disable_conio_mode();
             cout << "Invalid username. Disconnecting from server\n"; // username cant be less than 3 or morew tjhan 12
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
-            exit(1);
+            raise(SIGINT);
         }
     }
-
     SSL_write(ssl, user.c_str(), sizeof(user));
 
     char usernameBuffer[200] = {0};
@@ -559,16 +588,33 @@ int main()
     Recieve recvActive;
     string encodedData = recvActive.receiveBase64Data(ssl);
     std::string decodedData = recvActive.base64Decode(encodedData);
-    recvActive.saveFile(usersActivePath, decodedData);
+    // recvActive.saveFile(usersActivePath, decodedData);
+
+    std::ofstream activef(usersActivePath);
+
+    if (activef.is_open())
+    {
+        // std::cout << "path: " << std::filesystem::current_path() << std::endl;
+        activef << decodedData;
+        if (is_regular_file(usersActivePath))
+        {
+            std::cout << "Users active file has been written to path: " << usersActivePath << std::endl;
+        }
+    }
+
+    std::cout << "Users active file has been written to path: " << usersActivePath << std::endl;
 
     // sendFile(pu);
     Send sendtoserver;
+    Recieve readpem;
+    Enc be;
     if (is_regular_file(pu))
     {
-        std::string fi = sendtoserver.readFile(pu); // file path is a string to the file pat
-        string ed4 = sendtoserver.b64EF(fi);
-        cout << fmt::format("Sending public key ({}) to server: {}", pu, ed4) << endl;
-        sendtoserver.sendBase64Data(ssl, ed4); // send encoded key
+        // sendPem(pu);
+        std::string fi = readpem.read_pem_key(pu); // file path is a string to the file pat
+        cout << fmt::format("Sending public key ({}) to server", pu) << endl;
+        fi = be.Base64Encode(fi);
+        sendtoserver.sendBase64Data(ssl, fi); // send encoded key
         cout << "Public key sent to server" << endl;
     }
 
@@ -587,13 +633,7 @@ int main()
         cout << "Could not open the usersActive.txt file to read" << endl;
         auto it = std::remove(clsock.begin(), clsock.end(), startSock);
         clsock.erase(it, clsock.end());
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(startSock);
-        SSL_CTX_free(ctx);
-        EVP_cleanup();
-        leave();
-        exit(1);
+        raise(SIGINT);
     }
 
     //-------
@@ -626,7 +666,7 @@ int main()
         // recvServer(pub);
         std::string ec = recievePub.receiveBase64Data(ssl);
         std::string dc = recievePub.base64Decode(ec);
-        recievePub.saveFile(pub, dc);
+        recievePub.saveFilePem(pub, dc);
 
         if (is_regular_file(pub))
         {
@@ -637,13 +677,7 @@ int main()
             cout << "Public key file does not exist. Exiting.." << endl;
             auto it = std::remove(clsock.begin(), clsock.end(), startSock);
             clsock.erase(it, clsock.end());
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
-            leave();
-            exit(1);
+            raise(SIGINT);
         }
 
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
@@ -670,15 +704,7 @@ int main()
             cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
             auto it = std::remove(clsock.begin(), clsock.end(), startSock);
             clsock.erase(it, clsock.end());
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
-            leave();
-            exit(1);
-
-            // exit(1);
+            raise(SIGINT);
         }
     }
     else if (activeInt == 1)
@@ -717,20 +743,14 @@ int main()
                 pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
                 std::string decodedData2 = recievePub.base64Decode(encodedKey);
-                recievePub.saveFile(secKey, decodedData2);
+                recievePub.saveFilePem(secKey, decodedData2);
             }
             else
             {
                 cout << "Couldnt format sec key" << endl;
                 auto it = std::remove(clsock.begin(), clsock.end(), startSock);
                 clsock.erase(it, clsock.end());
-                SSL_shutdown(ssl);
-                SSL_free(ssl);
-                close(startSock);
-                SSL_CTX_free(ctx);
-                EVP_cleanup();
-                leave();
-                exit(1);
+                raise(SIGINT);
             }
         }
 
@@ -745,7 +765,7 @@ int main()
                 cout << fmt::format("Recieving {}'s public key", pubUser) << endl;
                 string encodedData2 = recievePub.receiveBase64Data(ssl);
                 std::string decodedData2 = recievePub.base64Decode(encodedData2);
-                recievePub.saveFile(secKey, decodedData2);
+                recievePub.saveFilePem(secKey, decodedData2);
             }
         }
 
@@ -758,19 +778,14 @@ int main()
             cout << fmt::format("{}'s public key file does not exist", pubUser) << endl;
             auto it = std::remove(clsock.begin(), clsock.end(), startSock);
             clsock.erase(it, clsock.end());
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
             cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << endl;
-            leave();
-            exit(1);
+            raise(SIGINT);
+            // exit(1);
         }
 
         cout << fmt::format("Attempting to load {}'s public key", pubUser) << endl;
         nameRecv += pubUser;
-        EVP_PKEY *receivedPublicKey = loadp.LoadPubOpenssl(secKey);
+        receivedPublicKey = loadp.LoadPubOpenssl(secKey);
 
         if (receivedPublicKey)
         {
@@ -791,13 +806,7 @@ int main()
             cout << fmt::format("Could not load {}'s public key", pubUser) << endl;
             auto it = std::remove(clsock.begin(), clsock.end(), startSock);
             clsock.erase(it, clsock.end());
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
-            leave();
-            exit(1);
+            raise(SIGINT);
         }
     }
 
@@ -815,7 +824,7 @@ int main()
 
     while (true)
     {
-        message = getinput_getch(CLIENT_S, MODE_N, ssl, "", getTermSizeCols(), serverIp, PORT);
+        message = getinput_getch(CLIENT_S, MODE_N, cert, "", getTermSizeCols(), serverIp, PORT);
         cout << endl;
         cout << "\033[A";
         cout << "\r";
@@ -825,14 +834,7 @@ int main()
             cout << "You have left the chat\n";
             auto it = std::remove(clsock.begin(), clsock.end(), startSock);
             clsock.erase(it, clsock.end());
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(startSock);
-            SSL_CTX_free(ctx);
-            EVP_cleanup();
-            leave();
-            exit(1);
-            // brea
+            raise(SIGINT);
         }
         else if (message.empty())
         { // skips empty message
@@ -842,7 +844,9 @@ int main()
 
         Enc cipher64;
 
+        // cout << "encrypting" << endl;
         string cipherText = cipher64.enc(receivedPublicKey, message);
+        // cout << "encrypted" << endl;
         string newenc = cipher64.Base64Encode(cipherText);
 
         SSL_write(ssl, newenc.c_str(), newenc.length());
