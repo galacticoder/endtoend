@@ -493,15 +493,15 @@ struct Recieve
 
         while (bytesRead > 0) // its gonna keep appending without a stop condition
         {
-            cout << "Bytes read: " << bytesRead << endl;
+            // cout << "Bytes read: " << bytesRead << endl;
             receivedData.append(buffer.data(), bytesRead);
             if (receivedData.size() == bytesRead)
             {
                 break;
             }
         }
-        cout << "RECIEVED DATA: " << receivedData.size() << endl;
-        cout << "BYTES READ: " << bytesRead << endl;
+        // cout << "RECIEVED DATA: " << receivedData.size() << endl;
+        // cout << "BYTES READ: " << bytesRead << endl;
 
         if (bytesRead == -1)
         {

@@ -1,7 +1,7 @@
-#pragma once
-
 #ifndef LEAVE
 #define LEAVE
+
+#pragma once
 
 #include <iostream>
 #include <fmt/core.h>

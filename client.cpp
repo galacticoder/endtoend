@@ -40,7 +40,7 @@
 #include "headers/header-files/encry.h"
 #include "headers/header-files/getch_getline.h" // including my own getline function i made for better user input allows arrow keys and stuff
 #include "headers/header-files/leave.h"
-#include "headers/header-files/fetchHttp.h"
+#include "headers/header-files/termCmds.h"
 // #include <ncurses.h>
 
 // find a way to send the port file if possible
@@ -124,6 +124,9 @@ bool containsOnlyASCII(const string &stringS)
 
 void signalhandle(int signum)
 {
+    termcmd setdefault;
+    setdefault.set_curs_vb();
+    setdefault.set_inp();
     if (con == 1)
     {
         int indexClientOut = 0;
@@ -239,7 +242,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
                     cout << decryptedMessage << endl;
                     enable_conio_mode();
                 }
-                catch (const CryptoPP::Exception &e)
+                catch (const exception &e)
                 {
                 }
             }
@@ -250,8 +253,8 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
                 // cout << "b is a: " << bytesReceived <<
                 // enable_conio_mode();
 
-                if (receivedMessage.find('|') != string::npos)
-                { // if '|' not found
+                if (receivedMessage.find('|') == string::npos) // its found
+                {
                     disable_conio_mode();
                     cout << receivedMessage << endl;
                     enable_conio_mode();
@@ -273,10 +276,10 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
                     disable_conio_mode();
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                     cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
-                    enable_conio_mode();
                 }
+                enable_conio_mode();
             }
-            catch (const CryptoPP::Exception &e)
+            catch (const exception &e)
             {
             }
         }
@@ -313,6 +316,10 @@ void sendPem(const std::string &pempath, BIO *bio)
 
 int main()
 {
+    termcmd curs;
+    curs.set_curs_vb(0);
+    curs.set_inp(0);
+
     signal(SIGINT, signalhandle);
     SSL_library_init();
     OpenSSL_add_all_algorithms();
@@ -470,7 +477,11 @@ int main()
     {
         Enc encryptServerPass;
         cout << serverPassMsg << endl;
+        curs.set_curs_vb();
+        curs.set_inp();
         string password = getinput_getch(CLIENT_S, MODE_P, cert, "", getTermSizeCols(), serverIp, PORT);
+        curs.set_curs_vb(0);
+        curs.set_inp(0);
         cout << eraseLine;
         string encryptedPassword = encryptServerPass.enc(serverPublicKey, password);
         encryptedPassword = encryptServerPass.Base64Encode(encryptedPassword);
@@ -522,7 +533,11 @@ int main()
         cout << xU;
     }
     cout << endl;
+    curs.set_curs_vb();
+    curs.set_inp();
     user = getinput_getch(CLIENT_S, MODE_N, cert, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
+    curs.set_curs_vb(0);
+    curs.set_inp(0);
 
     cout << eraseLine;
     if (user != "\u2702")
@@ -821,6 +836,9 @@ int main()
     // readingActiveFile.detach();
 
     string message;
+
+    curs.set_curs_vb();
+    curs.set_inp();
 
     while (true)
     {
