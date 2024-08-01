@@ -1,5 +1,5 @@
 {
-  "C_Cpp.errorSquiggles": "enabled",
+  "C_Cpp.errorSquiggles": "disabled",
   "editor.defaultFormatter": "ms-vscode.cpptools",
   "files.associations": {
     "ostream": "cpp",
