@@ -103,6 +103,27 @@ void disable_conio_mode()
     tcsetattr(STDIN_FILENO, TCSANOW, &old_attributes);
 }
 
+void set_default_terminal()
+{
+    struct termios term;
+    if (tcgetattr(STDIN_FILENO, &term) != 0)
+    {
+        perror("tcgetattr");
+        exit(EXIT_FAILURE);
+    }
+
+    term.c_iflag = ICRNL | BRKINT | IGNPAR | IXON;
+    term.c_oflag = OPOST | ONLCR;
+    term.c_cflag = CS8 | CREAD | CLOCAL;
+    term.c_lflag = ISIG | ICANON | ECHO | ECHOE | IEXTEN | TOSTOP;
+
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &term) != 0)
+    {
+        perror("tcsetattr");
+        exit(EXIT_FAILURE);
+    }
+}
+
 // linux implementation of _getch()
 int _getch()
 {

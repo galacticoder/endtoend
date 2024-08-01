@@ -29,6 +29,7 @@ int getch_noblock();
 #ifndef _WIN32
 // Linux-implementation of non-blocking getch (requires conio mode to be non-blocking)
 int _getch();
+void set_default_terminal();
 
 // Linux-implementation of kbhit (requires conio mode to be enabled)
 bool _kbhit();

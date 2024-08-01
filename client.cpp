@@ -125,6 +125,7 @@ bool containsOnlyASCII(const string &stringS)
 
 void signalhandle(int signum)
 {
+    disable_conio_mode();
     termcmd setdefault;
     setdefault.set_curs_vb();
     setdefault.set_inp();
@@ -198,6 +199,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
     char buffer[4096];
     while (true)
     {
+        // disable_conio_mode();
         ssize_t bytesReceived = SSL_read(ssl, buffer, sizeof(buffer) - 1);
         if (bytesReceived > 0)
         {
@@ -241,7 +243,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
 
             if (bytesReceived < 500)
             {
-                if (receivedMessage.find('|') == string::npos) // it not found
+                if (receivedMessage.find('|') == string::npos) // it not found//
                 {
                     disable_conio_mode();
                     cout << receivedMessage << endl;
@@ -313,7 +315,7 @@ int main()
     SSL_load_error_strings();
     leavePattern = 90;
     createDir(S_KEYS);
-    char serverIp[30] = "127.0.0.1"; // change to the server ip //192.168.0.205
+    char serverIp[30] = "127.0.0.1"; // change to the server ip
     const string portPath = "txt-files/PORT.txt";
     ifstream file(portPath);
     string PORTSTR;

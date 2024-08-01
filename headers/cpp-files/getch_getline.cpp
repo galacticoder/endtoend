@@ -320,6 +320,7 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
             char c = _getch();
             if (c == '\n')
             { // break on enter
+                disable_conio_mode();
                 break;
             }
             else if (c == '\033')
@@ -533,6 +534,9 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
 void passval(const std::string &messagePassed)
 {
     disable_conio_mode();
+    set_default_terminal();
+    std::cout.flush();
     std::cout << messagePassed << std::endl;
-    enable_conio_mode();
+    std::cout.flush();
+    // enable_conio_mode();
 }
