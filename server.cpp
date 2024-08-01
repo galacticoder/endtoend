@@ -88,9 +88,12 @@ bool isPav(int port)
 void signalHandleServer(int signum)
 {
     cout << eraseLine;
-    for (auto &sockets : connectedClients)
+    if (connectedClients.size() != 0)
     {
-        close(sockets);
+        for (auto &sockets : connectedClients)
+        {
+            close(sockets);
+        }
     }
     cout << "Server has been shutdown" << endl;
     leave(S_PATH, SERVER_KEYPATH);
@@ -98,7 +101,7 @@ void signalHandleServer(int signum)
     close(serverSocket);
     SSL_CTX_free(ctx);
     EVP_cleanup();
-    // if (!is_directory(S_PATH)
+    // if (!is_directory(S_PATH
     // {
     //     cout << "1" << endl;
     // }
@@ -133,12 +136,10 @@ void broadcastMessage(const string &message, SSL *senderSocket, int &senderSock)
     lock_guard<mutex> lock(clientsMutex);
     for (int i = 0; i < connectedClients.size(); i++)
     {
-        for (int i = 0; i < connectedClients.size(); i++)
+        if (connectedClients[i] != senderSock)
         {
-            if (connectedClients[i] != senderSock)
-            {
-                SSL_write(tlsSocks[i], message.c_str(), message.length());
-            }
+            std::cout << "Sending msg to sock: " << tlsSocks[i] << std::endl;
+            SSL_write(tlsSocks[i], message.c_str(), message.length());
         }
     }
 }
@@ -746,12 +747,15 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                     cout << "UPDATED OP64: " << op64 << endl;
                                                     if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op64 != "err")
                                                     {
+                                                        std::cout << "Size of exit msg: " << op64.length() << std::endl;
                                                         broadcastMessage(op64, clientSocket, clsock);
                                                     }
                                                 }
                                                 else
                                                 {
                                                     /*make some code here that exits the server if the key cant be loaded*/
+                                                    std::cout << "User pub key cannot be loaded" << std::endl;
+                                                    raise(SIGINT);
                                                 }
                                             }
                                             else if (clientUsernames[1] == userStr)
@@ -762,18 +766,20 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                                                 if (keyLoad2)
                                                 {
-                                                    string op642 = encryptOp.Base64Encode(encryptOp.Enc(keyLoad2, exitMsg));
+                                                    std::string op642 = encryptOp.Base64Encode(encryptOp.Enc(keyLoad2, exitMsg));
                                                     // op64 is the encrypted text
                                                     cout << "UPDATED OP642: " << op642 << endl;
                                                     if (lenOfUser.length() == userStr.length() && lenOfUser == userStr && op642 != "err")
                                                     {
-                                                        // SSL_write(connectedClients[index2], op642.c_str(), op642.length(), 0);
+                                                        std::cout << "Size of exit msg: " << op642.length() << std::endl;
                                                         broadcastMessage(op642, clientSocket, clsock);
                                                     }
                                                 }
                                                 else
                                                 {
                                                     /*make some code here that exits the server if the key cant be loaded*/
+                                                    std::cout << "User pub key cannot be loaded" << std::endl;
+                                                    raise(SIGINT);
                                                 }
                                             }
                                         }
@@ -895,12 +901,11 @@ int main()
 
     switch (serverHash.empty())
     {
-    case 1: // if empty
-        pnInt = 2;
-        break;
-
     case 0: // if not empty
         pnInt = 1;
+        break;
+    case 1: // if empty
+        pnInt = 2;
         break;
     }
 

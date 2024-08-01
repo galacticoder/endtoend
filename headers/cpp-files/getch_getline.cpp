@@ -20,6 +20,7 @@
 #include "../header-files/linux_conio.h"
 #include "../header-files/encry.h"
 #include "../header-files/getch_getline.h"
+#include "../header-files/termCmds.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"
@@ -36,6 +37,9 @@ vector<char> modeP;
 char sC_M = '\0';
 
 using boost::asio::ip::tcp;
+int sockPub;
+SSL_CTX *pubctx;
+SSL *pubssl;
 
 // void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs) {
 //     if (usersActivePath != "NONE") {
@@ -134,13 +138,35 @@ void signalhandleGetch(int signum)
         cout << "Server has been shutdown" << endl;
         leave(s_path_getch, sk_path_getch);
         leaveFile(active_path);
+        if (sockPub != 0)
+        {
+            cout << "freing sock" << endl;
+            close(sockPub);
+        }
+        if (pubctx != NULL)
+        {
+            cout << "freing ctx" << endl;
+            SSL_CTX_free(pubctx);
+            EVP_cleanup();
+        }
+        // cout << "getch" << endl;
         exit(signum);
     }
     else if (sC_M == CLIENT_S)
     {
+        termcmd setdefault;
+        setdefault.set_curs_vb();
+        setdefault.set_inp();
         cout << "You have left the chat.\n";
         leave();
         leaveFile(active_path);
+        SSL_shutdown(pubssl);
+        SSL_free(pubssl);
+        close(sockPub);
+        SSL_CTX_free(pubctx);
+        EVP_cleanup();
+        cout << eraseLine;
+        cout << eraseLine;
         exit(signum);
     }
 }
@@ -168,8 +194,11 @@ int readActiveUsers(const string &filepath)
     return activeInt;
 }
 
-string getinput_getch(char sC, char &&MODE, const std::string certPath, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
+string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX *ctx, int sock, SSL *sslC, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
 { // N==normal//P==Password
+    sockPub = sock;
+    pubctx = ctx;
+    pubssl = sslC;
     // causing closing ssl connections when pinging?
     ca_cert_content = certPath;
     sC_M = sC;
@@ -492,4 +521,11 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, const st
     // cout << endl;
 
     return message_str;
+}
+
+void passval(const std::string &messagePassed)
+{
+    disable_conio_mode();
+    std::cout << messagePassed << std::endl;
+    enable_conio_mode();
 }

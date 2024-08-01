@@ -185,7 +185,7 @@ struct initMenu
         {
             cout << clearScreen;
             cout << "Enter a password: " << endl;
-            password = getinput_getch(SERVER_S, MODE_P);
+            password = getinput_getch(SERVER_S, MODE_P); // not passing in server ctx or sock
             if (password.length() < minLim)
             {
                 cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << endl;

@@ -130,18 +130,11 @@ void signalhandle(int signum)
     if (con == 1)
     {
         int indexClientOut = 0;
-        std::cout << "Vec: " << tlsSock[indexClientOut] << std::endl;
-        cout << "Shutting down client" << endl;
         SSL_shutdown(tlsSock[indexClientOut]);
-        cout << "Freeing client" << endl;
         SSL_free(tlsSock[indexClientOut]);
-        cout << "Closing socket" << endl;
         close(clsockC);
-        cout << "Freeing 2" << endl;
         SSL_CTX_free(sslStore[0]);
-        cout << "Evp cleanup" << endl;
         EVP_cleanup();
-        cout << "Done" << endl;
         cout << eraseLine;
     }
     if (leavePattern == 0)
@@ -213,7 +206,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
             string receivedMessage(buffer);
             string decodedMessage;
 
-            if (receivedMessage.substr(receivedMessage.length() - 2, receivedMessage.length()) == "#N")
+            if (receivedMessage.substr(receivedMessage.length() - 2, receivedMessage.length()) == "#N") // not verified message
             {
                 leavePattern = 90;
                 Dec decNV;
@@ -232,15 +225,13 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
                 }
             }
 
-            else if (receivedMessage.find('|') == string::npos)
+            else if (receivedMessage.find('|') == string::npos) // mainly for messages server related kind of. like users leaving and stuff
             {
                 decodedMessage = decoding.Base64Decode(receivedMessage);
                 try
                 {
-                    string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                    disable_conio_mode();
-                    cout << decryptedMessage << endl;
-                    enable_conio_mode();
+                    std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
+                    passval(decryptedMessage);
                 }
                 catch (const exception &e)
                 {
@@ -249,11 +240,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
 
             if (bytesReceived < 500)
             {
-                // disable_conio_mode();
-                // cout << "b is a: " << bytesReceived <<
-                // enable_conio_mode();
-
-                if (receivedMessage.find('|') == string::npos) // its found
+                if (receivedMessage.find('|') == string::npos) // it not found
                 {
                     disable_conio_mode();
                     cout << receivedMessage << endl;
@@ -271,8 +258,8 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
 
             try
             {
-                if (receivedMessage.find('|') != string::npos)
-                { // if found
+                if (receivedMessage.find('|') != string::npos) // for messages from client
+                {
                     disable_conio_mode();
                     string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                     cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
@@ -316,11 +303,10 @@ void sendPem(const std::string &pempath, BIO *bio)
 
 int main()
 {
+    signal(SIGINT, signalhandle);
     termcmd curs;
     curs.set_curs_vb(0);
     curs.set_inp(0);
-
-    signal(SIGINT, signalhandle);
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
@@ -465,12 +451,7 @@ int main()
     {
         passSig.pop_back();
         cout << passSig << endl;
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(startSock);
-        SSL_CTX_free(ctx);
-        EVP_cleanup();
-        exit(1);
+        raise(SIGINT);
     }
 
     else if (passSig[0] == '1')
@@ -479,7 +460,7 @@ int main()
         cout << serverPassMsg << endl;
         curs.set_curs_vb();
         curs.set_inp();
-        string password = getinput_getch(CLIENT_S, MODE_P, cert, "", getTermSizeCols(), serverIp, PORT);
+        string password = getinput_getch(CLIENT_S, MODE_P, cert, ctx, startSock, ssl, "", getTermSizeCols(), serverIp, PORT);
         curs.set_curs_vb(0);
         curs.set_inp(0);
         cout << eraseLine;
@@ -535,7 +516,7 @@ int main()
     cout << endl;
     curs.set_curs_vb();
     curs.set_inp();
-    user = getinput_getch(CLIENT_S, MODE_N, cert, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
+    user = getinput_getch(CLIENT_S, MODE_N, cert, ctx, startSock, ssl, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
     curs.set_curs_vb(0);
     curs.set_inp(0);
 
@@ -726,6 +707,9 @@ int main()
     {
         cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << endl;
         leavePattern = 0;
+        termcmd termcmdProgress;
+        int *ac = &activeInt;
+        // thread(call_pgbar, ac, activeInt).detach();
         while (true)
         {
             this_thread::sleep_for(chrono::seconds(2));
@@ -827,22 +811,17 @@ int main()
 
     thread receiver(receiveMessages, ssl, prkey);
     receiver.detach();
-    // thread usersActiveRecv(receiveUsersActiveFile, usersActivePath, ssl);
-    // usersActiveRecv.detach();
-
-    // std::atomic<bool> runningFile{ true };
-    // const unsigned int update_interval_file = 2;
-    // std::thread readingActiveFile(readUsersActiveFile, usersActivePath, std::ref(runningFile), update_interval_file);
-    // readingActiveFile.detach();
 
     string message;
 
     curs.set_curs_vb();
     curs.set_inp();
 
+    // send join code
+
     while (true)
     {
-        message = getinput_getch(CLIENT_S, MODE_N, cert, "", getTermSizeCols(), serverIp, PORT);
+        message = getinput_getch(CLIENT_S, MODE_N, cert, ctx, startSock, ssl, "", getTermSizeCols(), serverIp, PORT);
         cout << endl;
         cout << "\033[A";
         cout << "\r";
