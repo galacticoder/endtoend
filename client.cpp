@@ -41,6 +41,7 @@
 #include "headers/header-files/getch_getline.h" // including my own getline function i made for better user input allows arrow keys and stuff
 #include "headers/header-files/leave.h"
 #include "headers/header-files/termCmds.h"
+#include "headers/header-files/fetchHttp.h"
 // #include <ncurses.h>
 
 // find a way to send the port file if possible
@@ -339,19 +340,24 @@ int main()
     cout << "Generating keys" << endl;
     KeysMake genKeys(pr, pu);
     cout << "Keys have been generated" << endl;
-    std::cout << "Fetching server cert file" << std::endl;
+    const std::string get = fmt::format("http://{}:{}/", serverIp, 80);
+    std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
+    fetchAndSave(get, cert);
     // fetch_and_save_certificate(serverIp, "80", cert);
-    const std::string get = fmt::format("curl -o {} http://{}:{}/ > /dev/null 2>&1", cert, serverIp, 80);
-    int result = system(get.c_str());
-    // cout << "Result: " << result << endl;
-    if (result != 0)
+    if (fetchAndSave(get, cert) == 1)
     {
-        std::cout << "Could not get server cert file for secure tls connection" << std::endl;
+        std::cout << "Could not fetch server cert" << std::endl;
         raise(SIGINT);
     }
-    cout << "Configuring ctx" << endl;
+    // cout << "Result: " << result << en
+    // if ( != 0)
+    // {
+    //     std::cout << "Could not get server cert file for secure tls connection" << std::endl;
+    //     raise(SIGINT);
+    // }
+    std::cout << "Configuring ctx" << std::endl;
     initializeTls.configureContext(ctx, cert);
-    cout << "Context has been configured" << endl;
+    std::cout << "Context has been configured" << std::endl;
     std::cout << "Extracting server public key from cert" << std::endl;
     LoadKey load;
     load.extractPubKey(cert, puserver);
@@ -404,6 +410,16 @@ int main()
     // std::cout << "Connected with " << SSL_get_cipher(ssl) << " encryption" << std::endl;
 
     SSL_write(ssl, connectionSignal, strlen(connectionSignal));
+    sleep(1);
+    std::string hashedIp = fetchPubIp();
+    // fetch_and_save_certificate(serverIp, "80", cert);
+    if (hashedIp.size() <= 0 || hashedIp == "err")
+    {
+        std::cout << "Could not send hashed ip to server" << std::endl;
+        raise(SIGINT);
+    }
+    std::cout << "Sending hashed ip to server" << std::endl;
+    SSL_write(ssl, hashedIp.c_str(), hashedIp.size()); // send hashed ip
     const string formatpath = "keys-from-server/";
     static const string fPath = "your-keys/";
 
@@ -505,25 +521,27 @@ int main()
 
     for (int i = 0; i < 5; i++)
     {
-        cout << xU;
+        std::cout << xU;
     }
     ///
-    cout << " Enter a username to go by ";
+    std::cout << " Enter a username to go by ";
+
     for (int i = 0; i < 5; i++)
     {
-        cout << xU;
+        std::cout << xU;
     }
-    cout << endl;
+
+    std::cout << endl;
     curs.set_curs_vb();
     curs.set_inp();
     user = getinput_getch(CLIENT_S, MODE_N, cert, ctx, startSock, ssl, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
     curs.set_curs_vb(0);
     curs.set_inp(0);
 
-    cout << eraseLine;
+    std::cout << eraseLine;
     if (user != "\u2702")
     {
-        cout << "Username: " << boldMode << user << boldModeReset << endl;
+        std::cout << "Username: " << boldMode << user << boldModeReset << std::endl;
         if (user.empty() || user.length() > 12 || user.length() <= 3)
         { // set these on top
             disable_conio_mode();

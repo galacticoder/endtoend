@@ -5,6 +5,7 @@
 
 #include <iostream>
 
-void fetch_and_save_certificate(const std::string &host, const std::string &port, const std::string &certFilePath);
+int fetchAndSave(const std::string &site, const std::string &outfile);
+std::string fetchPubIp();
 
 #endif

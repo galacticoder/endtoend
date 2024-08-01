@@ -1,64 +1,129 @@
-#include <boost/asio.hpp>
-#include <boost/beast.hpp>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include "../header-files/fetchHttp.h"
+#include <curl/curl.h>
+#include <unistd.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <iomanip>
 
-namespace net = boost::asio;         // from <boost/asio.hpp>
-namespace beast = boost::beast;      // from <boost/beast.hpp>
-namespace http = boost::beast::http; // from <boost/beast/http.hpp>
-
-using tcp = boost::asio::ip::tcp; // from <boost/asio/ip/tcp.hpp>
-
-void fetch_and_save_certificate(const std::string &host, const std::string &port, const std::string &certFilePath)
+size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
 {
-    try
-    {
-        net::io_context ioc;
-
-        tcp::resolver resolver(ioc);
-        tcp::resolver::results_type results = resolver.resolve(host, port);
-        tcp::socket socket(ioc);
-        net::connect(socket, results.begin(), results.end());
-
-        http::request<http::string_body> req{http::verb::get, "server-keys/server-cert.pem", 11};
-        req.set(http::field::host, host);
-        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-
-        http::write(socket, req);
-
-        beast::flat_buffer buffer;
-        http::response<http::string_body> res;
-        http::read(socket, buffer, res);
-
-        std::ofstream certFile(certFilePath, std::ios::binary);
-        if (certFile.is_open())
-        {
-            certFile << res.body();
-            certFile.close();
-            std::cout << "Server certificate saved to " << certFilePath << std::endl;
-        }
-        else
-        {
-            std::cerr << "Error opening file for writing: " << certFilePath << std::endl;
-        }
-
-        socket.shutdown(tcp::socket::shutdown_both);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
+    std::ofstream *outfile = static_cast<std::ofstream *>(userp);
+    size_t totalSize = size * nmemb;
+    outfile->write(static_cast<char *>(contents), totalSize);
+    return totalSize;
 }
 
-// int fetchMain()
-// {
-//     std::string host = "localhost";               // server ip
-//     std::string port = "80";                      // port
-//     std::string certFilePath = "server-cert.pem"; // save path
+size_t writeCallBackIp(void *contents, size_t size, size_t nmemb, void *userp)
+{
+    std::string *result = static_cast<std::string *>(userp);
+    size_t totalSize = size * nmemb;
+    result->append(static_cast<char *>(contents), totalSize);
+    return totalSize;
+}
 
-//     fetch_and_save_certificate(host, port, certFilePath);
+std::string hash_data(const std::string &pt)
+{
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int lenHash = 0;
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (mdctx == nullptr)
+    {
+        std::cout << "Error creating ctx" << std::endl;
+        return "err";
+    }
 
-//     return 0;
-// }
+    if (EVP_DigestInit_ex(mdctx, EVP_sha512(), nullptr) != 1)
+    {
+        std::cout << "Error initializing digest" << std::endl;
+        EVP_MD_CTX_free(mdctx);
+        return "err";
+    }
+
+    if (EVP_DigestUpdate(mdctx, pt.c_str(), pt.size()) != 1)
+    {
+        std::cout << "Error updating digest" << std::endl;
+        EVP_MD_CTX_free(mdctx);
+        return "err";
+    }
+    if (EVP_DigestFinal_ex(mdctx, hash, &lenHash) != 1)
+    {
+        std::cout << "Error finalizing digest" << std::endl;
+        EVP_MD_CTX_free(mdctx);
+        return "err";
+    }
+
+    EVP_MD_CTX_free(mdctx);
+
+    std::stringstream ss;
+    for (unsigned int i = 0; i < lenHash; ++i)
+    {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+    }
+    return ss.str(); // returning hash
+}
+
+int fetchAndSave(const std::string &site, const std::string &outfile)
+{
+    CURL *curl;
+    CURLcode request;
+    std::ofstream outFile(outfile, std::ios::binary);
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init(); // init libcur
+
+    if (curl)
+    {
+        std::cout << "Curl has started" << std::endl;
+        curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBack);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
+        request = curl_easy_perform(curl);
+
+        if (request != CURLE_OK)
+        {
+            curl_easy_strerror(request);
+            return 1;
+        }
+        curl_easy_cleanup(curl);
+        outFile.close();
+        return 0;
+    }
+    curl_global_cleanup();
+    return 0;
+}
+
+std::string fetchPubIp()
+{
+    CURL *curl;
+    CURLcode request;
+    // std::ofstream outFile(outfile, std::ios::binary);
+    std::string ip;
+    std::string site = "https://api.ipify.org";
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init(); // init libcur
+
+    if (curl)
+    {
+        std::cout << "Curl has started" << std::endl;
+        curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBackIp);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ip);
+        request = curl_easy_perform(curl);
+
+        if (request != CURLE_OK)
+        {
+            curl_easy_strerror(request);
+            return "err";
+        }
+        curl_easy_cleanup(curl);
+        ip = hash_data(ip);
+        return ip;
+    }
+    curl_global_cleanup();
+    ip = hash_data(ip);
+    return ip;
+}
