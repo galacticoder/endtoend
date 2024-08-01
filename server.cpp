@@ -437,11 +437,11 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                         cout << "Sending pass verify signal" << endl;
                         sleep(1);
                         SSL_write(clientSocket, pnS.c_str(), pnS.size());
-                        std::cout << "Recieving username from client.." << std::endl;
+                        std::cout << "Recieving password from client.." << std::endl;
 
                         Recieve passGetRecv;
-                        string passGet = passGetRecv.receiveBase64Data(clientSocket);
-                        cout << "Pass cipher recieved from client: " << passGet << endl;
+                        std::string passGet = passGetRecv.receiveBase64Data(clientSocket);
+                        std::cout << "Pass cipher recieved from client: " << passGet << std::endl;
 
                         LoadKey loadServerKey;
                         EVP_PKEY *serverPrivate = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
@@ -462,32 +462,21 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                         DecServer decPassGet;
                         string decodedPassGet = decPassGet.Base64Decode(passGet);
                         cout << "Decoded passGet" << endl;
-                        passGet = decPassGet.dec(serverPrivate, decodedPassGet);
 
-                        passGetArg += passGet;
-
-                        cout << "userp: " << bcrypt::generateHash(passGet) << endl;
-                        cout << "serverp: " << serverHash[1] << endl;
-                        if (bcrypt::validatePassword(passGet, serverHash[1]) == 1)
-                        { // bcrypt::validatePassword(passGet, serverHash[1]) == 1
-                            SSL_write(clientSocket, verified.c_str(), verified.length());
-                            clientHashVerifiedClients[indexClientOut] = 1;
-                            cout << "updatyed: " << clientHashVerifiedClients[indexClientOut] << endl;
-                            cout << "size of clients hash: " << clientHashVerifiedClients.size() << endl;
-                            con = 1;
-                            cout << "user verified" << endl;
-                        }
-                        else
+                        if (passGet.size() == 0)
                         {
-                            con = 0;
-                            SSL_write(clientSocket, notVerified.c_str(), notVerified.length()); // sends them the not verified message
-                            sleep(1);
-                            std::cout << "Shutting down client sock" << std::endl;
+                            con = 10;
+                            std::cout << "User password is 0 bytes. Kicking" << std::endl;
+                            // SSL_write(clientSocket, notVerified.c_str(), notVerified.length()); // sends them the not verified message
+                            // sleep(1); //
+                            std::cout << "Shutting down client: " << clientSocket << std::endl;
+                            // SSL_shutdown(clientSocket);
                             SSL_shutdown(clientSocket);
                             std::cout << "Freeing client sock" << std::endl;
-                            SSL_free(clientSocket);
+                            SSL_free(clientSocket); // SSL_free(clientSocket);
                             std::cout << "Closing client sock" << std::endl;
                             close(clsock);
+                            // close(clsock);
                             std::cout << "Deleting client sock from connectedClients vector" << std::endl;
                             auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
                             connectedClients.erase(it, connectedClients.end());
@@ -500,7 +489,56 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                             clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
                             std::cout << "Clean up of client done" << std::endl;
                             std::cout << "Size of clientHashVerifiedClients (After cleanup): " << clientHashVerifiedClients.size() << std::endl;
-                            cout << "Kicked user not verified." << endl;
+                            cout << "Kicked user with error password." << endl;
+                        }
+                        if (con != 10)
+                        {
+                            std::cout << "Size passget (Before): " << passGet.size() << std::endl;
+                            std::string passGet = decPassGet.dec(serverPrivate, decodedPassGet);
+                            std::cout << "Status passget: " << passGet << std::endl;
+
+                            passGetArg += passGet;
+
+                            cout << "userp: " << bcrypt::generateHash(passGet) << endl;
+                            cout << "serverp: " << serverHash[1] << endl;
+                            std::cout << "size tlsocks: " << tlsSocks.size() << endl;
+                        }
+                        if (bcrypt::validatePassword(passGet, serverHash[1]) == 1)
+                        { // bcrypt::validatePassword(passGet, serverHash[1]) == 1
+                            SSL_write(clientSocket, verified.c_str(), verified.length());
+                            clientHashVerifiedClients[indexClientOut] = 1;
+                            cout << "updatyed: " << clientHashVerifiedClients[indexClientOut] << endl;
+                            cout << "size of clients hash: " << clientHashVerifiedClients.size() << endl;
+                            con = 1;
+                            cout << "user verified" << endl;
+                        }
+                        else
+                        {
+                            if (con != 10)
+                            {
+                                con = 0;
+                                SSL_write(clientSocket, notVerified.c_str(), notVerified.length()); // sends them the not verified message
+                                sleep(1);
+                                std::cout << "Shutting down client sock" << std::endl;
+                                SSL_shutdown(clientSocket); //
+                                std::cout << "Freeing client sock" << std::endl;
+                                SSL_free(clientSocket);
+                                std::cout << "Closing client sock" << std::endl;
+                                close(clsock);
+                                std::cout << "Deleting client sock from connectedClients vector" << std::endl;
+                                auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
+                                connectedClients.erase(it, connectedClients.end());
+                                std::cout << "Deleting client sock from itTls vector" << std::endl;
+                                auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
+                                tlsSocks.erase(ittls, tlsSocks.end());
+                                std::cout << "Deleting client from itTls vector" << std::endl;
+                                std::cout << "Size of clientHashVerifiedClients: " << clientHashVerifiedClients.size() << std::endl;
+                                std::cout << "Erasing element: " << indexClientOut << std::endl;
+                                clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + indexClientOut);
+                                std::cout << "Clean up of client done" << std::endl;
+                                std::cout << "Size of clientHashVerifiedClients (After cleanup): " << clientHashVerifiedClients.size() << std::endl;
+                                cout << "Kicked user not verified." << endl;
+                            }
                         }
                     }
                     else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1)
@@ -879,7 +917,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                 if (clientUsernames.size() < 1)
                                 {
                                     cout << "Shutting down server due to no users." << endl;
-                                    raise(SIGINT);
+                                    raise(SIGINT); //
                                 }
                             }
                         }
@@ -907,7 +945,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
         raise(SIGINT);
     }
 }
-
+//
 int main()
 {
     int pnInt;

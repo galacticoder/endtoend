@@ -572,39 +572,48 @@ struct DecServer
     DecServer() = default;
     string dec(EVP_PKEY *pkey, const std::string &encrypted_data)
     {
-        EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
-        if (!ctx)
+        try
         {
-            ERR_print_errors_fp(stderr);
-            return "";
-        }
+            EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+            if (!ctx)
+            {
+                ERR_print_errors_fp(stderr);
+                return "";
+            }
 
-        if (EVP_PKEY_decrypt_init(ctx) <= 0)
-        {
-            ERR_print_errors_fp(stderr);
+            if (EVP_PKEY_decrypt_init(ctx) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                EVP_PKEY_CTX_free(ctx);
+                return "";
+            }
+
+            size_t out_len;
+            if (EVP_PKEY_decrypt(ctx, nullptr, &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                EVP_PKEY_CTX_free(ctx);
+                return "";
+            }
+
+            std::string out(out_len, '\0');
+            if (EVP_PKEY_decrypt(ctx, reinterpret_cast<unsigned char *>(&out[0]), &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
+            {
+                ERR_print_errors_fp(stderr);
+                EVP_PKEY_CTX_free(ctx);
+                return "";
+            }
+
             EVP_PKEY_CTX_free(ctx);
-            return "";
+            out.resize(out_len); // Adjust the size of the string
+            return out;
         }
-
-        size_t out_len;
-        if (EVP_PKEY_decrypt(ctx, nullptr, &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
+        catch (const exception &e)
         {
-            ERR_print_errors_fp(stderr);
-            EVP_PKEY_CTX_free(ctx);
-            return "";
+            std::cout << "Error in decoding: " << e.what() << std::endl;
+            return "err";
         }
-
-        std::string out(out_len, '\0');
-        if (EVP_PKEY_decrypt(ctx, reinterpret_cast<unsigned char *>(&out[0]), &out_len, reinterpret_cast<const unsigned char *>(encrypted_data.c_str()), encrypted_data.size()) <= 0)
-        {
-            ERR_print_errors_fp(stderr);
-            EVP_PKEY_CTX_free(ctx);
-            return "";
-        }
-
-        EVP_PKEY_CTX_free(ctx);
-        out.resize(out_len); // Adjust the size of the string
-        return out;
+        return "err";
     }
     std::string Base64Decode(const std::string &input)
     {

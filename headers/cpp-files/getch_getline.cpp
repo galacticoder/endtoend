@@ -140,14 +140,21 @@ void signalhandleGetch(int signum)
         leaveFile(active_path);
         if (sockPub != 0)
         {
-            cout << "freing sock" << endl;
             close(sockPub);
         }
+        else
+        {
+            exit(signum);
+        }
+
         if (pubctx != NULL)
         {
-            cout << "freing ctx" << endl;
             SSL_CTX_free(pubctx);
             EVP_cleanup();
+        }
+        else
+        {
+            exit(signum);
         }
         // cout << "getch" << endl;
         exit(signum);
