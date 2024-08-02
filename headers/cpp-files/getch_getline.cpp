@@ -540,3 +540,9 @@ void passval(const std::string &messagePassed)
     std::cout.flush();
     // enable_conio_mode();
 }
+
+void passValsForSIGhandle(SSL_CTX *ctx, int sock)
+{
+    sockPub = sock;
+    pubctx = ctx;
+}

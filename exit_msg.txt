@@ -1,3 +1,0 @@
-Size of leave msg (encoded): 684
-Size of leave msg (decoded): 684
-Exit msg: jkhdfkjhgf has left the chat

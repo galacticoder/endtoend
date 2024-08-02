@@ -59,7 +59,7 @@ void startHost()
         net::io_context ioc;
         tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), 80));
 
-        std::cout << "Server running on port 80" << std::endl;
+        std::cout << "Cert hosting running on port 80" << std::endl;
 
         if (!std::filesystem::is_regular_file(path))
         {

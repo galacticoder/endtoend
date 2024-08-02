@@ -428,7 +428,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                 const string verified = "You have joined the server#V";
                 string passGetArg = "";
 
-                unordered_map<int, string> clientHash;
+                unordered_map<int, string> clientHash; //
 
                 auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
                 int indexClientOut = itCl - connectedClients.begin();
@@ -1070,15 +1070,15 @@ int main()
 
     if (prvKey)
     {
-        cout << "Server's private key (cert) has been loaded" << endl;
+        std::cout << "Server's private key (cert) has been loaded" << std::endl;
         passVals(serverSocket, ctx);
+        passValsForSIGhandle(ctx, serverSock);
+        std::cout << "Passed ctx and server sock to getch" << std::endl;
     }
     else
     {
-        cout << "Cannot load server's private key (cert). Killing server." << endl;
-        close(serverSocket);
-        leave(serverKeysPath, S_PATH);
-        exit(1);
+        std::cout << "Cannot load server's private key (cert). Killing server." << std::endl;
+        raise(SIGINT);
     }
 
     initOpenSSL inito;

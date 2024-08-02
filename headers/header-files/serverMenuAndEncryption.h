@@ -785,9 +785,13 @@ void signalHandleMenu(int signum)
     cout << "Server has been shutdown" << endl;
     leave(S_PATH, SERVER_KEYPATH);
     leaveFile(userPath);
+    std::cout << "Server sock closing 'server header'" << std::endl;
     close(serverSock);
+    std::cout << "freeing ctx 'server header'" << std::endl;
     SSL_CTX_free(serverCtx);
+    std::cout << "evp cleanup 'server header'" << std::endl;
     EVP_cleanup();
+    std::cout << "done 'server header'" << std::endl;
     exit(signum);
 }
 
