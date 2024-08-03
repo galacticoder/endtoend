@@ -405,6 +405,24 @@ int main()
         raise(SIGINT);
     }
 
+    Dec RLTEXT;
+    char initbuf[200] = {0};
+    ssize_t initbytes = SSL_read(ssl, initbuf, sizeof(initbuf) - 1);
+    initbuf[initbytes] = '\0';
+    string initMsg(initbuf); // works properly
+
+    if (initMsg.length() > 10 && initMsg.substr(initMsg.length() - 11, initMsg.length()) == "RATELIMITED")
+    {
+        std::cout << "waiting " << endl;
+        std::cout << RLTEXT.Base64Decode(initMsg.substr(0, initMsg.length() - 11)) << std::endl;
+        raise(SIGINT);
+    }
+    else if (initMsg.length() > 10 && initMsg.substr(initMsg.length() - 3, initMsg.length()) == "LIM")
+    {
+        std::cout << RLTEXT.Base64Decode(initMsg.substr(0, initMsg.length() - 3)) << std::endl;
+        raise(SIGINT);
+    }
+
     clsockC += startSock;
     con = 1;
     tlsSock.push_back(ssl);
@@ -412,18 +430,40 @@ int main()
     // std::cout << "Connected with " << SSL_get_cipher(ssl) << " encryption" << std::endl;
 
     SSL_write(ssl, connectionSignal, strlen(connectionSignal));
-    sleep(1);
-    std::string hashedIp = fetchPubIp();
-    // fetch_and_save_certificate(serverIp, "80", cert);
-    if (hashedIp.size() <= 0 || hashedIp == "err")
+    // sleep(1);
+    // std::string hashedIp = fetchPubIp();
+
+    // // fetch_and_save_certificate(serverIp, "80", cert);
+    // if (hashedIp.size() <= 0 || hashedIp == "err")
+    // {
+    //     std::cout << "Could not send hashed ip to server" << std::endl;
+    //     raise(SIGINT);
+    // }
+    // std::cout << "Sending hashed ip to server" << std::endl;
+    // SSL_write(ssl, hashedIp.c_str(), hashedIp.size()); // send hashed ip
+
+    char ratelimbuf[200] = {0};
+    ssize_t rateb = SSL_read(ssl, ratelimbuf, sizeof(ratelimbuf) - 1);
+    ratelimbuf[rateb] = '\0';
+    string rateB(ratelimbuf); // works properly
+
+    if (rateB.substr(rateB.length() - 11, rateB.length()) == "RATELIMITED")
     {
-        std::cout << "Could not send hashed ip to server" << std::endl;
+        std::cout << RLTEXT.Base64Decode(rateB.substr(0, rateB.length() - 11)) << std::endl;
         raise(SIGINT);
     }
-    std::cout << "Sending hashed ip to server" << std::endl;
-    SSL_write(ssl, hashedIp.c_str(), hashedIp.size()); // send hashed ip
+    else if (rateB.substr(rateB.length() - 3, rateB.length()) == "LIM")
+    {
+        std::cout << RLTEXT.Base64Decode(rateB.substr(0, rateB.length() - 3)) << std::endl;
+        raise(SIGINT);
+    }
+
     const string formatpath = "keys-from-server/";
     static const string fPath = "your-keys/";
+
+    // MAKE CLIENT RECIEVE OKAY OR NOT OKAY MESSAGE RATE LIMITING THINGY HERE
+
+    //---------------------------------------------------------------
 
     // check if directories exist if they dont then create them
 
@@ -439,7 +479,7 @@ int main()
     // recieveServerKey.saveFile(serverPubPath, serverPubKeyBuff);
 
     LoadKey loadServerKey;
-    EVP_PKEY *serverPublicKey = loadServerKey.LoadPubOpenssl(serverPubPath); //
+    EVP_PKEY *serverPublicKey = loadServerKey.LoadPubOpenssl(serverPubPath);
     // std::filesystem::rename(serverPubPath, fmt::format("{}server-pubkey.pem", formatPath));
 
     if (serverPublicKey) /*if server key is loaded*/

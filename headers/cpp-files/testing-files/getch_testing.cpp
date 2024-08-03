@@ -16,11 +16,11 @@
 #include <stdexcept>
 #include <cryptopp/cryptlib.h>
 #include <openssl/ssl.h>
-#include "../header-files/leave.h"
-#include "../header-files/linux_conio.h"
-#include "../header-files/encry.h"
-#include "../header-files/getch_getline.h"
-#include "../header-files/termCmds.h"
+#include "../../header-files/leave.h"
+#include "../../header-files/linux_conio.h"
+#include "../../header-files/encry.h"
+#include "getch_testing.h"
+#include "../../header-files/termCmds.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"
@@ -371,6 +371,7 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
             }
             else if (int(c) == 127)
             { // backspace
+                //------------------------------
                 if (cursor_pos < message.size())
                 {
                     if (cursor_pos < 1)
@@ -389,32 +390,31 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
                     }
                     else
                     {
-                        cout << saveCursor;
-                        if (message.size() + 1 == cols_out)
-                        {
-                            // exit(1);
-                            cout << eraseLine;
-                            for (string i : message)
-                            {
-                                cout << i;
-                            }
-                            cout << restoreCursor;
-                        }
-                        else
-                        {
-                            cout << restoreCursor;
-                            cout << "\b \b";
-                            message.erase(message.begin() + cursor_pos - 1);
-                            if (MODE == MODE_P)
-                            {
-                                modeP.erase(modeP.begin() + cursor_pos - 1);
-                                modeP.shrink_to_fit();
-                            }
-                            message.shrink_to_fit();
-                            cursor_pos--;
-                        }
+                        // cout << saveCursor;
+                        // if (message.size() + 1 == cols_out)
+                        // {
+                        //     // exit(1);
+                        //     cout << eraseLine;
+                        //     for (string i : message)
+                        //     {
+                        //         cout << i;
+                        //     }
+                        //     cout << restoreCursor;
+                        // }
+                        // else
+                        // {
+                        // cout << restoreCursor;
+                        // cout << "\b \b";
+                        message.erase(message.begin() + cursor_pos - 1);
+                        // modeP.erase(modeP.begin() + cursor_pos - 1);
+                        // modeP.shrink_to_fit();
+                        message.shrink_to_fit();
+                        cursor_pos--;
+                        // }
                     }
                 }
+
+                //-------------------------
                 else if (cursor_pos == message.size())
                 {
                     if (cursor_pos == 0)
@@ -426,11 +426,8 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
                         cout << "\b \b";
                         message.pop_back();
                         message.shrink_to_fit();
-                        if (MODE == MODE_P)
-                        {
-                            modeP.pop_back();
-                            modeP.shrink_to_fit();
-                        }
+                        modeP.pop_back();
+                        modeP.shrink_to_fit();
                         cursor_pos--;
                     }
                 }

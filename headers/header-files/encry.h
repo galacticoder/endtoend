@@ -186,6 +186,7 @@ struct LoadKey
         {
             std::cerr << "Error loading private rsa key: ";
             ERR_print_errors_fp(stderr);
+            return nullptr;
         }
 
         cout << "Loaded RSA Private key file (" << privateKeyFile << ") successfuly" << endl;
@@ -209,10 +210,10 @@ struct LoadKey
         if (!pkey)
         {
             std::cerr << fmt::format("Error loading public rsa key from path {}", publicKeyFile) << endl;
-            ERR_print_errors_fp(stderr);
+            return nullptr;
         }
-        cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
 
+        cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << endl;
         return pkey;
     }
     EVP_PKEY *loadPemEVP(const std::string pem_key)
@@ -223,6 +224,7 @@ struct LoadKey
         if (!pkey)
         {
             cout << "PEM cant read" << endl;
+            return nullptr;
         }
         BIO_free(bio);
         return pkey;
