@@ -591,6 +591,7 @@ int main()
             raise(SIGINT);
         }
     }
+
     SSL_write(ssl, user.c_str(), sizeof(user));
 
     char usernameBuffer[200] = {0};

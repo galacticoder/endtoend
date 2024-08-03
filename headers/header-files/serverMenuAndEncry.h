@@ -4,31 +4,23 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <cryptopp/cryptlib.h>
 #include <cryptopp/base64.h>
-#include <cryptopp/files.h>
 #include <cryptopp/osrng.h>
-#include <cryptopp/secblock.h>
-#include <cryptopp/hex.h>
-#include <cryptopp/filters.h>
 #include <ncurses.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <csignal>
 #include <unistd.h>
 #include <unordered_map>
-#include "bcrypt.h"
-// #include "rsa.h"
-#include "getch_getline.h"
-#include "leave.h"
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-// #include <openssl/rsa.h>
-// #include <openssl/bn.h>
+#include "bcrypt.h"
+#include "leave.h"
+#include "getch_getline.h"
 
 #define SERVER_KEYPATH "server-keys"
 #define SRCPATH "server-recieved-client-keys/"
@@ -36,10 +28,8 @@
 #define clearScreen "\033[2J\r"
 const unsigned int KEYSIZE = 4096;
 
-using namespace std;
-
 void signalHandleMenu(int signum);
-void passVals(int &sock);
+void passVals(int &sock, SSL_CTX *ctxPass);
 
 int serverSock;
 SSL_CTX *serverCtx;
@@ -59,7 +49,6 @@ struct initMenu
     {
         signal(SIGINT, signalHandleMenu);
         hashedServerP[1] = bcrypt::generateHash(p);
-        // bcrypt::validatePassword(p, hashedServerP[1]);
         return bcrypt::generateHash(p);
     }
 
@@ -69,18 +58,17 @@ struct initMenu
         CryptoPP::AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
 
-        // make thing for dont include
         string pass;
         for (ssize_t i = 0; i < length; ++i)
         {
             pass += charSet[random.GenerateByte() % charSet.size()];
         }
-        cout << "Password: " << pass << endl;
+        std::cout << "Password: " << pass << std::endl;
         sleep(2);
-        cout << eraseLine;
-        cout << "\x1b[A";
+        std::cout << eraseLine;
+        std::cout << "\x1b[A";
         hashP(pass, hashedServerP);
-        cout << "Hash: " << hashedServerP[1] << endl;
+        std::cout << "Hash: " << hashedServerP[1] << std::endl;
         return hashedServerP[1];
     }
 
@@ -111,7 +99,6 @@ struct initMenu
 
     string initmenu(unordered_map<int, string> hashServerStore)
     {
-        // serverSock += serverSocket;
         int minLim = 6;
         signal(SIGINT, signalHandleMenu);
         initscr();
@@ -169,51 +156,44 @@ struct initMenu
             }
         }
 
-        // make it so you can press esc to go back to options when you click make your own password
-
         curs_set(1);
         clrtoeol();
         refresh();
         endwin();
 
-        // system("cls");
-        // cout << clearScreen;
-
         string password;
 
         if (choice == 1)
         {
-            cout << clearScreen;
-            cout << "Enter a password: " << endl;
-            password = getinput_getch(SERVER_S, MODE_P); // not passing in server ctx or sock
+            std::cout << clearScreen;
+            std::cout << "Enter a password: " << std::endl;
+            password = getinput_getch(SERVER_S, MODE_P);
             if (password.length() < minLim)
             {
-                cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << endl;
+                std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
                 exit(1);
             }
-            // storeHash[1] = hashP(password, storeHash);
-            cout << endl;
-            cout << eraseLine;
-            cout << "\x1b[A";
-            cout << eraseLine;
-            cout << "\x1b[A";
-            // *pn = 1;
-            cout << "Password has been set for server" << endl;
+
+            std::cout << std::endl;
+            std::cout << eraseLine;
+            std::cout << "\x1b[A";
+            std::cout << eraseLine;
+            std::cout << "\x1b[A";
+            std::cout << "Password has been set for server" << std::endl;
             return bcrypt::generateHash(password);
         }
         else if (choice == 2)
         {
-            cout << clearScreen;
-            cout << "Generating password for server..." << endl;
+            std::cout << clearScreen;
+            std::cout << "Generating password for server..." << std::endl;
             password = generatePassword(hashServerStore);
-            // *pn = 1;
             hashServerStore[1] = password;
             return password;
         }
         else if (choice == 3)
         {
-            cout << clearScreen;
-            cout << "Server is starting up without password..." << endl;
+            std::cout << clearScreen;
+            std::cout << "Server is starting up without password..." << std::endl;
             return "";
         }
         else if (choice == 4)
@@ -247,7 +227,7 @@ struct LoadKey
             return nullptr;
         }
 
-        cout << "Loaded PEM Private key file (" << privateKeyFile << ") successfuly" << endl;
+        std::cout << "Loaded PEM Private key file (" << privateKeyFile << ") successfuly" << std::endl;
 
         return pkey;
     }
@@ -258,7 +238,7 @@ struct LoadKey
         if (!bio)
         {
             ERR_print_errors_fp(stderr);
-            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << endl;
+            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
             return nullptr;
         }
 
@@ -267,11 +247,11 @@ struct LoadKey
 
         if (!pkey)
         {
-            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << endl;
+            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
             ERR_print_errors_fp(stderr);
             return nullptr;
         }
-        cout << "Loaded PEM Public key file (" << publicKeyFile << ") successfuly" << endl;
+        std::cout << "Loaded PEM Public key file (" << publicKeyFile << ") successfuly" << std::endl;
 
         return pkey;
     }
@@ -323,7 +303,6 @@ struct makeServerKey
         X509_free(cert);
         ERR_free_strings();
     }
-    // change the constructor to make a selfsigned cert
     makeServerKey(const std::string &keyfile, const std::string &certFile, const std::string &pubKey)
     {
         EVP_PKEY *pkey = nullptr;
@@ -410,49 +389,6 @@ struct makeServerKey
         X509_free(x509);
         extractPubKey(certFile, pubKey);
     }
-    // makeServerKey(const std::string &privateKeyFile, const std::string &publicKeyFile, int bits = KEYSIZE)
-    // {
-    //     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
-    //     if (!ctx)
-    //     {
-    //         ERR_print_errors_fp(stderr);
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     if (EVP_PKEY_keygen_init(ctx) <= 0)
-    //     {
-    //         ERR_print_errors_fp(stderr);
-    //         EVP_PKEY_CTX_free(ctx);
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0)
-    //     {
-    //         ERR_print_errors_fp(stderr);
-    //         EVP_PKEY_CTX_free(ctx);
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     EVP_PKEY *pkey = NULL;
-    //     if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
-    //     {
-    //         ERR_print_errors_fp(stderr);
-    //         EVP_PKEY_CTX_free(ctx);
-    //         exit(EXIT_FAILURE);
-    //     }
-
-    //     EVP_PKEY_CTX_free(ctx);
-
-    //     BIO *privateKeyBio = BIO_new_file(privateKeyFile.c_str(), "w+");
-    //     PEM_write_bio_PrivateKey(privateKeyBio, pkey, NULL, NULL, 0, NULL, NULL);
-    //     BIO_free_all(privateKeyBio);
-
-    //     BIO *publicKeyBio = BIO_new_file(publicKeyFile.c_str(), "w+");
-    //     PEM_write_bio_PUBKEY(publicKeyBio, pkey);
-    //     BIO_free_all(publicKeyBio);
-
-    //     EVP_PKEY_free(pkey);
-    // }
 };
 
 struct initOpenSSL
@@ -487,18 +423,12 @@ struct initOpenSSL
         {
             ERR_print_errors_fp(stderr);
             std::cout << "Could not find cert file at path: " << cpath << std::endl;
-            // cout << "\n1\n"
-            //      << endl;
-            // exit(1);
             raise(SIGINT);
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, pkey, SSL_FILETYPE_PEM) <= 0)
         {
             {
                 ERR_print_errors_fp(stderr);
-                // cout << "\n2\n"
-                //      << endl;
-                // exit(1);
                 raise(SIGINT);
             }
         }
@@ -518,14 +448,6 @@ struct encServer
     {
         std::string encoded;
         CryptoPP::StringSource(input, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
-        return encoded;
-    }
-
-    std::string hexencode(string &cipher)
-    {
-        string encoded;
-        CryptoPP::StringSource(cipher, true, new CryptoPP::HexDecoder(new CryptoPP::StringSink(encoded)));
-        cout << encoded << endl;
         return encoded;
     }
 
@@ -563,8 +485,6 @@ struct encServer
 
         EVP_PKEY_CTX_free(ctx);
         out.resize(out_len);
-
-        // out = hexencode(out);
 
         return out;
     }
@@ -607,7 +527,7 @@ struct DecServer
             }
 
             EVP_PKEY_CTX_free(ctx);
-            out.resize(out_len); // Adjust the size of the string
+            out.resize(out_len);
             return out;
         }
         catch (const exception &e)
@@ -621,12 +541,6 @@ struct DecServer
     {
         std::string decoded;
         CryptoPP::StringSource(input, true, new CryptoPP::Base64Decoder(new CryptoPP::StringSink(decoded)));
-        return decoded;
-    }
-    string hexdecode(string &encoded)
-    {
-        string decoded;
-        CryptoPP::StringSource ssv(encoded, true /*pump all*/, new CryptoPP::HexDecoder(new CryptoPP::StringSink(decoded)));
         return decoded;
     }
 };
@@ -673,7 +587,7 @@ struct Send
         ssize_t sentBytes = SSL_write(socket, encodedData.c_str(), encodedData.size());
         if (sentBytes == -1)
         {
-            cout << "Error sending: " << encodedData << endl;
+            std::cout << "Error sending: " << encodedData << std::endl;
             throw std::runtime_error(fmt::format("Error sending data: {}", encodedData));
         }
     }
@@ -693,11 +607,11 @@ struct Send
     }
 };
 
-struct Recieve
+struct Receive
 {
-    Recieve() = default;
+    Receive() = default;
     // std::string encodedData = receiveBase64Data(clientSocket);
-    // std::vector<uint8_t> decodedData = base64Decode(encodedData);
+    // std::stringdecodedData = base64Decode(encodedData);
     // saveFile(filePath, decodedData);
     std::string base64Decode(const std::string &encodedData)
     {
@@ -744,19 +658,14 @@ struct Recieve
         std::vector<char> buffer(4096);
         ssize_t bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
 
-        // cout << "BT: " << bytesRead << endl;
-
-        while (bytesRead > 0) // its gonna keep appending without a stop condition
+        while (bytesRead > 0)
         {
-            cout << "Bytes read: " << bytesRead << endl;
             receivedData.append(buffer.data(), bytesRead);
             if (receivedData.size() == bytesRead)
             {
                 break;
             }
         }
-        cout << "RECIEVED DATA: " << receivedData.size() << endl;
-        cout << "BYTES READ: " << bytesRead << endl;
 
         if (bytesRead == -1)
         {
@@ -783,8 +692,8 @@ void signalHandleMenu(int signum)
 {
     endwin();
     disable_conio_mode();
-    cout << eraseLine;
-    cout << "Server has been shutdown" << endl;
+    std::cout << eraseLine;
+    std::cout << "Server has been shutdown" << std::endl;
     leave(S_PATH, SERVER_KEYPATH);
     leaveFile(userPath);
     close(serverSock);
