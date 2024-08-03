@@ -328,7 +328,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                 else if (it != triesIp.end())
                 {
                     triesIp[hashedIp]++;
-                    std::cout << "Hashed ip updated amount of tries: " << triesIp[hashedIp] << std::endl;
                 }
 
                 short int found;
@@ -344,6 +343,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                         auto storedTime = timeMap[pair.first]; // take time stored in map and check how long its been since last connection
                         auto elapsed = newNowTime - storedTime;
+                        std::cout << "Stored time: " << elapsed << std::endl;
 
                         if (elapsed < 90 && triesIp[hashedIp] >= 4) // set the seconds needed // if joined over 3 times in under 90 seconds then kick them and give them a small time limit they can join back in
                         {
@@ -371,7 +371,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                         timeMap[hashedIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(); // if not found in timemap then make a new user in there using their hashed ip
                     }
                     {
-                        std::cout << fmt::format("Sending hashed ip [{}..] sig okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+                        std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
                         std::string encoded = enc.Base64Encode((std::string)OKSIG);
                         encoded.append("OK");
                         SSL_write(clientSocket, encoded.c_str(), encoded.size());
@@ -741,54 +741,54 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                     break;
                                                 }
                                             }
-                                        }
 
-                                        else
-                                        {
-                                            buffer[bytesReceived] = '\0';
-                                            std::string receivedData(buffer);
-                                            std::cout << "Received data: " << receivedData << std::endl;
-                                            cout << "Ciphertext message length: " << receivedData.length() << endl;
-                                            std::string cipherText = receivedData;
-
-                                            if (!cipherText.empty() && cipherText.length() > 30)
+                                            else
                                             {
-                                                auto now = std::chrono::system_clock::now();
-                                                std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-                                                std::tm *localTime = std::localtime(&currentTime);
+                                                buffer[bytesReceived] = '\0';
+                                                std::string receivedData(buffer);
+                                                std::cout << "Received data: " << receivedData << std::endl;
+                                                cout << "Ciphertext message length: " << receivedData.length() << endl;
+                                                std::string cipherText = receivedData;
 
-                                                bool isPM = localTime->tm_hour >= 12;
-                                                string stringFormatTime = asctime(localTime);
-
-                                                int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-                                                stringstream ss;
-                                                ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-                                                string formattedTime = ss.str();
-
-                                                std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-                                                std::smatch match;
-                                                if (regex_search(stringFormatTime, match, time_pattern))
+                                                if (!cipherText.empty() && cipherText.length() > 30)
                                                 {
-                                                    string str = match.str(0);
-                                                    size_t pos = stringFormatTime.find(str);
-                                                    stringFormatTime.replace(pos, str.length(), formattedTime);
+                                                    auto now = std::chrono::system_clock::now();
+                                                    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+                                                    std::tm *localTime = std::localtime(&currentTime);
+
+                                                    bool isPM = localTime->tm_hour >= 12;
+                                                    string stringFormatTime = asctime(localTime);
+
+                                                    int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+                                                    stringstream ss;
+                                                    ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+                                                    string formattedTime = ss.str();
+
+                                                    std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+                                                    std::smatch match;
+                                                    if (regex_search(stringFormatTime, match, time_pattern))
+                                                    {
+                                                        string str = match.str(0);
+                                                        size_t pos = stringFormatTime.find(str);
+                                                        stringFormatTime.replace(pos, str.length(), formattedTime);
+                                                    }
+                                                    string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                                                    broadcastMessage(formattedCipher, clientSocket, clsock);
                                                 }
-                                                string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                                                broadcastMessage(formattedCipher, clientSocket, clsock);
                                             }
                                         }
                                     }
-                                }
-                                if (clientUsernames.size() < 1)
-                                {
-                                    cout << "Shutting down server due to no users." << endl;
-                                    leave(S_PATH, SERVER_KEYPATH);
-                                    leaveFile(userPath);
-                                    close(serverSocket);
-                                    SSL_CTX_free(ctx);
-                                    EVP_cleanup();
-                                    exit(1);
+                                    if (clientUsernames.size() < 1)
+                                    {
+                                        cout << "Shutting down server due to no users." << endl;
+                                        leave(S_PATH, SERVER_KEYPATH);
+                                        leaveFile(userPath);
+                                        close(serverSocket);
+                                        SSL_CTX_free(ctx);
+                                        EVP_cleanup();
+                                        exit(1);
+                                    }
                                 }
                             }
                         }
@@ -797,7 +797,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
             }
             catch (exception &e)
             {
-                cout << "Server has been killed due to error (1): " << e.what() << endl;
+                std::cout << "Server has been killed due to error (1): " << e.what() << std::endl;
                 raise(SIGINT);
             }
         }
@@ -805,14 +805,14 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
         {
             // fix overwriting top text
             pingCount++;
-            cout << fmt::format("SERVER HAS BEEN PINGED ({})", pingCount) << endl;
-            cout << "\x1b[A";
-            cout << eraseLine;
+            std::cout << fmt::format("SERVER HAS BEEN PINGED ({})", pingCount) << std::endl;
+            std::cout << "\x1b[A";
+            std::cout << eraseLine;
         }
     }
     catch (exception &e)
     {
-        cout << "Server has been killed due to error (2): " << e.what() << endl;
+        std::cout << "Server has been killed due to error (2): " << e.what() << std::endl;
         raise(SIGINT);
     }
 }
@@ -971,7 +971,7 @@ int main()
         short int conrun = 1;
         encServer encodeMsg;
 
-        cout << "tries ip: " << triesIp[hashedIp] << endl;
+        std::cout << "Hashed ip updated amount of tries: " << triesIp[hashedIp] << std::endl;
 
         if (clientUsernames.size() == limOfUsers)
         {
@@ -1007,7 +1007,6 @@ int main()
             SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
         }
 
-        //--------------------------
         if (conrun != 0)
         {
             thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path, hashedIp).detach();
