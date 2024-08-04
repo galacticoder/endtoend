@@ -407,7 +407,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                     auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
                     int indexClientOut = itCl - connectedClients.begin();
-                    // cout << "IndexClientOut: " << indexClientOut << endl;
 
                     if (clientHashVerifiedClients.size() != 3)
                     {
@@ -577,8 +576,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                         serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
                                     }
 
-                                    // receive the client pub key
-                                    {
+                                    { // receive the client pub key
                                         std::string encodedData = receive.receiveBase64Data(clientSocket);
                                         std::string decodedData = receive.base64Decode(encodedData);
                                         receive.saveFilePem(serverRecv, decodedData);
@@ -802,7 +800,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
         }
         else
         {
-            // fix overwriting top text
             pingCount++;
             std::cout << fmt::format("SERVER HAS BEEN PINGED ({})", pingCount) << std::endl;
             std::cout << "\x1b[A";
@@ -815,7 +812,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
         raise(SIGINT);
     }
 }
-//
+
 int main()
 {
     int pnInt;
@@ -913,14 +910,13 @@ int main()
         exit(1);
     }
 
-    // RSA::PrivateKey serve
     EVP_PKEY *prvKey = loadServerKeys.LoadPrvOpenssl(server_priv_path);
 
     if (prvKey)
     {
         std::cout << "Server's private key (cert) has been loaded" << std::endl;
         EVP_PKEY_free(prvKey);
-    } //
+    }
     else
     {
         std::cout << "Cannot load server's private key (cert). Killing server." << std::endl;
@@ -937,9 +933,8 @@ int main()
     std::cout << "Server is now accepting connections" << std::endl;
 
     std::cout << "Started hosting server cert key" << std::endl;
-    // std::this_thread::sleep_for(std::chrono::seconds(1));;
     thread(startHost).detach();
-    //
+
     while (true)
     {
         sockaddr_in clientAddress;
@@ -956,7 +951,6 @@ int main()
 
         char clientIp[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, clientIp, INET_ADDRSTRLEN);
-        // std::cout << "client ip: " << clientIp << std::endl;
         encServer encIp;
         const std::string hashedIp = encIp.hash_data(clientIp);
 
@@ -965,7 +959,7 @@ int main()
             ERR_print_errors_fp(stderr);
             raise(SIGINT);
         }
-        // write here where the client is closed if the usernames vector limit is reached and if they have a timer on their ip close them
+
         short int conrun = 1;
         encServer encodeMsg;
 

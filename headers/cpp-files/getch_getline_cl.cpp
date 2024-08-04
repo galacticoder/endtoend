@@ -275,7 +275,6 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                         for (int i = 0; i < unallowed.length(); i += 2)
                         {
                             notAllowed += unallowed[i];
-                            // continue;
                         }
                     }
                     if (findIn(c, notAllowed) == true)

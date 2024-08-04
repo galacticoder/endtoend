@@ -24,7 +24,7 @@ short int getTermSizeCols()
     return w.ws_col;
 }
 
-string getinput_getch(char &&MODE, const int &&maxLimit)
+std::string getinput_getch(char &&MODE, const int &&maxLimit)
 { // N==normal//P==Password
     signal(SIGINT, signalHandleServer);
     enable_conio_mode();
@@ -47,7 +47,7 @@ string getinput_getch(char &&MODE, const int &&maxLimit)
             }
             else if (MODE == 'N')
             {
-                for (string i : message)
+                for (std::string i : message)
                 {
                     std::cout << i;
                 }
@@ -142,7 +142,6 @@ string getinput_getch(char &&MODE, const int &&maxLimit)
                         cout << saveCursor;
                         if (message.size() + 1 == cols_out)
                         {
-                            // exit(1);
                             cout << eraseLine;
                             for (string i : message)
                             {
@@ -187,25 +186,21 @@ string getinput_getch(char &&MODE, const int &&maxLimit)
             }
             else
             {
-
-                cout << "\x1b[C";
                 if (c != '[')
                 {
                     if (message.size() < maxLimit)
                     {
                         if (MODE == MODE_P)
                         {
-                            string s(1, c);
-                            // c = '*';
+                            std::string s(1, c);
                             message.insert(message.begin() + cursor_pos, s);
                             modeP.insert(modeP.begin() + cursor_pos, c);
-                            // cout << c;
                             cout << "*";
                             cursor_pos++;
                         }
                         else if (MODE == MODE_N)
                         {
-                            string s(1, c);
+                            std::string s(1, c);
                             message.insert(message.begin() + cursor_pos, s);
                             cout << c;
                             cursor_pos++;

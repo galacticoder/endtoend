@@ -15,7 +15,6 @@
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <termios.h>
-#include <cryptopp/base64.h>
 #include <regex>
 #include <filesystem>
 #include <bits/stdc++.h>

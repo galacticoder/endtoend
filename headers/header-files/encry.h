@@ -5,7 +5,6 @@
 #include <fstream>
 #include <string>
 #include <cryptopp/base64.h>
-#include <cryptopp/osrng.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
