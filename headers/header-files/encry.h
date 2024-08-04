@@ -12,7 +12,6 @@
 #include <openssl/pem.h>
 #include <stdio.h>
 #include <filesystem>
-#include "rsa.h"
 #include "leave.h"
 
 const unsigned int KEYSIZE = 4096;
