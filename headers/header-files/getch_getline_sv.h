@@ -1,5 +1,6 @@
 #ifndef SERVERSIDEGETCH
 #define SERVERSIDEGETCH
+// including my own getline function i made for better user input allows arrow keys and stuff
 
 #include <iostream>
 #include <atomic>

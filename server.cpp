@@ -98,31 +98,9 @@ void opensslclean()
 void cleanUpServer()
 {
     std::lock_guard<std::mutex> lock(clientsMutex);
-    // leave(S_PATH, SERVER_KEYPATH);
-    // leaveFile(userPath);
-    // close(serverSocket);//
-    // SSL_CTX_free(ctx);
-    // EVP_cleanup();
-    // for (auto &client : tlsSocks)
-    // {
-    //     if (client)
-    //     {
-    //         cout << "Shutting down SSL connection" << endl;
-    //         SSL_shutdown(client);
-    //         SSL_free(client);
-    //     }
-    // }
-    // for (auto &sock : connectedClients)
-    // {
-    //     cout << "Closing socket: " << sock << endl;
-    //     close(sock);
-    // }
-
     SSL_CTX_free(ctx);
     close(serverSocket);
 
-    // tlsSocks.clear();
-    // connectedClients.clear();
     leave(S_PATH, SERVER_KEYPATH);
     leaveFile(userPath);
 
@@ -405,12 +383,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                         encoded.append("OK");
                         SSL_write(clientSocket, encoded.c_str(), encoded.size());
                     }
-
-                    // send the servers public key
-                    std::string pkeyServer = receive.read_pem_key(serverPubKeyPath);
-                    send.sendKey(clientSocket, pkeyServer);
-
-                    std::cout << fmt::format("Server pubkey has been sent to user hash ip [{}..]", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
 
                     {
                         lock_guard<mutex> lock(clientsMutex);
@@ -814,19 +786,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                     if (clientUsernames.size() < 1)
                                     {
                                         cout << "Shutting down server due to no users." << endl;
-                                        // raise(SIGINT);
-                                        cleanUpServer();
-                                        exit(1);
-                                        // cleanUpServer(); //
-                                        // cout << "done" << endl;
-                                        // setupSignalHandlers();
-                                        // raise(SIGINT);
-                                        // leave(S_PATH, SERVER_KEYPATH);
-                                        // leaveFile(userPath);
-                                        // close(serverSocket);
-                                        // SSL_CTX_free(ctx);
-                                        // EVP_cleanup();
-                                        // exit(1);
+                                        raise(SIGINT);
                                     }
                                 }
                             }

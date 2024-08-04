@@ -10,7 +10,6 @@
 #include <stdexcept>
 #include "../header-files/linux_conio.h"
 #include "../header-files/getch_getline_cl.h"
-// #include "../header-files/sigHandler.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"
@@ -79,28 +78,20 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
     while (true)
     {
         short int cols = getTermSizeCols();
-        // check if message was receieved here and then print it out before re-enabling conio mode and sleep half a sec after printing
         if (running == false)
         {
-            // print msg receieved here
-            disable_conio_mode(); // find way to stop getch then print the message if getch detects a message was sent to the client
+            disable_conio_mode();
             set_default_terminal();
             std::cout.flush();
             std::cout << messagePassedClient << std::endl;
             checkExitMsg = 0;
             break;
-            // running = true;
-            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            // std::cout << "running: " << running << std::endl;
         }
 
-        //-----------------
         if (message.size() < cols)
         {
-            // cout << "\x1b[C";
             std::cout << saveCursor;
             std::cout << eraseLine;
-            // cout << saveCursor;
             if (MODE == 'P')
             {
                 for (int i : modeP)
@@ -123,7 +114,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
         }
         std::cout << boldMode;
         if (_kbhit())
-        { // do other keys ignore like page up and stuff
+        {
             char c = _getch();
             if (c == '\n')
             { // break on enter
@@ -138,8 +129,8 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                 if (next1 == '[')
                 {
                     if (next2 == '6')
-                    {                          // page down
-                        char next3 = _getch(); // discard the tilde character
+                    { // page down
+                        char next3 = _getch();
                         if (next3 == '~')
                         {
                             continue;
@@ -260,10 +251,8 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                             if (MODE == MODE_P)
                             {
                                 std::string s(1, c);
-                                // c = '*';
                                 message.insert(message.begin() + cursor_pos, s);
                                 modeP.insert(modeP.begin() + cursor_pos, c);
-                                // cout << c;
                                 std::cout << "*";
                                 cursor_pos++;
                             }
@@ -295,7 +284,6 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                     }
                     else if (findIn(c, notAllowed) == false)
                     {
-                        // cout << "\x1b[C";
                         if (c != '[')
                         {
                             if (message.size() < maxLimit)
@@ -305,7 +293,6 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                                     std::string s(1, c);
                                     message.insert(message.begin() + cursor_pos, s);
                                     modeP.insert(modeP.begin() + cursor_pos, c);
-                                    // cout << c;
                                     std::cout << "*";
                                     cursor_pos++;
                                 }
@@ -324,7 +311,6 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
         }
     }
 
-    // running = false;
     disable_conio_mode();
 
     std::string message_str;
@@ -338,8 +324,6 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
     std::cout << boldModeReset;
     message.clear();
     modeP.clear();
-    // unallowed.clear();
-    // cout << endl;
 
     return message_str;
 }
