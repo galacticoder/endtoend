@@ -28,7 +28,7 @@ short int getTermSizeCols();
 void signalhandleGetch(int signum);
 bool findIn(const char &find, const string &In);
 int readActiveUsers(const string &filepath);
-string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, const std::string cert = "NONE", SSL_CTX *ctx = NULL, int sock = 0, SSL *sslC = NULL, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
+string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, const std::string cert = "NONE", SSL_CTX *ctx = NULL, int sock = 0, SSL *sslC = NULL, EVP_PKEY *key = NULL, EVP_PKEY *prkey = NULL, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
 void passval(const std::string &messagePassed);
 void passValsForSIGhandle(SSL_CTX *ctx, int sock);
 

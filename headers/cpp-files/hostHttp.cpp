@@ -52,14 +52,15 @@ void startHost()
 {
     try
     {
+        short int port = 85;
         const std::string path = "server-keys/server-cert.pem";
         std::filesystem::path current_path = std::filesystem::current_path();
         std::cout << "Current path: " << current_path << std::endl;
 
         net::io_context ioc;
-        tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), 80));
+        tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), port));
 
-        std::cout << "Cert hosting running on port 80" << std::endl;
+        std::cout << "Cert hosting running on port " << port << std::endl;
 
         if (!std::filesystem::is_regular_file(path))
         {

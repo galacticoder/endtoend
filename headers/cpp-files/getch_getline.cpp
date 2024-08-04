@@ -21,6 +21,7 @@
 #include "../header-files/encry.h"
 #include "../header-files/getch_getline.h"
 #include "../header-files/termCmds.h"
+// #include "../header-files/sigHandler.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"
@@ -40,6 +41,10 @@ using boost::asio::ip::tcp;
 int sockPub;
 SSL_CTX *pubctx;
 SSL *pubssl;
+EVP_PKEY *pubkey;
+EVP_PKEY *prkeypub;
+
+void signalhandle(int signum);
 
 // void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs) {
 //     if (usersActivePath != "NONE") {
@@ -129,48 +134,29 @@ short int getTermSizeCols()
     return w.ws_col;
 }
 
-void signalhandleGetch(int signum)
-{ // for forceful leaving like using ctrl-c
-    disable_conio_mode();
-    cout << eraseLine;
-    if (sC_M == SERVER_S)
-    {
-        cout << "Server has been shutdown" << endl;
-        leave(s_path_getch, sk_path_getch);
-        leaveFile(active_path);
-        if (sockPub != 0)
-        {
-            close(sockPub);
-        }
-
-        // // std::cout << "freeing ctx" << endl;
-        // // std::cout << "Pubctx: " << pubctx << std::endl;
-        // // SSL_CTX_free(pubctx);
-        // // std::cout << "evp cleanup" << endl;
-        // // EVP_cleanup();
-        // // std::cout << "done" << endl;
-        // std::cout << "leaving" << endl;
-        // cout << "getch" << endl;
-        exit(signum);
-    }
-    else if (sC_M == CLIENT_S)
-    {
-        termcmd setdefault;
-        setdefault.set_curs_vb();
-        setdefault.set_inp();
-        cout << "You have left the chat.\n";
-        leave();
-        leaveFile(active_path);
-        SSL_shutdown(pubssl);
-        SSL_free(pubssl);
-        close(sockPub);
-        SSL_CTX_free(pubctx);
-        EVP_cleanup();
-        cout << eraseLine;
-        cout << eraseLine;
-        exit(signum);
-    }
-}
+// void signalhandleGetch(int signum)
+// { // for forceful leaving like using ctrl-c
+//     disable_conio_mode();
+//     cout << eraseLine;
+//     if (sC_M == CLIENT_S)
+//     {
+//         termcmd setdefault;
+//         setdefault.set_curs_vb();
+//         setdefault.set_inp();
+//         cout << "You have left the chat.\n";
+//         leave();
+//         leaveFile(active_path);
+//         SSL_shutdown(pubssl);
+//         SSL_free(pubssl);
+//         close(sockPub);
+//         SSL_CTX_free(pubctx);
+//         EVP_PKEY_free(pubkey);
+//         EVP_PKEY_free(prkeypub);
+//         EVP_cleanup();
+//         cout << eraseLine;
+//         exit(signum);
+//     }
+// }
 
 bool findIn(const char &find, const string &In)
 {
@@ -195,15 +181,17 @@ int readActiveUsers(const string &filepath)
     return activeInt;
 }
 
-string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX *ctx, int sock, SSL *sslC, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
+string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX *ctx, int sock, SSL *sslC, EVP_PKEY *key, EVP_PKEY *prkey, const string &&unallowed, const int &&maxLimit, const string &serverIp, int PORT)
 { // N==normal//P==Password
     sockPub = sock;
     pubctx = ctx;
     pubssl = sslC;
+    pubkey = key;
+    prkeypub = prkey;
     // causing closing ssl connections when pinging?
     ca_cert_content = certPath;
     sC_M = sC;
-    setup_signal_interceptor();
+    // setup_signal_interceptor();
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
@@ -272,7 +260,7 @@ string getinput_getch(char sC, char &&MODE, const std::string certPath, SSL_CTX 
         // }
         // do not break at the end
         // run it only once till it changes again to "1!"
-        signal(SIGINT, signalhandleGetch);
+        signal(SIGINT, signalhandle);
         short int cols = getTermSizeCols();
         if (message.size() < cols)
         {

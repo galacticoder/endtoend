@@ -23,7 +23,6 @@
 #include <atomic>
 #include "headers/header-files/serverMenuAndEncry.h"
 #include "headers/header-files/hostHttp.h"
-#include "headers/header-files/fetchHttp.h"
 #include "headers/header-files/fileAndDirHandler.h"
 
 #define userPath "txt-files/usersActive.txt"
@@ -88,26 +87,52 @@ bool isPav(int port)
     return available;
 }
 
+void opensslclean()
+{
+    EVP_cleanup();
+    ERR_free_strings();
+    CRYPTO_cleanup_all_ex_data();
+}
+
 void cleanUpServer()
 {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    // leave(S_PATH, SERVER_KEYPATH);
+    // leaveFile(userPath);
+    // close(serverSocket);//
+    // SSL_CTX_free(ctx);
+    // EVP_cleanup();
+    // for (auto &client : tlsSocks)
+    // {
+    //     if (client)
+    //     {
+    //         cout << "Shutting down SSL connection" << endl;
+    //         SSL_shutdown(client);
+    //         SSL_free(client);
+    //     }
+    // }
+    // for (auto &sock : connectedClients)
+    // {
+    //     cout << "Closing socket: " << sock << endl;
+    //     close(sock);
+    // }
+
+    SSL_CTX_free(ctx);
+    close(serverSocket);
+
+    // tlsSocks.clear();
+    // connectedClients.clear();
     leave(S_PATH, SERVER_KEYPATH);
     leaveFile(userPath);
-    close(serverSocket);
-    SSL_CTX_free(ctx);
-    EVP_cleanup();
+
+    opensslclean();
+
+    exit(1);
 }
 
 void signalHandleServer(int signum)
 {
     cout << eraseLine;
-    if (connectedClients.size() != 0)
-    {
-        for (auto &sockets : connectedClients)
-        {
-            // free the ssl stuff too
-            close(sockets);
-        }
-    }
     cout << "Server has been shutdown" << endl;
     cleanUpServer();
     exit(signum);
@@ -170,29 +195,28 @@ void updateActiveFile(auto data)
     }
 }
 
-void leaveCl(SSL *clientSocket, int &clsock, int id)
+void setupSignalHandlers()
 {
-    std::lock_guard<std::mutex> lock(clientsMutex);
-    SSL_shutdown(clientSocket);
-    SSL_free(clientSocket);
-    close(clsock);
-    auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
-    connectedClients.erase(it, connectedClients.end());
-    auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
-    tlsSocks.erase(ittls, tlsSocks.end());
-    clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + id);
+    signal(SIGINT, signalHandleServer);
 }
 
-void leaveCl(SSL *clientSocket, int &clsock)
+void leaveCl(SSL *clientSocket, int &clsock, int id = -1)
 {
     std::lock_guard<std::mutex> lock(clientsMutex);
     SSL_shutdown(clientSocket);
     SSL_free(clientSocket);
     close(clsock);
+
     auto it = std::remove(connectedClients.begin(), connectedClients.end(), clsock);
     connectedClients.erase(it, connectedClients.end());
+
     auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
     tlsSocks.erase(ittls, tlsSocks.end());
+
+    if (id != -1 && id < clientHashVerifiedClients.size())
+    {
+        clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + id);
+    }
 }
 
 void waitTimer(const std::string hashedClientIp)
@@ -248,13 +272,16 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
                     {
                         const string encd = enc.Base64Encode(enc.Enc(keyLoading, notVerified));
                         notVENC += encd;
+                        EVP_PKEY_free(keyLoading);
                     }
                     else
                     {
                         std::cout << "Server shutting down due to server key not loading" << std::endl;
                         raise(SIGINT);
                     }
-                    if (keyLoading)
+
+                    EVP_PKEY *keyLoading2 = loadp.LoadPubOpenssl(newP);
+                    if (keyLoading2)
                     {
                         if (notVENC != "err")
                         {
@@ -263,6 +290,8 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
                             leaveCl(clientSocket, clsock, indexClientOut);
 
                             std::cout << "Disconnected client for non verified password" << std::endl;
+
+                            EVP_PKEY_free(keyLoading2);
 
                             return true;
                         }
@@ -343,7 +372,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                         auto storedTime = timeMap[pair.first]; // take time stored in map and check how long its been since last connection
                         auto elapsed = newNowTime - storedTime;
-                        std::cout << "Stored time: " << elapsed << std::endl;
 
                         if (elapsed < 90 && triesIp[hashedIp] >= 4) // set the seconds needed // if joined over 3 times in under 90 seconds then kick them and give them a small time limit they can join back in
                         {
@@ -430,9 +458,8 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                             LoadKey loadServerKey;
                             EVP_PKEY *serverPrivate = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
-                            EVP_PKEY *pkey = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
 
-                            if (pkey)
+                            if (serverPrivate)
                             {
                                 std::cout << "Loaded server private key for decryption of passGet" << std::endl;
                             }
@@ -456,6 +483,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                             {
                                 std::cout << "Password cipher size: " << passGet.size() << std::endl;
                                 std::string passGet = dec.dec(serverPrivate, decodedPassGet);
+                                EVP_PKEY_free(serverPrivate);
 
                                 passGetArg = passGet;
 
@@ -597,6 +625,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                             leaveCl(clientSocket, clsock, indexClientOut);
                                             std::cout << fmt::format("Kicked user [{}]", userStr) << std::endl;
                                         }
+                                        EVP_PKEY_free(pkeyloader);
                                     }
                                     else
                                     {
@@ -682,6 +711,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                             {
                                                                 std::cout << fmt::format("Broadcasting user []'s exit message", clientUsernames[index]) << std::endl;
                                                                 broadcastMessage(op64, clientSocket, clsock);
+                                                                EVP_PKEY_free(keyLoad);
                                                             }
                                                         }
                                                         else
@@ -704,6 +734,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                             {
                                                                 std::cout << fmt::format("Broadcasting user []'s exit message", clientUsernames[index2]) << std::endl;
                                                                 broadcastMessage(op642, clientSocket, clsock);
+                                                                EVP_PKEY_free(keyLoad2);
                                                             }
                                                         }
                                                         else
@@ -782,12 +813,19 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                     if (clientUsernames.size() < 1)
                                     {
                                         cout << "Shutting down server due to no users." << endl;
-                                        leave(S_PATH, SERVER_KEYPATH);
-                                        leaveFile(userPath);
-                                        close(serverSocket);
-                                        SSL_CTX_free(ctx);
-                                        EVP_cleanup();
+                                        // raise(SIGINT);
+                                        cleanUpServer();
                                         exit(1);
+                                        // cleanUpServer(); //
+                                        // cout << "done" << endl;
+                                        // setupSignalHandlers();
+                                        // raise(SIGINT);
+                                        // leave(S_PATH, SERVER_KEYPATH);
+                                        // leaveFile(userPath);
+                                        // close(serverSocket);
+                                        // SSL_CTX_free(ctx);
+                                        // EVP_cleanup();
+                                        // exit(1);
                                     }
                                 }
                             }
@@ -820,11 +858,11 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 int main()
 {
     int pnInt;
-    const string serverKeysPath = SERVER_KEYPATH;
-    signal(SIGINT, signalHandleServer);
+    const std::string serverKeysPath = SERVER_KEYPATH;
     unordered_map<int, string> serverHash;
     initMenu startMenu;
-    const string hash = startMenu.initmenu(serverHash);
+    const std::string hash = startMenu.initmenu(serverHash);
+    signal(SIGINT, signalHandleServer);
     if (!hash.empty())
     {
         serverHash[1] = hash;
@@ -855,7 +893,6 @@ int main()
                     }
                 }
             } });
-
     t1.join();
 
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -905,6 +942,7 @@ int main()
     if (pubKey)
     {
         std::cout << "Server's public key has been loaded" << std::endl;
+        EVP_PKEY_free(pubKey);
     }
     else
     {
@@ -920,9 +958,7 @@ int main()
     if (prvKey)
     {
         std::cout << "Server's private key (cert) has been loaded" << std::endl;
-        passVals(serverSocket, ctx);
-        passValsForSIGhandle(ctx, serverSock);
-        std::cout << "Passed ctx and server sock to getch" << std::endl;
+        EVP_PKEY_free(prvKey);
     } //
     else
     {
@@ -960,8 +996,9 @@ int main()
         char clientIp[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, clientIp, INET_ADDRSTRLEN);
         // std::cout << "client ip: " << clientIp << std::endl;
-        const std::string hashedIp = hash_data(clientIp);
-
+        encServer encIp;
+        const std::string hashedIp = encIp.hash_data(clientIp);
+        //
         if (SSL_accept(ssl_cl) <= 0)
         {
             ERR_print_errors_fp(stderr);
@@ -975,7 +1012,7 @@ int main()
 
         if (clientUsernames.size() == limOfUsers)
         {
-            conrun = 0;
+            conrun = 0; //
             std::string encodedtext = encodeMsg.Base64Encode(limReached);
             encodedtext.append("LIM");
             SSL_write(ssl_cl, encodedtext.c_str(), encodedtext.length());
@@ -1012,7 +1049,7 @@ int main()
             thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path, hashedIp).detach();
         }
     }
-    // thread(serverCommands).de
+    // thread(serverCommands).de..
 
     close(serverSocket);
     SSL_CTX_free(ctx);
