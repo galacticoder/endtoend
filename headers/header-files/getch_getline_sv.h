@@ -18,6 +18,6 @@
 using namespace std;
 
 short int getTermSizeCols();
-string getinput_getch(char &&MODE = MODE_N, char sC = SERVER_S, const int &&maxLimit = getTermSizeCols());
+std::string getinput_getch(char &&MODE = MODE_N, const int &&maxLimit = getTermSizeCols());
 
 #endif

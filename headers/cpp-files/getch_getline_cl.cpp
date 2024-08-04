@@ -87,7 +87,11 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
             set_default_terminal();
             std::cout.flush();
             std::cout << messagePassedClient << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            checkExitMsg = 0;
+            break;
+            // running = true;
+            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            // std::cout << "running: " << running << std::endl;
         }
 
         //-----------------

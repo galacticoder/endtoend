@@ -20,7 +20,6 @@
 #include <openssl/x509v3.h>
 #include "bcrypt.h"
 #include "getch_getline_sv.h"
-#include "linux_conio.h"
 
 #define SERVER_KEYPATH "server-keys"
 #define SRCPATH "server-recieved-client-keys/"
