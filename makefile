@@ -4,8 +4,8 @@ CXXFLAGS=-std=c++20
 SERVER=server
 CLIENT=client
 SERVER_SRCS=server.cpp
-F_LINK=headers/cpp-files/linux_conio.cpp headers/cpp-files/bcrypt.cpp headers/cpp-files/blowfish.cpp headers/cpp-files/getch_getline.cpp headers/cpp-files/leave.cpp headers/cpp-files/hostHttp.cpp 
-F_LINK_CLIENT=headers/cpp-files/linux_conio.cpp headers/cpp-files/getch_getline.cpp headers/cpp-files/leave.cpp headers/cpp-files/fetchHttp.cpp
+F_LINK=headers/cpp-files/linux_conio.cpp headers/cpp-files/bcrypt.cpp headers/cpp-files/blowfish.cpp headers/cpp-files/getch_getline_sv.cpp headers/cpp-files/leave.cpp headers/cpp-files/hostHttp.cpp 
+F_LINK_CLIENT=headers/cpp-files/linux_conio.cpp headers/cpp-files/getch_getline_cl.cpp headers/cpp-files/leave.cpp headers/cpp-files/fetchHttp.cpp
 CLIENT_SRCS=client.cpp
 LIBS=-lcryptopp -lfmt -lncurses -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl
 LIBS_CLIENT=-lcryptopp -lfmt -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl

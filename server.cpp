@@ -22,6 +22,7 @@
 #include <map>
 #include <atomic>
 #include "headers/header-files/serverMenuAndEncry.h"
+#include "headers/header-files/leave.h"
 #include "headers/header-files/hostHttp.h"
 #include "headers/header-files/fileAndDirHandler.h"
 
@@ -998,7 +999,7 @@ int main()
         // std::cout << "client ip: " << clientIp << std::endl;
         encServer encIp;
         const std::string hashedIp = encIp.hash_data(clientIp);
-        //
+
         if (SSL_accept(ssl_cl) <= 0)
         {
             ERR_print_errors_fp(stderr);

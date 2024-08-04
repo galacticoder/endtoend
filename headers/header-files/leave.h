@@ -4,15 +4,14 @@
 #pragma once
 
 #include <iostream>
-#include <fmt/core.h>
-#include <filesystem>
-#include "getch_getline.h"
-#include "linux_conio.h"
 
 #define eraseLine "\033[2K\r"
 
-void delIt(const string &path);
-void leave(const string &path = formatPath, const string &fPath = fpath);
-void leaveFile(const string &path);
+const std::string fp = "keys-from-server/";
+const std::string fp2 = "your-keys/";
+
+void delIt(const std::string &path);
+void leave(const std::string &path = fp, const std::string &fPath = fp2);
+void leaveFile(const std::string &path);
 
 #endif

@@ -1,8 +1,6 @@
 #include <iostream>
 #include <fmt/core.h>
 #include <filesystem>
-#include "../header-files/getch_getline.h"
-#include "../header-files/linux_conio.h"
 #include "../header-files/leave.h"
 
 #define eraseLine "\033[2K\r"
@@ -72,15 +70,11 @@ void delIt(const string &path)
 
 void leave(const string &path, const string &fPath)
 {
-    disable_conio_mode();
     delIt(path);
     delIt(fPath);
-    // exit(1);
 }
 
 void leaveFile(const string &path)
 {
-    disable_conio_mode();
     delIt(path);
-    // exit(1);
 }

@@ -19,8 +19,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include "bcrypt.h"
-#include "leave.h"
-#include "getch_getline.h"
+#include "getch_getline_sv.h"
+#include "linux_conio.h"
 
 #define SERVER_KEYPATH "server-keys"
 #define SRCPATH "server-recieved-client-keys/"
@@ -28,17 +28,15 @@
 #define clearScreen "\033[2J\r"
 const unsigned int KEYSIZE = 4096;
 
-void signalHandleMenu(int signum);
-void passVals(int &sock, SSL_CTX *ctxPass);
+void signalHandleServer(int signum);
 
 int serverSock;
 SSL_CTX *serverCtx;
-
 struct initMenu
 {
     short int getTermSize(int *ptrCols)
     {
-        signal(SIGINT, signalHandleMenu);
+        signal(SIGINT, signalHandleServer);
         struct winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
         *ptrCols = w.ws_col;
@@ -47,14 +45,14 @@ struct initMenu
 
     string hashP(const string &p, unordered_map<int, string> &hashedServerP)
     {
-        signal(SIGINT, signalHandleMenu);
+        signal(SIGINT, signalHandleServer);
         hashedServerP[1] = bcrypt::generateHash(p);
         return bcrypt::generateHash(p);
     }
 
     string generatePassword(unordered_map<int, string> &hashedServerP, int &&length = 8)
     {
-        signal(SIGINT, signalHandleMenu);
+        signal(SIGINT, signalHandleServer);
         CryptoPP::AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
 
@@ -74,7 +72,7 @@ struct initMenu
 
     void print_menu(WINDOW *menu_win, int highlight)
     {
-        signal(SIGINT, signalHandleMenu);
+        signal(SIGINT, signalHandleServer);
         int x, y, i;
         x = 2;
         y = 2;
@@ -100,7 +98,7 @@ struct initMenu
     string initmenu(unordered_map<int, string> hashServerStore)
     {
         int minLim = 6;
-        signal(SIGINT, signalHandleMenu);
+        signal(SIGINT, signalHandleServer);
         initscr();
         clear();
         noecho();
@@ -167,7 +165,7 @@ struct initMenu
         {
             std::cout << clearScreen;
             std::cout << "Enter a password: " << std::endl;
-            password = getinput_getch(SERVER_S, MODE_P);
+            password = getinput_getch(MODE_P);
             if (password.length() < minLim)
             {
                 std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
@@ -727,33 +725,5 @@ struct Receive
         return pemKey;
     }
 };
-
-void signalHandleMenu(int signum)
-{
-    endwin();
-    disable_conio_mode();
-    std::cout << eraseLine;
-    std::cout << "Server has been shutdown" << std::endl;
-    leave(S_PATH, SERVER_KEYPATH);
-    leaveFile(userPath);
-    close(serverSock);
-    SSL_CTX_free(serverCtx);
-    EVP_cleanup();
-    exit(signum);
-}
-
-void passVals(int &sock, SSL_CTX *ctxPass)
-{
-    serverSock += sock;
-    if (serverSock == sock)
-    {
-        std::cout << fmt::format("Server passed val [{}] to serverMenuAndEncryption.h", sock) << std::endl;
-    }
-    serverCtx = ctxPass;
-    if (serverCtx == ctxPass)
-    {
-        std::cout << "Server passed val ctx to serverMenuAndEncryption.h" << std::endl;
-    }
-}
 
 #endif

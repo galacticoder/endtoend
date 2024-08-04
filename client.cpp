@@ -38,8 +38,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include "headers/header-files/encry.h"
-#include "headers/header-files/getch_getline.h" // including my own getline function i made for better user input allows arrow keys and stuff
+#include "headers/header-files/getch_getline_cl.h" // including my own getline function i made for better user input allows arrow keys and stuff
 #include "headers/header-files/leave.h"
+#include "headers/header-files/linux_conio.h"
 #include "headers/header-files/termCmds.h"
 #include "headers/header-files/fetchHttp.h"
 // #include "headers/header-files/sigHandler.h"
@@ -76,6 +77,7 @@ SSL *tlsSock;
 SSL_CTX *pubclctx;
 uint8_t leavePattern;
 int con = 0;
+short int checkExitMsg = 0;
 EVP_PKEY *receivedPublicKey;
 EVP_PKEY *prkey;
 
@@ -103,6 +105,17 @@ EVP_PKEY *prkey;
 //     }
 //     return false; // not reachable
 // }
+
+int readActiveUsers(const string &filepath)
+{
+    string active;
+    int activeInt;
+
+    ifstream opent(filepath);
+    getline(opent, active);
+    istringstream(active) >> activeInt;
+    return activeInt;
+}
 
 std::string t_w(std::string strIp)
 {
@@ -166,36 +179,26 @@ void signalhandle(int signum)
         leaveFile(usersActivePath);
         if (tlsSock)
         {
-            cout << "freeing tlssock: " << tlsSock << endl;
             SSL_shutdown(tlsSock);
             SSL_free(tlsSock);
-            cout << "freed tlssock" << endl;
         }
         if (clsockC)
         {
-            cout << "closing sock: " << clsockC << endl;
             close(clsockC);
         }
         if (pubclctx)
         {
-            cout << "freeing ctx" << endl;
             SSL_CTX_free(pubclctx);
-            cout << "freed ctx" << endl;
         }
         if (prkey)
         {
-            cout << "freeing key pr: " << prkey << endl;
             EVP_PKEY_free(prkey);
-            cout << "freed key pr" << endl;
         }
         if (receivedPublicKey)
         {
-            cout << "freeing key rpk: " << receivedPublicKey << endl;
             EVP_PKEY_free(receivedPublicKey);
         }
-        cout << "evp clean up" << endl;
         EVP_cleanup();
-        cout << "done" << endl;
         cout << eraseLine;
         exit(signum);
     }
@@ -297,6 +300,7 @@ void receiveMessages(SSL *ssl, EVP_PKEY *privateKey) /*change to the openssl one
                 {
                     std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                     passval(decryptedMessage);
+                    checkExitMsg = 1;
                 }
                 catch (const exception &e)
                 {
@@ -575,7 +579,7 @@ int main()
         cout << serverPassMsg << endl;
         curs.set_curs_vb();
         curs.set_inp();
-        string password = getinput_getch(CLIENT_S, MODE_P, cert, ctx, startSock, ssl, NULL, NULL, "", getTermSizeCols(), serverIp, PORT);
+        string password = getinput_getch(MODE_P, "", getTermSizeCols());
         curs.set_curs_vb(0);
         curs.set_inp(0);
         cout << eraseLine;
@@ -634,7 +638,7 @@ int main()
     std::cout << endl;
     curs.set_curs_vb();
     curs.set_inp();
-    user = getinput_getch(CLIENT_S, MODE_N, cert, ctx, startSock, ssl, NULL, NULL, "/|\\| ", 12, serverIp, PORT); // seperate chars by '|'delimeter
+    user = getinput_getch(MODE_N, "/|\\| ", 12); // seperate chars by '|'delimeter
     curs.set_curs_vb(0);
     curs.set_inp(0);
 
@@ -931,7 +935,7 @@ int main()
     while (true)
     {
         // signal(SIGINT, signalhandle);
-        message = getinput_getch(CLIENT_S, MODE_N, cert, ctx, startSock, ssl, receivedPublicKey, prkey, "", getTermSizeCols(), serverIp, PORT);
+        message = getinput_getch(MODE_N, "", getTermSizeCols());
         // signal(SIGINT, signalhandle);
         cout << endl;
         cout << "\033[A";

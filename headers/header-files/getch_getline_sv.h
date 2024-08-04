@@ -1,0 +1,23 @@
+#ifndef SERVERSIDEGETCH
+#define SERVERSIDEGETCH
+
+#include <iostream>
+#include <atomic>
+
+#define eraseLine "\033[2K\r"
+#define boldMode "\033[1m"
+#define boldModeReset "\033[22m"
+#define saveCursor "\033[s"
+#define restoreCursor "\033[u"
+#define clearScreen "\033[2J\r"
+#define MODE_P 'P'
+#define MODE_N 'N'
+#define SERVER_S 'S'
+#define S_PATH "server-recieved-client-keys"
+
+using namespace std;
+
+short int getTermSizeCols();
+string getinput_getch(char &&MODE = MODE_N, char sC = SERVER_S, const int &&maxLimit = getTermSizeCols());
+
+#endif
