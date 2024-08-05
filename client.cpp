@@ -556,8 +556,9 @@ int main()
 
     if (std::filesystem::is_regular_file(pu))
     {
-        std::string fi = receive.read_pem_key(pu);
         std::cout << fmt::format("Sending public key ({}) to server", pu) << std::endl;
+        std::string fi = receive.read_pem_key(pu);
+        // std::string fi = "sometextkjhgdshjkfjhgkld.txt";
         fi = enc.Base64Encode(fi);
         send.sendBase64Data(tlsSock, fi);
         std::cout << "Public key sent to server" << std::endl;
@@ -575,13 +576,27 @@ int main()
     else
     {
         std::cout << "Could not open the usersActive.txt file to read" << std::endl;
-        auto it = std::remove(clsock.begin(), clsock.end(), startSock);
-        clsock.erase(it, clsock.end());
         raise(SIGINT);
     }
 
     if (activeInt == 2)
     {
+        char oksigbuf[4096] = {0};
+        ssize_t bytes = SSL_read(tlsSock, oksigbuf, sizeof(oksigbuf));
+        oksigbuf[bytes] = '\0';
+        std::string okaysignalornot(oksigbuf);
+
+        if (okaysignalornot.substr(okaysignalornot.length() - 5, okaysignalornot.length()) == "MSGNO")
+        {
+            std::cout << dec.Base64Decode(okaysignalornot.substr(0, okaysignalornot.length() - 5)) << std::endl;
+            raise(SIGINT);
+        }
+        else if (okaysignalornot.substr(okaysignalornot.length() - 9, okaysignalornot.length()) == "EXISTERR")
+        {
+            std::cout << dec.Base64Decode(okaysignalornot.substr(0, okaysignalornot.length() - 9)) << std::endl;
+            raise(SIGINT);
+        }
+
         char name[4096] = {0};
         ssize_t bt = SSL_read(tlsSock, name, sizeof(name));
         name[bt] = '\0';
@@ -638,6 +653,22 @@ int main()
     }
     else if (activeInt == 1)
     {
+        char oksigbuf[4096] = {0};
+        ssize_t bytes = SSL_read(tlsSock, oksigbuf, sizeof(oksigbuf));
+        oksigbuf[bytes] = '\0';
+        std::string okaysignalornot(oksigbuf);
+
+        if (okaysignalornot.substr(okaysignalornot.length() - 5, okaysignalornot.length()) == "MSGNO")
+        {
+            std::cout << dec.Base64Decode(okaysignalornot.substr(0, okaysignalornot.length() - 5)) << std::endl;
+            raise(SIGINT);
+        }
+        else if (okaysignalornot.substr(okaysignalornot.length() - 9, okaysignalornot.length()) == "EXISTERR")
+        {
+            std::cout << dec.Base64Decode(okaysignalornot.substr(0, okaysignalornot.length() - 9)) << std::endl;
+            raise(SIGINT);
+        }
+
         std::cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << std::endl;
         leavePattern = 0;
         termcmd termcmdProgress;

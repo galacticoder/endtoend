@@ -74,7 +74,7 @@ struct initMenu
         x = 2;
         y = 2;
         box(menu_win, 0, 0);
-        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Exit"};
+        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Make user request to join | without pass", "Make user request to join | with pass", "Exit"};
         int n_choices = sizeof(choices) / sizeof(char *);
 
         for (i = 0; i < n_choices; ++i)
@@ -114,7 +114,7 @@ struct initMenu
         WINDOW *menu_win = newwin(height, width, starty, startx);
         keypad(menu_win, TRUE);
 
-        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Exit"}; // 1==set//2==gen//3==nopass//4==exit
+        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Make user request to join | without pass", "Make user request to join | with pass", "Exit"}; // 1==set//2==gen//3==nopass//4==exit
         int n_choices = sizeof(choices) / sizeof(char *);
         int highlight = 1;
         int choice = 0;
@@ -191,7 +191,35 @@ struct initMenu
             std::cout << "Server is starting up without password..." << std::endl;
             return "";
         }
-        else if (choice == 4)
+        else if (choice == 4) // user requests without pass
+        {
+            std::cout << clearScreen;
+            std::cout << "Server is starting up without password and users need to request to join the server" << std::endl;
+            return "PNINT4";
+        }
+        else if (choice == 5) // user requests with pass
+        {
+            std::cout << clearScreen;
+            std::cout << "Enter a password: " << std::endl;
+            password = getinput_getch(MODE_P);
+
+            if (password.length() < minLim)
+            {
+                std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
+                exit(1);
+            }
+
+            std::cout << std::endl;
+            std::cout << eraseLine;
+            std::cout << "\x1b[A";
+            std::cout << eraseLine;
+            std::cout << "\x1b[A";
+            std::cout << "Password has been set for server and users need to request to join the server" << std::endl;
+            std::string hash = bcrypt::generateHash(password);
+            hash.append("PNINT3");
+            return hash;
+        }
+        else if (choice == 6)
         {
             exit(1);
         }
