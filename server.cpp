@@ -308,6 +308,17 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
     return true;
 }
 
+// void test()
+// {
+//     if (bytesReceived <= 0)
+//     {
+//         {
+//             leaveCl(clientSocket, clsock, indexClientOut);
+//             std::cout << exitMsg << endl;
+//         }
+//     }
+// }
+
 void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath, std::string hashedIp)
 {
     encServer enc;
@@ -582,7 +593,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                         receive.saveFilePem(serverRecv, decodedData);
                                     }
 
-                                    static const string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
+                                    const std::string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
 
                                     if (is_regular_file(serverRecv))
                                     {
@@ -626,6 +637,13 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                         {
                                             std::this_thread::sleep_for(std::chrono::seconds(2));
                                             // do some checking to see if client is still connected //maybe make a thread and detach it and let that handle client disconnections in the background
+                                            // if (/*condition that it can read something if not then do the code under*/)
+                                            // {
+                                            //     {
+                                            //         leaveCl(clientSocket, clsock, indexClientOut);
+                                            //         std::cout << "Server shutting down due to no users connected" << std::endl;
+                                            //         raise(SIGINT);
+                                            //
                                             if (clientUsernames.size() > 1)
                                             {
                                                 std::cout << "Another user connected, proceeding..." << std::endl;

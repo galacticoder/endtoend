@@ -28,6 +28,7 @@
 const unsigned int KEYSIZE = 4096;
 
 void signalHandleServer(int signum);
+void signalHandleMenu(int signum);
 
 int serverSock;
 SSL_CTX *serverCtx;
@@ -35,7 +36,6 @@ struct initMenu
 {
     short int getTermSize(int *ptrCols)
     {
-        signal(SIGINT, signalHandleServer);
         struct winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
         *ptrCols = w.ws_col;
@@ -44,14 +44,12 @@ struct initMenu
 
     string hashP(const string &p, unordered_map<int, string> &hashedServerP)
     {
-        signal(SIGINT, signalHandleServer);
         hashedServerP[1] = bcrypt::generateHash(p);
         return bcrypt::generateHash(p);
     }
 
     string generatePassword(unordered_map<int, string> &hashedServerP, int &&length = 8)
     {
-        signal(SIGINT, signalHandleServer);
         CryptoPP::AutoSeededRandomPool random;
         const string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
 
@@ -71,7 +69,7 @@ struct initMenu
 
     void print_menu(WINDOW *menu_win, int highlight)
     {
-        signal(SIGINT, signalHandleServer);
+        signal(SIGINT, signalHandleMenu);
         int x, y, i;
         x = 2;
         y = 2;
@@ -97,7 +95,7 @@ struct initMenu
     string initmenu(unordered_map<int, string> hashServerStore)
     {
         int minLim = 6;
-        signal(SIGINT, signalHandleServer);
+        signal(SIGINT, signalHandleMenu);
         initscr();
         clear();
         noecho();
@@ -676,5 +674,15 @@ struct Receive
         return pemKey;
     }
 };
+
+void signalHandleMenu(int signum)
+{
+    curs_set(1);
+    clrtoeol();
+    refresh();
+    endwin();
+    std::cout << "Server initialization has stopped" << std::endl;
+    exit(signum);
+}
 
 #endif
