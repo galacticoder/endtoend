@@ -668,44 +668,45 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
                                     bool isConnected = true;
 
+                                    std::string joinMsgForServer = fmt::format("{} has joined the chat", userStr);
+
+                                    auto itUserIndex = find(clientUsernames.begin(), clientUsernames.end(), userStr);
+                                    int userIndex = itUserIndex - clientUsernames.begin();
+                                    std::string joinMsg;
+
+                                    if (userIndex < 1)
+                                    {
+                                        joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex + 1]);
+                                    }
+                                    else
+                                    {
+                                        joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex - 1]);
+                                    }
+
+                                    EVP_PKEY *userKey = load.LoadPubOpenssl(fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr));
+                                    if (userKey)
+                                    {
+                                        std::string encJoin = enc.Enc(userKey, joinMsg);
+                                        encJoin = enc.Base64Encode(encJoin);
+                                        EVP_PKEY_free(userKey);
+                                        SSL_write(clientSocket, encJoin.c_str(), encJoin.size());
+                                        std::cout << joinMsgForServer << std::endl;
+                                    }
+                                    else
+                                    {
+                                        std::cout << "Cannot load user key for sending join message" << std::endl;
+                                        // SSL_write(); // send cannot load key message
+                                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                                        leaveCl(clientSocket, clsock, indexClientOut);
+                                        isConnected = false;
+                                    }
+
+                                    std::cout << "Connected clients: (";
+                                    std::cout << clientsNamesStr;
+                                    std::cout << ")" << endl;
+
                                     while (isConnected)
                                     {
-                                        std::string joinMsgForServer = fmt::format("{} has joined the chat", userStr);
-
-                                        auto itUserIndex = find(clientUsernames.begin(), clientUsernames.end(), userStr);
-                                        int userIndex = itUserIndex - clientUsernames.begin();
-                                        std::string joinMsg;
-
-                                        if (userIndex < 1)
-                                        {
-                                            joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex + 1]);
-                                        }
-                                        else
-                                        {
-                                            joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex - 1]);
-                                        }
-
-                                        EVP_PKEY *userKey = load.LoadPubOpenssl(fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr));
-                                        if (userKey)
-                                        {
-                                            std::string encJoin = enc.Enc(userKey, joinMsg);
-                                            encJoin = enc.Base64Encode(encJoin);
-                                            EVP_PKEY_free(userKey);
-                                            SSL_write(clientSocket, encJoin.c_str(), encJoin.size());
-                                            std::cout << joinMsgForServer << std::endl;
-                                        }
-                                        else
-                                        {
-                                            std::cout << "Cannot load user key for sending join message" << std::endl;
-                                            // SSL_write(); // send cannot load key message
-                                            std::this_thread::sleep_for(std::chrono::seconds(1));
-                                            leaveCl(clientSocket, clsock, indexClientOut);
-                                            isConnected = false;
-                                        }
-
-                                        std::cout << "Connected clients: (";
-                                        std::cout << clientsNamesStr;
-                                        std::cout << ")" << endl;
 
                                         if (checkPassHash(passGetArg, clientSocket, clsock, serverHash, pnInt, indexClientOut, userStr) != false)
                                         {
