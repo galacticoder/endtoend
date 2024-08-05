@@ -21,7 +21,7 @@ std::vector<std::string> message;
 std::vector<char> modeP;
 
 void signalhandle(int signum);
-extern int checkExitMsg;
+extern int checkMsg;
 std::string messagePassedClient;
 
 void checkMessage(std::atomic<bool> &running, unsigned int update_secs)
@@ -31,7 +31,7 @@ void checkMessage(std::atomic<bool> &running, unsigned int update_secs)
     {
         try
         {
-            if (checkExitMsg == 1)
+            if (checkMsg == 1)
             {
                 running = false;
             }
@@ -84,7 +84,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
             set_default_terminal();
             std::cout.flush();
             std::cout << messagePassedClient << std::endl;
-            checkExitMsg = 0;
+            checkMsg = 0;
             break;
         }
 

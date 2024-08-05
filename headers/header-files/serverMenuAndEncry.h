@@ -235,7 +235,7 @@ struct LoadKey
         if (!bio)
         {
             ERR_print_errors_fp(stderr);
-            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
+            std::cout << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
             return nullptr;
         }
 
@@ -244,7 +244,7 @@ struct LoadKey
 
         if (!pkey)
         {
-            std::cerr << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
+            std::cout << fmt::format("Error loading public key from path {}", publicKeyFile) << std::endl;
             ERR_print_errors_fp(stderr);
             return nullptr;
         }
@@ -256,50 +256,6 @@ struct LoadKey
 
 struct makeServerKey
 {
-    void extractPubKey(const std::string certFile, const std::string &pubKey)
-    {
-        FILE *certFileOpen = fopen(certFile.c_str(), "r");
-        if (!certFileOpen)
-        {
-            std::cerr << "Error opening cert file: " << certFile << std::endl;
-            return;
-        }
-
-        X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
-        fclose(certFileOpen);
-        if (!cert)
-        {
-            std::cerr << "Error reading certificate" << std::endl;
-            return;
-        }
-
-        EVP_PKEY *pubkey = X509_get_pubkey(cert);
-        if (!pubkey)
-        {
-            std::cerr << "Error extracting pubkey from cert" << std::endl;
-            X509_free(cert);
-            return;
-        }
-
-        FILE *pubkeyfile = fopen(pubKey.c_str(), "w");
-        if (!pubkeyfile)
-        {
-            std::cerr << "Error opening pub key file: " << pubKey << std::endl;
-            EVP_PKEY_free(pubkey);
-            X509_free(cert);
-            return;
-        }
-
-        if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
-        {
-            std::cerr << "Error writing public key to file" << std::endl;
-        }
-
-        fclose(pubkeyfile);
-        EVP_PKEY_free(pubkey);
-        X509_free(cert);
-        ERR_free_strings();
-    }
     makeServerKey(const std::string &keyfile, const std::string &certFile, const std::string &pubKey)
     {
         EVP_PKEY *pkey = nullptr;
@@ -384,7 +340,6 @@ struct makeServerKey
         BIO_free_all(bio);
         EVP_PKEY_free(pkey);
         X509_free(x509);
-        extractPubKey(certFile, pubKey);
     }
 };
 
@@ -424,17 +379,15 @@ struct initOpenSSL
         }
         if (SSL_CTX_use_PrivateKey_file(ctx, pkey, SSL_FILETYPE_PEM) <= 0)
         {
-            {
-                ERR_print_errors_fp(stderr);
-                raise(SIGINT);
-            }
+            ERR_print_errors_fp(stderr);
+            raise(SIGINT);
         }
         const char *cipherList = "ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:";
 
         if (SSL_CTX_set_cipher_list(ctx, cipherList) <= 0)
         {
             ERR_print_errors_fp(stderr);
-            exit(EXIT_FAILURE);
+            raise(SIGINT);
         }
     }
 };
@@ -569,7 +522,7 @@ struct DecServer
         }
         catch (const exception &e)
         {
-            std::cout << "Error in decoding: " << e.what() << std::endl;
+            std::cout << "Error in decrypting: " << e.what() << std::endl;
             return "err";
         }
         return "err";
@@ -599,11 +552,11 @@ struct Send
         std::ifstream file(filePath);
         if (!file.is_open())
         {
-            throw std::runtime_error(fmt::format("Could not open file: {}", filePath));
+            std::cout << fmt::format("Could not open file: {}", filePath) << std::endl;
         }
 
-        string buffer;
-        string line;
+        std::string buffer;
+        std::string line;
 
         while (getline(file, buffer))
         {
@@ -624,8 +577,7 @@ struct Send
         ssize_t sentBytes = SSL_write(socket, encodedData.c_str(), encodedData.size());
         if (sentBytes == -1)
         {
-            std::cout << "Error sending: " << encodedData << std::endl;
-            throw std::runtime_error(fmt::format("Error sending data: {}", encodedData));
+            std::cout << "Error sending data: " << encodedData << std::endl;
         }
     }
 
@@ -662,14 +614,14 @@ struct Receive
         std::ofstream file(filePath);
         if (!file.is_open())
         {
-            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
+            std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
         }
 
         file << buffer;
 
         if (!file)
         {
-            throw std::runtime_error("Error writing to file");
+            std::cout << "Error writing to file: " << filePath << std::endl;
         }
     }
 
@@ -678,14 +630,14 @@ struct Receive
         std::ofstream file(filePath, std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
+            std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
         }
 
         file << buffer;
 
         if (!file)
         {
-            throw std::runtime_error("Error writing to file");
+            std::cout << "Error writing to file: " << filePath << std::endl;
         }
     }
 
@@ -706,7 +658,7 @@ struct Receive
 
         if (bytesRead == -1)
         {
-            throw std::runtime_error("Error receiving data");
+            std::cout << "Error receiving data" << std::endl;
         }
 
         return receivedData;

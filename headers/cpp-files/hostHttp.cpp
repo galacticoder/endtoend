@@ -50,6 +50,7 @@ void handle_request(beast::tcp_stream &stream, http::request<http::string_body> 
 
 void startHost()
 {
+
     try
     {
         short int port = 85;

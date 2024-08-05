@@ -95,35 +95,35 @@ int fetchAndSave(const std::string &site, const std::string &outfile)
     return 0;
 }
 
-std::string fetchPubIp()
-{
-    CURL *curl;
-    CURLcode request;
-    // std::ofstream outFile(outfile, std::ios::binary);
-    std::string ip;
-    std::string site = "https://api.ipify.org";
+// std::string fetchPubIp()
+// {
+//     CURL *curl;
+//     CURLcode request;
+//     // std::ofstream outFile(outfile, std::ios::binary);
+//     std::string ip;
+//     std::string site = "https://api.ipify.org";
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init(); // init libcur
+//     curl_global_init(CURL_GLOBAL_DEFAULT);
+//     curl = curl_easy_init(); // init libcur
 
-    if (curl)
-    {
-        std::cout << "Curl has started" << std::endl;
-        curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBackIp);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ip);
-        request = curl_easy_perform(curl);
+//     if (curl)
+//     {
+//         std::cout << "Curl has started" << std::endl;
+//         curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
+//         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBackIp);
+//         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ip);
+//         request = curl_easy_perform(curl);
 
-        if (request != CURLE_OK)
-        {
-            curl_easy_strerror(request);
-            return "err";
-        }
-        curl_easy_cleanup(curl);
-        ip = hash_data(ip);
-        return ip;
-    }
-    curl_global_cleanup();
-    ip = hash_data(ip);
-    return ip;
-}
+//         if (request != CURLE_OK)
+//         {
+//             curl_easy_strerror(request);
+//             return "err";
+//         }
+//         curl_easy_cleanup(curl);
+//         ip = hash_data(ip);
+//         return ip;
+//     }
+//     curl_global_cleanup();
+//     ip = hash_data(ip);
+//     return ip;
+// }

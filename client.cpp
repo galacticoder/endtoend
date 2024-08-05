@@ -35,12 +35,13 @@
 #define RESET_TEXT "\033[0m"  // reset color to default
 #define xU "\u02DF"
 #define connectionSignal "C"
+#define joinSignal "JOINED"
 #define S_KEYS "server-keys/"
 #define usersActivePath "txt-files/usersActive.txt"
 
 int startSock;
 short leavePattern;
-short checkExitMsg = 0;
+short checkMsg = 0;
 std::vector<int> clsock;
 std::vector<std::string> usersActiveVector;
 SSL *tlsSock;
@@ -213,7 +214,7 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
                 {
                     std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
                     passval(decryptedMessage);
-                    checkExitMsg = 1;
+                    checkMsg = 1;
                 }
                 catch (const std::exception &e)
                 {
@@ -316,7 +317,6 @@ int main()
     { // get server cert and exetract public key
         const std::string get = fmt::format("http://{}:{}/", serverIp, 85);
         std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
-        fetchAndSave(get, cert);
         if (fetchAndSave(get, cert) == 1)
         {
             std::cout << "Could not fetch server cert" << std::endl;
@@ -744,6 +744,8 @@ int main()
 
     curs.set_curs_vb();
     curs.set_inp();
+
+    // send joined signal
 
     while (true)
     {

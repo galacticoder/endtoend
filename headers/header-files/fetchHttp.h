@@ -7,6 +7,6 @@
 
 std::string hash_data(const std::string &pt);
 int fetchAndSave(const std::string &site, const std::string &outfile);
-std::string fetchPubIp();
+// std::string fetchPubIp();
 
 #endif
