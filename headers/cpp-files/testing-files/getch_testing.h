@@ -1,9 +1,9 @@
-#ifndef IGETLINE
-#define IGETLINE
+#ifndef SERVERSIDEGETCH
+#define SERVERSIDEGETCH
+// including my own getline function i made for better user input allows arrow keys and stuff
 
 #include <iostream>
 #include <atomic>
-#include <openssl/ssl.h>
 
 #define eraseLine "\033[2K\r"
 #define boldMode "\033[1m"
@@ -13,23 +13,12 @@
 #define clearScreen "\033[2J\r"
 #define MODE_P 'P'
 #define MODE_N 'N'
-#define CLIENT_S 'C'
 #define SERVER_S 'S'
 #define S_PATH "server-recieved-client-keys"
-#define formatPath "keys-from-server/"
-#define fpath "your-keys/"
 
 using namespace std;
 
-// void readUsersActiveFile(const string usersActivePath, std::atomic<bool>& running, unsigned int update_secs);
-// void delIterate(const string& keyPath);
-void isPortOpen(const std::string &address, int port, std::atomic<bool> &running, unsigned int update_secs);
 short int getTermSizeCols();
-void signalhandleGetch(int signum);
-bool findIn(const char &find, const string &In);
-int readActiveUsers(const string &filepath);
-string getinput_getch(char sC = CLIENT_S, char &&MODE = MODE_N, const std::string cert = "NONE", SSL_CTX *ctx = NULL, int sock = 0, SSL *sslC = NULL, const string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const string &serverIp = "-1", int PORT = 0);
-void passval(const std::string &messagePassed);
-void passValsForSIGhandle(SSL_CTX *ctx, int sock);
+std::string getinput_getch(char &&MODE = MODE_N, const int &&maxLimit = getTermSizeCols());
 
 #endif

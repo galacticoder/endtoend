@@ -315,7 +315,7 @@ int main()
     }
 
     { // get server cert and exetract public key
-        const std::string get = fmt::format("http://{}:{}/", serverIp, 85);
+        const std::string get = fmt::format("http://{}:{}/", serverIp, 90);
         std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
         if (fetchAndSave(get, cert) == 1)
         {
@@ -400,14 +400,41 @@ int main()
     ratelimbuf[rateb] = '\0';
     std::string rateB(ratelimbuf); // double check to see if your rate limited or joining past the limit
 
-    if (rateB.substr(rateB.length() - 11, rateB.length()) == "RATELIMITED")
+    if (rateB.size() > 10 && rateB.substr(rateB.length() - 11, rateB.length()) == "RATELIMITED")
     {
         std::cout << dec.Base64Decode(rateB.substr(0, rateB.length() - 11)) << std::endl;
         raise(SIGINT);
     }
-    else if (rateB.substr(rateB.length() - 3, rateB.length()) == "LIM")
+    else if (rateB.size() > 10 && rateB.substr(rateB.length() - 3, rateB.length()) == "LIM")
     {
         std::cout << dec.Base64Decode(rateB.substr(0, rateB.length() - 3)) << std::endl;
+        raise(SIGINT);
+    }
+
+    char requestBuf[200] = {0};
+    ssize_t requestBytes = SSL_read(tlsSock, requestBuf, sizeof(requestBuf) - 1);
+    requestBuf[requestBytes] = '\0';
+    std::string requestNeeded(requestBuf); // double check to see if your rate limited or joining past the limit
+
+    if (requestNeeded.size() > 10 && requestNeeded.substr(requestNeeded.length() - 3, requestNeeded.length()) == "REQ")
+    {
+        std::cout << dec.Base64Decode(requestNeeded.substr(0, requestNeeded.length() - 3)) << std::endl;
+        // raise(SIGINT);
+    }
+
+    char accBuff[200] = {0};
+    ssize_t accBytes = SSL_read(tlsSock, accBuff, sizeof(accBuff) - 1);
+    accBuff[accBytes] = '\0';
+    std::string acc(accBuff); // double check to see if your rate limited or joining past the limit
+
+    if (acc.size() > 10 && acc.substr(acc.length() - 3, acc.length()) == "ACC")
+    {
+        std::cout << dec.Base64Decode(acc.substr(0, acc.length() - 3)) << std::endl;
+        // raise(SIGINT);
+    }
+    else if (acc.size() > 10 && acc.substr(acc.length() - 3, acc.length()) == "DEC")
+    {
+        std::cout << dec.Base64Decode(acc.substr(0, acc.length() - 3)) << std::endl;
         raise(SIGINT);
     }
 
@@ -428,8 +455,6 @@ int main()
     passSignal[bytesPassSig] = '\0';
     std::string passSig(passSignal);
 
-    const std::string serverPassMsg = "This server is password protected. Enter the password to join";
-
     if (passSig.back() == '*')
     {
         passSig.pop_back();
@@ -439,6 +464,7 @@ int main()
 
     else if (passSig[0] == '1')
     {
+        const std::string serverPassMsg = "This server is password protected. Enter the password to join";
         Enc encryptServerPass;
         std::cout << serverPassMsg << std::endl;
         curs.set_curs_vb();
@@ -671,8 +697,6 @@ int main()
 
         std::cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << std::endl;
         leavePattern = 0;
-        termcmd termcmdProgress;
-        int *ac = &activeInt;
 
         while (true)
         {
@@ -685,53 +709,61 @@ int main()
         }
 
         std::cout << "Another user connected, starting chat.." << std::endl;
+
+        // fix bug happening here----------------
         char sec[4096] = {0};
         ssize_t btSec = SSL_read(tlsSock, sec, sizeof(sec));
         sec[btSec] = '\0';
-        std::string secKey(sec);
+        std::string secKey(sec); // make this for the path receiving
+
+        std::cout << "seckey: " << secKey << std::endl;
 
         int firstPipe;
         int secondPipe;
         std::string pubUser;
 
-        if (secKey.length() > 50)
-        {
-            std::string s2find = ".pem";
-            int found = secKey.find(".pem") + s2find.length();
-            if (found != std::string::npos)
-            {
-                std::string encodedKey = secKey.substr(found);
-                secKey = secKey.substr(0, found);
-                firstPipe = secKey.find_last_of("/");
-                secondPipe = secKey.find_last_of("-");
-                pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-                std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
-                std::string decodedData2 = receive.base64Decode(encodedKey);
-                receive.saveFilePem(secKey, decodedData2);
-            }
-            else
-            {
-                std::cout << "Couldnt format sec key" << std::endl;
-                auto it = std::remove(clsock.begin(), clsock.end(), startSock);
-                clsock.erase(it, clsock.end());
-                raise(SIGINT);
-            }
-        }
+        // if (secKey.length() > 50)
+        // {
+        //     std::string s2find = ".pem";
+        //     int found = secKey.find(".pem") + s2find.length();
+        //     std::cout << "found is: " << found << std::endl;
+        //     if (found != std::string::npos)
+        //     {
+        //         std::string encodedKey = secKey.substr(found);
+        //         std::cout << "encoded key: " << encodedKey << std::endl;
+        //         secKey = secKey.substr(0, found);
+        //         std::cout << "secKey substringed: " << secKey << std::endl;
+        //         firstPipe = secKey.find_last_of("/");
+        //         secondPipe = secKey.find_last_of("-");
+        //         pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        //         std::cout << "pubuser: " << pubUser << std::endl;
+        //         std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
+        //         std::string decodedData2 = receive.base64Decode(encodedKey);
+        //         receive.saveFilePem(secKey, decodedData2);
+        //     }
+        //     else
+        //     {
+        //         std::cout << "Couldnt format sec key" << std::endl;
+        //         raise(SIGINT);
+        //     }
+        // }
 
-        else if (secKey.length() < 50)
-        {
-            firstPipe = secKey.find_last_of("/");
-            secondPipe = secKey.find_last_of("-");
-            pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        // else if (secKey.length() < 50)
+        // {
+        std::cout << "else secKey: " << secKey << std::endl;
+        firstPipe = secKey.find_last_of("/");
+        std::cout << "else secKey: " << secKey << std::endl;
+        secondPipe = secKey.find_last_of("-");
+        pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+        std::cout << "else pubuser: " << pubUser << std::endl;
 
-            if (secKey.length() < 50)
-            {
-                std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
-                std::string encodedData2 = receive.receiveBase64Data(tlsSock);
-                std::string decodedData2 = receive.base64Decode(encodedData2);
-                receive.saveFilePem(secKey, decodedData2);
-            }
-        }
+        std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
+        std::string encodedData2 = receive.receiveBase64Data(tlsSock);
+        std::cout << "encoded data: " << encodedData2 << std::endl;
+        std::string decodedData2 = receive.base64Decode(encodedData2);
+        std::cout << "decoded data: " << decodedData2 << std::endl;
+        receive.saveFilePem(secKey, decodedData2);
+        // }
 
         if (std::filesystem::is_regular_file(secKey))
         {
@@ -740,6 +772,7 @@ int main()
         else
         {
             std::cout << fmt::format("{}'s public key file does not exist", pubUser) << std::endl;
+            exit(1);
             std::cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << std::endl;
             raise(SIGINT);
         }
@@ -787,7 +820,6 @@ int main()
         std::cout << "\033[K";
         if (t_w(message) == "/quit")
         {
-            std::cout << "You have left the chat\n";
             raise(SIGINT);
         }
         else if (message.empty())

@@ -85,6 +85,8 @@ void enable_conio_mode()
     }
     conio_mode = true;
 
+    struct termios new_attributes;
+
     tcgetattr(STDIN_FILENO, &old_attributes);
     new_attributes = old_attributes;
     new_attributes.c_lflag &= ~(ICANON | ECHO);

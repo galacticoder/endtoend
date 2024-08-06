@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include <termios.h>
 #include <stdexcept>
 #include "../header-files/linux_conio.h"
 #include "../header-files/getch_getline_sv.h"
@@ -17,7 +18,7 @@ std::vector<char> modeP;
 
 void signalHandleServer(int signum);
 
-short int getTermSizeCols()
+short getTermSizeCols()
 {
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -29,7 +30,7 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit)
     signal(SIGINT, signalHandleServer);
     enable_conio_mode();
     int cursor_pos = 0;
-    short int cols_out = getTermSizeCols();
+    short cols_out = getTermSizeCols();
 
     while (true)
     {

@@ -18,6 +18,7 @@
 #include <regex>
 #include <stdlib.h>
 #include <unistd.h>
+#include <queue>
 #include <filesystem>
 #include <map>
 #include <atomic>
@@ -210,14 +211,15 @@ void waitTimer(const std::string hashedClientIp)
     std::lock_guard<std::mutex> lock(mutex);
     static std::default_random_engine generator(time(0));
     static std::uniform_int_distribution<int> distribution(10, 30);
-
+    //---
+    int additionalDelay = distribution(generator);
+    timeLimit += additionalDelay;
+    //--- put here means the more they attempt to join the more the timer adds | if put in running condition then it keeps the time the same even if they attempt to keep joining
     if (running == 0)
     {
         std::cout << "Starting timer timeout for user with hash ip: " << hashedClientIp << std::endl;
         running = 1;
         int len = hashedClientIp.length();
-        int additionalDelay = distribution(generator);
-        timeLimit += additionalDelay;
         while (timeLimit != 0)
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -325,7 +327,7 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
 //     }
 // }
 
-void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath, std::string hashedIp)
+void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath, std::string hashedIp, int &val)
 {
     encServer enc;
     DecServer dec;
@@ -344,18 +346,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
         {
             try
             {
-                auto it = triesIp.find(hashedIp);
-
-                if (it == triesIp.end())
-                {
-                    triesIp[hashedIp] = 1;
-                    std::cout << "Added new user to triesIp map" << std::endl;
-                }
-                else if (it != triesIp.end())
-                {
-                    triesIp[hashedIp]++;
-                }
-
                 short found;
 
                 for (const auto &pair : timeMap)
@@ -391,6 +381,14 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                 {
                     timeMap[hashedIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(); // if not found in timemap then make a new user in there using their hashed ip
                 }
+                if (val != 3)
+                {
+                    std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+                    std::string encoded = enc.Base64Encode((std::string)OKSIG);
+                    encoded.append("OK");
+                    SSL_write(clientSocket, encoded.c_str(), encoded.size());
+                }
+                else if (val == 4)
                 {
                     std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
                     std::string encoded = enc.Base64Encode((std::string)OKSIG);
@@ -487,6 +485,13 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                             std::cout << fmt::format("User with hashed ip [{}..] has entered the wrong password and has been kicked", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
                             return;
                         }
+                    }
+                    else if (pnInt == 2)
+                    {
+                        std::cout << fmt::format("Sending hashed ip [{}..] signal okay [2]", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+                        std::string encoded = enc.Base64Encode((std::string)OKSIG);
+                        encoded.append("OK");
+                        SSL_write(clientSocket, encoded.c_str(), encoded.size());
                     }
                 }
                 else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1)
@@ -650,10 +655,10 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                 {
                                     string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[1]);
                                     SSL_write(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length());
+                                    std::this_thread::sleep_for(std::chrono::seconds(1));
                                 }
-                                std::this_thread::sleep_for(std::chrono::seconds(1));
                                 string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                                std::string fi2 = receive.read_pem_key(sendToClient1); // file path is a string to the file path //error when reading the file
+                                std::string fi2 = receive.read_pem_key(sendToClient1);
                                 std::string encodedDataClient = send.b64EF(fi2);
                                 send.sendBase64Data(clientSocket, encodedDataClient); // send encoded key
                                 cout << "Sent client 2's public key to client 1" << endl;
@@ -865,6 +870,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
 int main()
 {
+    std::queue<std::string> joinRequests;
     int pnInt;
     int val;
     const std::string serverKeysPath = SERVER_KEYPATH;
@@ -1019,6 +1025,7 @@ int main()
         inet_ntop(AF_INET, &client_addr.sin_addr, clientIp, INET_ADDRSTRLEN);
         encServer encIp;
         const std::string hashedIp = encIp.hash_data(clientIp);
+        clientIp[0] = '\0';
 
         if (SSL_accept(ssl_cl) <= 0)
         {
@@ -1050,28 +1057,91 @@ int main()
             conrun = 0;
             const std::string rateLimited = fmt::format("Rate limit reached. Try again in {} seconds", timeLimit);
 
+            // std::this_thread::sleep_for(std::chrono::seconds(1));
             std::string encodedV = encodeMsg.Base64Encode(rateLimited);
             encodedV.append("RATELIMITED");
-
             SSL_write(ssl_cl, encodedV.c_str(), encodedV.size());
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             leaveCl(ssl_cl, clientSocket);
             std::cout << "Client kicked for attempting to join too frequently" << std::endl;
         }
-
-        /*
-            make a condition here where it checks the val and if its 3 or 4 then the server has to accept them
-        */
-
         else
         {
             conrun = 1;
             SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
         }
 
+        auto it = triesIp.find(hashedIp);
+
+        if (it == triesIp.end())
+        {
+            triesIp[hashedIp] = 1;
+            std::cout << "Added new user to triesIp map" << std::endl;
+        }
+        else if (it != triesIp.end())
+        {
+            triesIp[hashedIp]++;
+        }
+
+        if (val == 3 && triesIp[hashedIp] < 4) // check if users need to request the server to join
+        {
+            SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
+            encServer enc;
+            LoadKey load;
+            const std::string req = "Server needs to accept your join request. Waiting for server to accept..";
+            const std::string notAccepted = "Your join request to server has been rejected";
+            const std::string accepted = "Your join request to server has been accepted";
+            std::string encodeMsg = enc.Base64Encode(req).append("REQ");
+            SSL_write(ssl_cl, encodeMsg.c_str(), encodeMsg.size());
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            joinRequests.push(clientIp);
+            std::string ans;
+            // while (ans.size() == 0)
+            // {
+            std::string msg = fmt::format("User from ip [{}..] is requesting to join the server. Accept or no?(y/n): ", hashedIp.substr(0, hashedIp.length() / 4));
+            std::cout << fmt::format("User from ip [{}..] is requesting to join the server. Accept or no?(y/n): ", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+            ans = getinput_getch(MODE_N, 1);
+            // }
+            if (ans == "y")
+            {
+                std::string encodeAccept = enc.Base64Encode(accepted).append("ACC");
+                SSL_write(ssl_cl, encodeAccept.c_str(), encodeAccept.size());
+                joinRequests.pop();
+                std::cout << eraseLine;
+                std::cout << "User has been allowed in server" << std::endl;
+            }
+            else if (ans == "n")
+            {
+                std::string encodeDenied = enc.Base64Encode(notAccepted).append("DEC");
+                SSL_write(ssl_cl, encodeDenied.c_str(), encodeDenied.size());
+                joinRequests.pop();
+                std::cout << eraseLine;
+                std::cout << "User has been not allowed in server" << std::endl;
+                leaveCl(ssl_cl, clientSocket);
+                conrun = 0;
+            }
+            else
+            {
+                std::string encodeDenied = enc.Base64Encode(notAccepted).append("DEC");
+                SSL_write(ssl_cl, encodeDenied.c_str(), encodeDenied.size());
+                joinRequests.pop();
+                std::cout << eraseLine;
+                std::cout << "Invalid answer given" << std::endl;
+                std::cout << "User has been not allowed in server" << std::endl;
+                leaveCl(ssl_cl, clientSocket);
+                conrun = 0;
+            }
+        }
+        else
+        {
+            SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
+        }
+
         if (conrun != 0)
         {
-            thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path, hashedIp).detach();
+            thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path, hashedIp, std::ref(val)).detach();
         }
     }
     // thread(serverCommands).de..
