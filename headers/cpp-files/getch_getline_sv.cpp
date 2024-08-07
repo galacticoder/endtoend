@@ -25,8 +25,9 @@ short getTermSizeCols()
     return w.ws_col;
 }
 
-std::string getinput_getch(char &&MODE, const int &&maxLimit)
+std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string &sideMsg)
 { // N==normal//P==Password
+    std::cout << sideMsg;
     signal(SIGINT, signalHandleServer);
     enable_conio_mode();
     int cursor_pos = 0;
@@ -39,6 +40,7 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit)
         {
             std::cout << saveCursor;
             std::cout << eraseLine;
+            std::cout << sideMsg;
             if (MODE == 'P')
             {
                 for (int i : modeP)
@@ -130,6 +132,8 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit)
                         {
                             cout << saveCursor;
                             cout << eraseLine;
+                            std::cout << sideMsg;
+
                             for (string i : message)
                             {
                                 cout << i;
@@ -144,6 +148,8 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit)
                         if (message.size() + 1 == cols_out)
                         {
                             cout << eraseLine;
+                            std::cout << "> ";
+
                             for (string i : message)
                             {
                                 cout << i;

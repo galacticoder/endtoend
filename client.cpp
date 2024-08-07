@@ -464,19 +464,18 @@ int main()
 
     else if (passSig[0] == '1')
     {
-        const std::string serverPassMsg = "This server is password protected. Enter the password to join";
+        const std::string serverPassMsg = "This server is password protected. Enter the password to join: ";
         Enc encryptServerPass;
-        std::cout << serverPassMsg << std::endl;
         curs.set_curs_vb();
         curs.set_inp();
-        std::string password = getinput_getch(MODE_P, "", getTermSizeCols());
+        std::string password = getinput_getch(MODE_P, "", getTermSizeCols(), serverPassMsg);
         curs.set_curs_vb(0);
         curs.set_inp(0);
         std::cout << eraseLine;
         std::string encryptedPassword = encryptServerPass.enc(serverPublicKey, password);
         EVP_PKEY_free(serverPublicKey);
         encryptedPassword = encryptServerPass.Base64Encode(encryptedPassword);
-
+        //
         SSL_write(tlsSock, encryptedPassword.c_str(), encryptedPassword.length());
         std::cout << eraseLine;
 
@@ -508,11 +507,9 @@ int main()
         }
     }
 
-    std::cout << "Enter a username to go by" << std::endl;
-
     curs.set_curs_vb();
     curs.set_inp();
-    std::string user = getinput_getch(MODE_N, "/|\\| ", 12);
+    std::string user = getinput_getch(MODE_N, "/|\\| ", 12, "Enter a username to go by: ");
     curs.set_curs_vb(0);
     curs.set_inp(0);
 
@@ -808,8 +805,6 @@ int main()
 
     curs.set_curs_vb();
     curs.set_inp();
-
-    // send joined signal
 
     while (true)
     {

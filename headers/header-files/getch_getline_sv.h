@@ -19,6 +19,6 @@
 using namespace std;
 
 short int getTermSizeCols();
-std::string getinput_getch(char &&MODE = MODE_N, const int &&maxLimit = getTermSizeCols());
+std::string getinput_getch(char &&MODE = MODE_N, const int &&maxLimit = getTermSizeCols(), const std::string &sideMsg = "");
 
 #endif

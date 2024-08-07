@@ -161,8 +161,7 @@ struct initMenu
         if (choice == 1)
         {
             std::cout << clearScreen;
-            std::cout << "Enter a password: " << std::endl;
-            password = getinput_getch(MODE_P);
+            password = getinput_getch(MODE_P, getTermSizeCols(), "Enter a password: ");
             if (password.length() < minLim)
             {
                 std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
@@ -200,8 +199,7 @@ struct initMenu
         else if (choice == 5) // user requests with pass
         {
             std::cout << clearScreen;
-            std::cout << "Enter a password: " << std::endl;
-            password = getinput_getch(MODE_P);
+            password = getinput_getch(MODE_P, getTermSizeCols(), "Enter a password: ");
 
             if (password.length() < minLim)
             {

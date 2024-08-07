@@ -63,9 +63,10 @@ bool findIn(const char &find, const std::string &In)
     return false;
 }
 
-std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int &&maxLimit)
+std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int &&maxLimit, const std::string &sideMsg)
 { // N==normal//P==Password
     signal(SIGINT, signalhandle);
+    std::cout << sideMsg;
     enable_conio_mode();
     int cursor_pos = 0;
     short int cols_out = getTermSizeCols();
@@ -82,6 +83,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
         {
             disable_conio_mode();
             set_default_terminal();
+            std::cout << eraseLine;
             std::cout.flush();
             std::cout << messagePassedClient << std::endl;
             checkMsg = 0;
@@ -92,6 +94,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
         {
             std::cout << saveCursor;
             std::cout << eraseLine;
+            std::cout << sideMsg;
             if (MODE == 'P')
             {
                 for (int i : modeP)
@@ -183,6 +186,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                         {
                             std::cout << saveCursor;
                             std::cout << eraseLine;
+                            std::cout << sideMsg;
                             for (std::string i : message)
                             {
                                 std::cout << i;
@@ -198,6 +202,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                         {
                             // exit(1);
                             std::cout << eraseLine;
+                            std::cout << sideMsg;
                             for (std::string i : message)
                             {
                                 std::cout << i;

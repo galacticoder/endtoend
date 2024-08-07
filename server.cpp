@@ -560,8 +560,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                         {
                             clientUsernames.push_back(userStr);
                             std::cout << "Client username added to clientUsernames vector" << std::endl;
-                            updateActiveFile(clientUsernames.size());
-
+                            updateActiveFile(clientUsernames.size()); //
                             {
                                 string activeBuf = send.readFile(userPath); // file path is a string to the file path
                                 string ed = send.b64EF(activeBuf);
