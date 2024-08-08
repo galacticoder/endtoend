@@ -33,9 +33,7 @@
 
 #define GREEN_TEXT "\033[32m" // green text color
 #define RESET_TEXT "\033[0m"  // reset color to default
-#define xU "\u02DF"
 #define connectionSignal "C"
-#define joinSignal "JOINED"
 #define S_KEYS "server-keys/"
 #define usersActivePath "txt-files/usersActive.txt"
 
@@ -260,7 +258,7 @@ int main()
 {
     signal(SIGINT, signalhandle);
     leavePattern = 90;
-    char serverIp[30] = "127.0.0.1"; // change to the server ip
+    char serverIp[30] = "127.0.0.1"; // change to the server i
     const std::string portPath = "txt-files/PORT.txt";
     std::ifstream file(portPath);
     std::string PORTSTR;
@@ -268,8 +266,6 @@ int main()
     unsigned int PORT;
     std::istringstream(PORTSTR) >> PORT;
 
-    // while (running == true)
-    // {
     initOpenSSL initializeTls;
     termcmd curs;
     Enc enc;
@@ -362,9 +358,10 @@ int main()
         oksig[okbytes] = '\0';
         std::string okayStr(oksig);
 
-        if (okayStr == "OKAYSIGNAL")
+        if (okayStr != "OKAYSIGNAL")
         {
-            std::cout << "Server joined" << std::endl;
+            std::cout << "Server sent unknown signal. Leaving for security." << std::endl;
+            raise(SIGINT);
         }
     }
 
@@ -374,8 +371,7 @@ int main()
         if (tlsSock == nullptr)
         {
             std::cerr << "Failed to create tlsSock object\n";
-            close(startSock);
-            return 1;
+            raise(SIGINT);
         }
 
         SSL_set_fd(tlsSock, startSock);
@@ -854,7 +850,6 @@ int main()
             std::cout << eraseLine;
         }
     }
-
     raise(SIGINT);
-    return 0; // not reached
+    return 0;
 }

@@ -11,6 +11,5 @@ namespace http = boost::beast::http;
 
 // void handle_request(beast::tcp_stream &stream, http::request<http::string_body> req);
 void startHost();
-void startServerPingHandles();
 
 #endif

@@ -48,21 +48,6 @@ void handle_request(beast::tcp_stream &stream, http::request<http::string_body> 
     http::write(stream, res);
 }
 
-void handleUserPingRequest(beast::tcp_stream &stream, http::request<http::string_body> req)
-{
-    http::response<http::string_body> res;
-    res.version(req.version());
-    res.keep_alive(req.keep_alive());
-    res.set(http::field::server, "Beast");
-
-    res.result(http::status::ok);
-    res.set(http::field::content_type, "text/plain");
-    res.body() = "Server is up";
-    res.prepare_payload();
-
-    http::write(stream, res);
-}
-
 void startHost()
 {
     try
@@ -103,42 +88,5 @@ void startHost()
     catch (const std::exception &e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
-    }
-}
-
-void startServerPingHandles()
-{
-    try
-    {
-        net::io_context ioc;
-        short port = 95;
-
-        tcp::acceptor acceptor(ioc, tcp::endpoint(tcp::v4(), port));
-
-        std::cout << "Server ping handling has started on port " << port << std::endl;
-
-        while (true)
-        {
-            tcp::socket socket(ioc);
-            acceptor.accept(socket);
-
-            std::cout << "Server has been pinged" << std::endl;
-
-            beast::tcp_stream stream(std::move(socket));
-
-            beast::flat_buffer buffer;
-            http::request<http::string_body> req;
-            http::read(stream, buffer, req);
-
-            handleUserPingRequest(stream, req);
-
-            std::cout << "Replied to client ping" << std::endl;
-
-            stream.socket().shutdown(tcp::socket::shutdown_send);
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error from ping handling: " << e.what() << std::endl;
     }
 }

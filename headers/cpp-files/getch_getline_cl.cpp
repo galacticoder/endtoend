@@ -88,7 +88,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
         if (pingingrunning == false)
         {
             std::cout << eraseLine;
-            std::cout << "The server has been shutdown" << std::endl;
+            std::cout << "Server has been shutdown" << std::endl;
             raise(SIGINT);
         }
         if (running == false)
