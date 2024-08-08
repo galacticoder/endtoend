@@ -36,7 +36,7 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string 
     while (true)
     {
         short int cols = getTermSizeCols();
-        if (message.size() < cols)
+        if (message.size() < cols && message.size() > 1)
         {
             std::cout << saveCursor;
             std::cout << eraseLine;
