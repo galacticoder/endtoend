@@ -130,7 +130,7 @@ void broadcastMessage(const string &message, SSL *senderSocket, int &senderSock)
     }
 }
 
-string countUsernames(string &clientsNamesStr)
+std::string countUsernames(string &clientsNamesStr)
 {
     clientsNamesStr.clear();
     if (clientsNamesStr.empty())
@@ -734,23 +734,23 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                     string op64 = enc.Base64Encode(enc.Enc(keyLoad, exitMsg));
                                                     if (op64 != "err")
                                                     {
-                                                        std::cout << fmt::format("Broadcasting user []'s exit message", clientUsernames[index]) << std::endl;
+                                                        std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[0]) << std::endl;
                                                         broadcastMessage(op64, clientSocket, clsock);
                                                         EVP_PKEY_free(keyLoad);
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[index]) << std::endl;
+                                                    std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[0]) << std::endl;
                                                     leaveCl(clientSocket, clsock, indexClientOut, userStr);
-                                                    std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[index]) << std::endl;
+                                                    std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[0]) << std::endl;
                                                     return;
                                                 }
                                             }
                                             else if (clientUsernames[1] == userStr)
                                             {
                                                 int index2 = 1 - 1;
-                                                string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[index2]);
+                                                string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
                                                 EVP_PKEY *keyLoad2 = load.LoadPubOpenssl(pathpub2);
 
                                                 if (keyLoad2)
@@ -758,25 +758,29 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                                     std::string op642 = enc.Base64Encode(enc.Enc(keyLoad2, exitMsg));
                                                     if (op642 != "err")
                                                     {
-                                                        std::cout << fmt::format("Broadcasting user []'s exit message", clientUsernames[index2]) << std::endl;
+                                                        std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[1]) << std::endl;
                                                         broadcastMessage(op642, clientSocket, clsock);
                                                         EVP_PKEY_free(keyLoad2);
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[index2]) << std::endl;
+                                                    std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[1]) << std::endl;
                                                     leaveCl(clientSocket, clsock, indexClientOut, userStr);
-                                                    std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[index2]) << std::endl;
+                                                    std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[1]) << std::endl;
                                                     return;
                                                 }
                                             }
                                         }
-                                        auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
 
-                                        if (user != clientUsernames.rend())
+                                        if (clientUsernames.size() > 0)
                                         {
-                                            clientUsernames.erase((user + 1).base());
+                                            auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
+
+                                            if (user != clientUsernames.rend())
+                                            {
+                                                clientUsernames.erase((user + 1).base());
+                                            }
                                         }
 
                                         updateActiveFile(clientUsernames.size());
@@ -1116,8 +1120,7 @@ int main()
                     // while (ans.size() == 0)
                     // {
                     std::string msg = fmt::format("User from ip [{}..] is requesting to join the server. Accept or no?(y/n): ", hashedIp.substr(0, hashedIp.length() / 4));
-                    std::cout << fmt::format("User from ip [{}..] is requesting to join the server. Accept or no?(y/n): ", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
-                    ans = getinput_getch(MODE_N, 1);
+                    ans = getinput_getch(MODE_N, 1, msg);
                     // }
                     if (ans == "y")
                     {
