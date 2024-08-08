@@ -595,6 +595,7 @@ int main()
         sendssl.sendBase64Data(tlsSock, fi);
         std::cout << "Public key sent to server" << std::endl;
     }
+    std::cout << "Opening file users active: " << std::endl;
 
     std::ifstream opent(usersActivePath);
     std::string active;
@@ -602,8 +603,10 @@ int main()
 
     if (opent.is_open())
     {
+        std::cout << "Opening file users active 2: " << std::endl;
         std::getline(opent, active);
         std::istringstream(active) >> activeInt;
+        std::cout << "Active int is: " << activeInt << std::endl;
     }
     else
     {
