@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include "../header-files/linux_conio.h"
 #include "../header-files/getch_getline_cl.h"
+#include "../header-files/fetchHttp.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"
@@ -63,7 +64,7 @@ bool findIn(const char &find, const std::string &In)
     return false;
 }
 
-std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int &&maxLimit, const std::string &sideMsg)
+std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int &&maxLimit, const std::string &sideMsg, const char *si, unsigned int prt)
 { // N==normal//P==Password
     signal(SIGINT, signalhandle);
     std::cout << sideMsg;
@@ -76,9 +77,20 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
     std::thread msgReceived(checkMessage, std::ref(running), update_interval);
     msgReceived.detach();
 
+    std::atomic<bool> pingingrunning{true};
+    const unsigned int ui = 2;
+    std::thread pingingServer(pingServer, si, prt, std::ref(pingingrunning), ui);
+    pingingServer.detach();
+
     while (true)
     {
         short int cols = getTermSizeCols();
+        if (pingingrunning == false)
+        {
+            std::cout << eraseLine;
+            std::cout << "The server has been shutdown" << std::endl;
+            raise(SIGINT);
+        }
         if (running == false)
         {
             disable_conio_mode();

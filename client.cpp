@@ -5,6 +5,7 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
 #include <fmt/core.h>
@@ -12,7 +13,6 @@
 #include <cstdio>
 #include <ctime>
 #include <cstdlib>
-#include <arpa/inet.h>
 #include <cstdlib>
 #include <termios.h>
 #include <regex>
@@ -258,15 +258,24 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
 
 int main()
 {
-    leavePattern = 90;
     signal(SIGINT, signalhandle);
+    leavePattern = 90;
+    char serverIp[30] = "127.0.0.1"; // change to the server ip
+    const std::string portPath = "txt-files/PORT.txt";
+    std::ifstream file(portPath);
+    std::string PORTSTR;
+    std::getline(file, PORTSTR);
+    unsigned int PORT;
+    std::istringstream(PORTSTR) >> PORT;
 
+    // while (running == true)
+    // {
     initOpenSSL initializeTls;
     termcmd curs;
     Enc enc;
     Dec dec;
     LoadKey load;
-    Send send;
+    Send sendssl;
     Recieve receive;
 
     {
@@ -283,14 +292,6 @@ int main()
         createDir(formatPath);
         createDir(S_KEYS);
     }
-
-    char serverIp[30] = "127.0.0.1"; // change to the server ip
-    const std::string portPath = "txt-files/PORT.txt";
-    std::ifstream file(portPath);
-    std::string PORTSTR;
-    std::getline(file, PORTSTR);
-    int PORT;
-    std::istringstream(PORTSTR) >> PORT;
 
     std::string pu = fmt::format("{}{}-pubkey.pem", fpath, "mykey");
     std::string puServer = fmt::format("{}{}-pubkey.pem", formatPath, "server");
@@ -352,6 +353,18 @@ int main()
         {
             std::cout << "Cannot connect to server\n";
             raise(SIGINT);
+        }
+
+        send(startSock, connectionSignal, strlen(connectionSignal), 0);
+
+        char oksig[200] = {0};
+        ssize_t okbytes = read(startSock, oksig, sizeof(oksig) - 1);
+        oksig[okbytes] = '\0';
+        std::string okayStr(oksig);
+
+        if (okayStr == "OKAYSIGNAL")
+        {
+            std::cout << "Server joined" << std::endl;
         }
     }
 
@@ -468,7 +481,7 @@ int main()
         Enc encryptServerPass;
         curs.set_curs_vb();
         curs.set_inp();
-        std::string password = getinput_getch(MODE_P, "", getTermSizeCols(), serverPassMsg);
+        std::string password = getinput_getch(MODE_P, "", getTermSizeCols(), serverPassMsg, serverIp, PORT);
         curs.set_curs_vb(0);
         curs.set_inp(0);
         std::cout << eraseLine;
@@ -509,7 +522,7 @@ int main()
 
     curs.set_curs_vb();
     curs.set_inp();
-    std::string user = getinput_getch(MODE_N, "/|\\| ", 12, "Enter a username to go by: ");
+    std::string user = getinput_getch(MODE_N, "/|\\| ", 12, "Enter a username to go by: ", serverIp, PORT);
     curs.set_curs_vb(0);
     curs.set_inp(0);
 
@@ -583,7 +596,7 @@ int main()
         std::string fi = receive.read_pem_key(pu);
         // std::string fi = "sometextkjhgdshjkfjhgkld.txt";
         fi = enc.Base64Encode(fi);
-        send.sendBase64Data(tlsSock, fi);
+        sendssl.sendBase64Data(tlsSock, fi);
         std::cout << "Public key sent to server" << std::endl;
     }
 
@@ -808,7 +821,7 @@ int main()
 
     while (true)
     {
-        message = getinput_getch(MODE_N, "", getTermSizeCols());
+        message = getinput_getch(MODE_N, "", getTermSizeCols(), "", serverIp, PORT);
         std::cout << std::endl;
         std::cout << "\033[A";
         std::cout << "\r";
@@ -842,5 +855,6 @@ int main()
         }
     }
 
-    return 0;
+    raise(SIGINT);
+    return 0; // not reached
 }

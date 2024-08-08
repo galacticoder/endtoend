@@ -1,12 +1,24 @@
 #include <iostream>
 #include <fstream>
-#include <string>
 #include "../header-files/fetchHttp.h"
 #include <curl/curl.h>
 #include <unistd.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <boost/asio.hpp>
+#include <boost/asio/error.hpp>
+#include <boost/beast.hpp>
 #include <iomanip>
+#include <fmt/core.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <thread>
+
+namespace asio = boost::asio;
+namespace beast = boost::beast;
+using tcp = boost::asio::ip::tcp;
 
 size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -16,53 +28,12 @@ size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
     return totalSize;
 }
 
-size_t writeCallBackIp(void *contents, size_t size, size_t nmemb, void *userp)
+size_t writePing(void *contents, size_t size, size_t nmemb, void *userp)
 {
     std::string *result = static_cast<std::string *>(userp);
     size_t totalSize = size * nmemb;
     result->append(static_cast<char *>(contents), totalSize);
     return totalSize;
-}
-
-std::string hash_data(const std::string &pt)
-{
-    unsigned char hash[EVP_MAX_MD_SIZE];
-    unsigned int lenHash = 0;
-    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    if (mdctx == nullptr)
-    {
-        std::cout << "Error creating ctx" << std::endl;
-        return "err";
-    }
-
-    if (EVP_DigestInit_ex(mdctx, EVP_sha512(), nullptr) != 1)
-    {
-        std::cout << "Error initializing digest" << std::endl;
-        EVP_MD_CTX_free(mdctx);
-        return "err";
-    }
-
-    if (EVP_DigestUpdate(mdctx, pt.c_str(), pt.size()) != 1)
-    {
-        std::cout << "Error updating digest" << std::endl;
-        EVP_MD_CTX_free(mdctx);
-        return "err";
-    }
-    if (EVP_DigestFinal_ex(mdctx, hash, &lenHash) != 1)
-    {
-        std::cout << "Error finalizing digest" << std::endl;
-        EVP_MD_CTX_free(mdctx);
-        return "err";
-    }
-
-    EVP_MD_CTX_free(mdctx);
-
-    std::stringstream ss;
-    for (unsigned int i = 0; i < lenHash; ++i)
-    {
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
-    }
-    return ss.str(); // returning hash
 }
 
 int fetchAndSave(const std::string &site, const std::string &outfile)
@@ -95,6 +66,56 @@ int fetchAndSave(const std::string &site, const std::string &outfile)
     return 0;
 }
 
+void pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
+{
+    const auto wait_duration = std::chrono::seconds(update_secs);
+    while (1)
+    {
+        try
+        {
+            int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+            if (clientSocket < 0)
+            {
+            }
+
+            sockaddr_in serverAddress;
+            serverAddress.sin_family = AF_INET;
+            serverAddress.sin_port = htons(port);
+
+            if (inet_pton(AF_INET, host, &serverAddress.sin_addr) <= 0)
+            {
+                running = false;
+            }
+
+            if (connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
+            {
+                close(clientSocket);
+            }
+
+            const std::string pingMsg = "ping";
+            send(clientSocket, pingMsg.c_str(), pingMsg.length(), 0);
+
+            char buffer[8] = {0};
+            int valread = read(clientSocket, buffer, 8);
+            buffer[valread] = '\0';
+            std::string readStr(buffer);
+
+            if (readStr == "pong")
+            {
+                close(clientSocket);
+            }
+            else
+            {
+                close(clientSocket);
+                running = false;
+            }
+            std::this_thread::sleep_for(wait_duration);
+        }
+        catch (const std::exception &e)
+        {
+        }
+    }
+}
 // std::string fetchPubIp()
 // {
 //     CURL *curl;
