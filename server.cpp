@@ -51,6 +51,7 @@ int serverSocket;
 short timeLimit = 90;
 short running;
 short limOfUsers = 2;
+short joins;
 
 const std::string limReached = "The limit of users has been reached for this chat. Exiting..";
 const std::string notVerified = "Wrong password. You have been kicked.#N"; // #N
@@ -566,6 +567,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                 string ed = send.b64EF(activeBuf);
                                 send.sendBase64Data(clientSocket, ed);
                             }
+                            joins++;
 
                             std::string userPubPath = fmt::format("keys-server/{}-pubkeyserver.pem", userStr);
                             std::string serverRecv;
@@ -665,6 +667,34 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                             else
                             {
                                 return;
+                            }
+
+                            if (joins > 2)
+                            {
+                                for (SSL *client : tlsSocks)
+                                {
+                                    std::cout << "size tlssocks: " << tlsSocks.size() << std::endl;
+                                    if (client != tlsSocks[1])
+                                    {
+                                        std::cout << "Sending pub key to sock: " << client << std::endl;
+                                        std::string user1msg = "Pubkeysendingcl1";
+                                        user1msg = enc.Base64Encode(user1msg);
+                                        user1msg.append("PSE");
+                                        SSL_write(client, user1msg.c_str(), user1msg.size());
+                                        string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                                        std::string cl1path = fmt::format("keys-from-server/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                                        SSL_write(client, cl1path.c_str(), cl1path.size());
+                                        std::string cl2again = receive.read_pem_key(sendToClient1);
+                                        std::cout << "KEYTOSEND: " << cl2again << std::endl;
+                                        std::string encodedDataClient2 = send.b64EF(cl2again);
+                                        send.sendBase64Data(client, encodedDataClient2); // send encoded key
+                                        cout << "Sent client 2's public key to client 1" << endl;
+                                    }
+                                    else
+                                    {
+                                        std::cout << "Ignore" << std::endl;
+                                    }
+                                }
                             }
 
                             clientsNamesStr = countUsernames(clientsNamesStr);

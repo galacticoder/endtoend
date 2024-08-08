@@ -174,6 +174,8 @@ std::string getTime()
 
 void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
 {
+    Recieve receive;
+    LoadKey load;
     char buffer[4096];
     while (true)
     {
@@ -205,6 +207,54 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
                 }
             }
 
+            else if (receivedMessage.substr(receivedMessage.length() - 3, receivedMessage.length()) == "PSE")
+            {
+                Dec dec;
+                char sec2Buff[4096] = {0};
+                ssize_t btcl2 = SSL_read(tlsSock, sec2Buff, sizeof(sec2Buff));
+                sec2Buff[btcl2] = '\0';
+                std::string cl2recv(sec2Buff); // for file path to save to and extract username from
+                // std::cout << "Seckey 2: " << cl2recv << std::endl;
+                // std::cout << "Seckey 2 decoded: " << dec.Base64Decode(cl2recv) << std::endl;
+
+                int firstPipe;
+                int secondPipe;
+                std::string pubUser;
+
+                firstPipe = cl2recv.find_last_of("/");
+                secondPipe = cl2recv.find_last_of("-");
+                pubUser = cl2recv.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
+
+                // std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
+                std::string encodedData2 = receive.receiveBase64Data(tlsSock);
+                std::string decodedData2 = receive.base64Decode(encodedData2);
+                receive.saveFilePem(cl2recv, decodedData2);
+                // }
+
+                // if (std::filesystem::is_regular_file(cl2recv))
+                // {
+                // std::cout << fmt::format("Recieved {}'s pub key", pubUser) << std::endl;
+                // continue;
+                // }
+                // else
+                // {
+                //     std::cout << fmt::format("{}'s public key file does not exist", pubUser) << std::endl;
+                //     std::cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << std::endl;
+                //     raise(SIGINT);
+                // }
+
+                // std::cout << fmt::format("Attempting to load {}'s public key", pubUser) << std::endl;
+                receivedPublicKey = load.LoadPubOpenssl(cl2recv, 0);
+
+                if (!receivedPublicKey)
+                {
+                    std::cout << fmt::format("{}'s public key cannot be loaded", pubUser) << std::endl;
+                    raise(SIGINT);
+                }
+
+                // receivedMessage.clear();
+            }
+
             else if (receivedMessage.find('|') == std::string::npos)
             {
                 decodedMessage = decoding.Base64Decode(receivedMessage);
@@ -221,7 +271,7 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
 
             if (bytesReceived < 500)
             {
-                if (receivedMessage.find('|') == std::string::npos)
+                if (receivedMessage.find('|') == std::string::npos && receivedMessage.substr(receivedMessage.length() - 3, receivedMessage.length()) != "PSE")
                 {
                     disable_conio_mode();
                     std::cout << receivedMessage << std::endl;
@@ -595,7 +645,6 @@ int main()
         sendssl.sendBase64Data(tlsSock, fi);
         std::cout << "Public key sent to server" << std::endl;
     }
-    std::cout << "Opening file users active: " << std::endl;
 
     std::ifstream opent(usersActivePath);
     std::string active;
@@ -603,10 +652,8 @@ int main()
 
     if (opent.is_open())
     {
-        std::cout << "Opening file users active 2: " << std::endl;
         std::getline(opent, active);
         std::istringstream(active) >> activeInt;
-        std::cout << "Active int is: " << activeInt << std::endl;
     }
     else
     {
@@ -781,7 +828,6 @@ int main()
         else
         {
             std::cout << fmt::format("{}'s public key file does not exist", pubUser) << std::endl;
-            exit(1);
             std::cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << std::endl;
             raise(SIGINT);
         }

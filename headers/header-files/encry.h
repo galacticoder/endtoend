@@ -111,7 +111,7 @@ struct LoadKey
         ERR_free_strings();
     }
 
-    EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile)
+    EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile, const short echo = 1)
     {
         BIO *bio = BIO_new_file(privateKeyFile.c_str(), "r");
         if (!bio)
@@ -131,12 +131,13 @@ struct LoadKey
             return nullptr;
         }
 
-        std::cout << "Loaded RSA Private key file (" << privateKeyFile << ") successfuly" << std::endl;
+        if (echo == 1)
+            std::cout << "Loaded RSA Private key file (" << privateKeyFile << ") successfuly" << std::endl;
 
         return pkey;
     }
 
-    EVP_PKEY *LoadPubOpenssl(const std::string &publicKeyFile)
+    EVP_PKEY *LoadPubOpenssl(const std::string &publicKeyFile, const short echo = 1)
     {
         BIO *bio = BIO_new_file(publicKeyFile.c_str(), "r");
         if (!bio)
@@ -155,7 +156,9 @@ struct LoadKey
             return nullptr;
         }
 
-        std::cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << std::endl;
+        if (echo == 1)
+            std::cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << std::endl;
+
         return pkey;
     }
     EVP_PKEY *loadPemEVP(const std::string pem_key)
@@ -389,7 +392,7 @@ struct Recieve
         std::ofstream file(filePath);
         if (!file.is_open())
         {
-            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
+            std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
         }
 
         file << buffer;
