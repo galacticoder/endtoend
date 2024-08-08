@@ -808,7 +808,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                         cout << "Ciphertext message length: " << receivedData.length() << endl;
                                         std::string cipherText = receivedData;
 
-                                        if (!cipherText.empty() && cipherText.length() > 30)
+                                        if (!cipherText.empty() && cipherText.length() > 30 && cipherText.length() < 4096)
                                         {
                                             auto now = std::chrono::system_clock::now();
                                             std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
@@ -833,6 +833,11 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
                                             }
                                             string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
                                             broadcastMessage(formattedCipher, clientSocket, clsock);
+                                        }
+                                        else
+                                        {
+                                            leaveCl(clientSocket, clsock, indexClientOut, userStr);
+                                            std::cout << "Kicked user for invalid message length" << std::endl;
                                         }
                                     }
                                 }
