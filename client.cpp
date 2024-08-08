@@ -722,7 +722,7 @@ int main()
         sec[btSec] = '\0';
         std::string secKey(sec); // make this for the path receiving
 
-        std::cout << "seckey: " << secKey << std::endl;
+        // std::cout << "seckey: " << secKey << std::endl;
 
         int firstPipe;
         int secondPipe;
@@ -756,18 +756,18 @@ int main()
 
         // else if (secKey.length() < 50)
         // {
-        std::cout << "else secKey: " << secKey << std::endl;
+        // std::cout << "else secKey: " << secKey << std::endl;
         firstPipe = secKey.find_last_of("/");
-        std::cout << "else secKey: " << secKey << std::endl;
+        // std::cout << "else secKey: " << secKey << std::endl;
         secondPipe = secKey.find_last_of("-");
         pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-        std::cout << "else pubuser: " << pubUser << std::endl;
+        // std::cout << "else pubuser: " << pubUser << std::endl;
 
         std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
         std::string encodedData2 = receive.receiveBase64Data(tlsSock);
-        std::cout << "encoded data: " << encodedData2 << std::endl;
+        // std::cout << "encoded data: " << encodedData2 << std::endl;
         std::string decodedData2 = receive.base64Decode(encodedData2);
-        std::cout << "decoded data: " << decodedData2 << std::endl;
+        // std::cout << "decoded data: " << decodedData2 << std::endl;
         receive.saveFilePem(secKey, decodedData2);
         // }
 
