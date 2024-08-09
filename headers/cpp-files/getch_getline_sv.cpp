@@ -16,7 +16,7 @@
 std::vector<std::string> message;
 std::vector<char> modeP;
 
-void signalHandleServer(int signum);
+// void signalHandleServer(int signum);
 
 short getTermSizeCols()
 {
@@ -28,7 +28,7 @@ short getTermSizeCols()
 std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string &sideMsg)
 { // N==normal//P==Password
     std::cout << sideMsg;
-    signal(SIGINT, signalHandleServer);
+    // signal(SIGINT, signalHandleServer);
     enable_conio_mode();
     int cursor_pos = 0;
     short cols_out = getTermSizeCols();
