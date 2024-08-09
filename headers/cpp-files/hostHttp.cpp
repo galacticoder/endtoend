@@ -20,7 +20,7 @@ void handle_request(beast::tcp_stream &stream, http::request<http::string_body> 
     res.keep_alive(req.keep_alive());
     res.set(http::field::server, "Beast");
 
-    if (req.target().to_string() == "/" && std::filesystem::exists(path))
+    if (std::filesystem::exists(path))
     {
         std::ifstream certFile(path, std::ios::binary);
         if (certFile)
