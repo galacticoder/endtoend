@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
 #include <thread>
-#include <chrono>
 #include <atomic>
 #include <stdexcept>
 #include "../header-files/linux_conio.h"
@@ -22,8 +22,11 @@ std::vector<std::string> message;
 std::vector<char> modeP;
 
 void signalhandle(int signum);
-extern int checkMsg;
+extern short checkMsg;
+extern short checkTimeVar;
+
 std::string messagePassedClient;
+std::string timeVar;
 
 void checkMessage(std::atomic<bool> &running, unsigned int update_secs)
 {
@@ -97,8 +100,17 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
             set_default_terminal();
             std::cout << eraseLine;
             std::cout.flush();
-            std::cout << messagePassedClient << std::endl;
+            if (checkMsg == 1 && checkTimeVar == 0)
+            {
+                std::cout << messagePassedClient << std::endl;
+            }
+            else if (checkTimeVar != 0 && timeVar.size() > 0)
+            {
+                std::cout << messagePassedClient;
+                std::cout << std::setw(cols - timeVar.size() - messagePassedClient.size() / 2) << timeVar;
+            }
             checkMsg = 0;
+            checkTimeVar = 0;
             break;
         }
 
@@ -344,7 +356,11 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
     return message_str;
 }
 
-void passval(const std::string &messagePassed)
+void passval(const std::string &messagePassed, const std::string time)
 {
     messagePassedClient = messagePassed;
+    if (time != "0")
+    {
+        timeVar = time;
+    }
 }

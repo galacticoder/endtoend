@@ -40,6 +40,7 @@
 int startSock;
 short leavePattern;
 short checkMsg = 0;
+short checkTimeVar = 0;
 std::vector<int> clsock;
 std::vector<std::string> usersActiveVector;
 SSL *tlsSock;
@@ -291,11 +292,12 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
             {
                 if (receivedMessage.find('|') != std::string::npos) // for messages from client
                 {
-                    disable_conio_mode();
                     std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                    std::cout << fmt::format("{}: {}\t\t\t\t{}", user, decryptedMessage, time);
+                    const std::string passmsg = fmt::format("{}: {}", user, decryptedMessage);
+                    passval(passmsg, time);
+                    checkMsg = 1;
+                    checkTimeVar = 1;
                 }
-                enable_conio_mode();
             }
             catch (const std::exception &e)
             {
@@ -892,7 +894,9 @@ int main()
 
         if (message != "\u2702")
         {
-            std::cout << GREEN_TEXT << fmt::format("{}(You): {}", userStr, message) << RESET_TEXT << fmt::format("\t\t\t\t{}", stringFormatTime);
+            std::string form = fmt::format("{}(You): {}", userStr, message);
+            std::cout << GREEN_TEXT << form << RESET_TEXT;
+            std::cout << std::setw(getTermSizeCols() /* - stringFormatTime.size()*/ - form.size() / 2 - 20) << stringFormatTime; //
         }
         else
         {
