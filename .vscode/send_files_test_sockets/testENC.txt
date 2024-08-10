@@ -1,0 +1,26 @@
+//just pasting to see how it works
+
+////////////////////////////////////////////////
+// Generate keys
+AutoSeededRandomPool rng;
+
+InvertibleRSAFunction params; 
+params.GenerateRandomWithKeySize(rng, 3072);
+
+RSA::PrivateKey privateKey(params);
+RSA::PublicKey publicKey(params);
+
+string plain = "RSA Encryption", cipher, recovered;
+
+////////////////////////////////////////////////
+// Encryption
+RSAES_OAEP_SHA_Encryptor e(publicKey);
+
+StringSource ss1(plain, true, new PK_EncryptorFilter(rng, e, new StringSink(cipher)));
+////////////////////////////////////////////////
+// Decryption
+RSAES_OAEP_SHA_Decryptor d(privateKey);
+
+StringSource ss2(cipher, true, new PK_DecryptorFilter(rng, d, new StringSink(recovered)));
+
+cout << "Recovered plain text" << endl;
