@@ -15,7 +15,7 @@ packages:
 	sudo apt update
 	sudo apt install $(PACKAGES) -y
 
-all: $(TARGET) $(SCRIPT_TARGET)
+all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(SERVER_SRCS)
 	$(CXX) $(CXXFLAGS) -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
@@ -24,5 +24,5 @@ $(CLIENT): $(CLIENT_SRCS)
 	$(CXX) -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT) 
 
 clean:
-	rm -f $(TARGET) $(SCRIPT_TARGET)
+	rm -f $(CLIENT) $(SERVER)
 
