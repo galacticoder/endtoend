@@ -585,7 +585,7 @@ int main()
         }
     }
 
-    SSL_write(tlsSock, user.c_str(), sizeof(user)); 
+    SSL_write(tlsSock, user.c_str(), sizeof(user));
 
     char usernameBuffer[200] = {0};
     ssize_t bytesReceived = SSL_read(tlsSock, usernameBuffer, sizeof(usernameBuffer) - 1);
