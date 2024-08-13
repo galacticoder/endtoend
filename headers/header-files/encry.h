@@ -349,14 +349,11 @@ struct Send
 
     void broadcastBase64Data(int clientSocket, const std::string &encodedData, std::vector<int> &connectedClients, std::vector<SSL *> &tlsSocks)
     {
-        for (int i = 0; i < connectedClients.size(); i++)
+        for (unsigned int i = 0; i < connectedClients.size(); i++)
         {
-            for (int i = 0; i < connectedClients.size(); i++)
+            if (connectedClients[i] != clientSocket)
             {
-                if (connectedClients[i] != clientSocket)
-                {
-                    SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
-                }
+                SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
             }
         }
     }
@@ -421,7 +418,7 @@ struct Recieve
     {
         std::vector<char> buffer(4096);
         std::string receivedData;
-        ssize_t bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
+        unsigned int bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
 
         while (bytesRead > 0)
         {
@@ -432,7 +429,7 @@ struct Recieve
             }
         }
 
-        if (bytesRead == -1)
+        if ((int)bytesRead == -1)
         {
             throw std::runtime_error("Error receiving data");
         }

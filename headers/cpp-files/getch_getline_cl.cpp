@@ -57,7 +57,7 @@ short int getTermSizeCols()
 
 bool findIn(const char &find, const std::string &In)
 {
-    for (int i = 0; i < In.length(); i++)
+    for (unsigned int i = 0; i < In.length(); i++)
     {
         if (In[i] == find)
         {
@@ -67,13 +67,13 @@ bool findIn(const char &find, const std::string &In)
     return false;
 }
 
-std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int &&maxLimit, const std::string &sideMsg, const char *si, unsigned int prt)
+std::string getinput_getch(char &&MODE, const std::string &&unallowed, unsigned int &&maxLimit, const std::string &sideMsg, const char *si, unsigned int prt)
 { // N==normal//P==Password
     signal(SIGINT, signalhandle);
     std::cout << sideMsg;
     enable_conio_mode();
-    int cursor_pos = 0;
-    short int cols_out = getTermSizeCols();
+    unsigned int cursor_pos = 0;
+    unsigned short cols_out = getTermSizeCols();
 
     std::atomic<bool> running{true};
     const unsigned int update_interval = 1;
@@ -87,7 +87,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
 
     while (true)
     {
-        short int cols = getTermSizeCols();
+        unsigned short cols = getTermSizeCols();
         if (pingingrunning == false)
         {
             std::cout << eraseLine;
@@ -121,9 +121,9 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
             std::cout << sideMsg;
             if (MODE == 'P')
             {
-                for (int i : modeP)
+                for (char i : modeP)
                 {
-                    std::cout << '*';
+                    std::cout << i;
                 }
             }
             else if (MODE == 'N')
@@ -301,7 +301,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
 
                     if (unallowed.length() != 0)
                     {
-                        for (int i = 0; i < unallowed.length(); i += 2)
+                        for (unsigned int i = 0; i < unallowed.length(); i += 2)
                         {
                             notAllowed += unallowed[i];
                         }
@@ -320,7 +320,7 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, const int
                                 {
                                     std::string s(1, c);
                                     message.insert(message.begin() + cursor_pos, s);
-                                    modeP.insert(modeP.begin() + cursor_pos, c);
+                                    modeP.insert(modeP.begin() + cursor_pos, '*');
                                     std::cout << "*";
                                     cursor_pos++;
                                 }

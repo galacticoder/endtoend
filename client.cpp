@@ -210,7 +210,6 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
 
             else if (receivedMessage.substr(receivedMessage.length() - 3, receivedMessage.length()) == "PSE")
             {
-                Dec dec;
                 char sec2Buff[4096] = {0};
                 ssize_t btcl2 = SSL_read(tlsSock, sec2Buff, sizeof(sec2Buff));
                 sec2Buff[btcl2] = '\0';

@@ -19,7 +19,7 @@
 short int getTermSizeCols();
 void checkMessage(std::atomic<bool> &running, unsigned int update_secs);
 bool findIn(const char &find, const std::string &In);
-std::string getinput_getch(char &&MODE = MODE_N, const std::string &&unallowed = " MYGETCHDEFAULT'|", const int &&maxLimit = getTermSizeCols(), const std::string &sideMsg = "", const char *si = "\0", unsigned int prt = 0);
+std::string getinput_getch(char &&MODE = MODE_N, const std::string &&unallowed = " MYGETCHDEFAULT'|", unsigned int &&maxLimit = getTermSizeCols(), const std::string &sideMsg = "", const char *si = "\0", unsigned int prt = 0);
 void passval(const std::string &messagePassed, const std::string time = "0");
 
 #endif
