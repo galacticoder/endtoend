@@ -18,10 +18,10 @@ packages:
 all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(SERVER_SRCS)
-	$(CXX) $(CXXFLAGS) -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
+	$(CXX) $(CXXFLAGS) -Wall -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
 
 $(CLIENT): $(CLIENT_SRCS)
-	$(CXX) -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT) 
+	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT) 
 
 clean:
 	rm -f $(CLIENT) $(SERVER)

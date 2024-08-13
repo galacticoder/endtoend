@@ -94,7 +94,7 @@ struct initMenu
 
     string initmenu(unordered_map<int, string> hashServerStore)
     {
-        int minLim = 6;
+        unsigned int minLim = 6;
         signal(SIGINT, signalHandleMenu);
         initscr();
         clear();
@@ -607,15 +607,13 @@ struct Send
 
     void broadcastBase64Data(int clientSocket, const std::string &encodedData, vector<int> &connectedClients, vector<SSL *> &tlsSocks)
     {
-        for (int i = 0; i < connectedClients.size(); i++)
-        {
-            for (int i = 0; i < connectedClients.size(); i++)
+            for (unsigned int i = 0; i < connectedClients.size(); i++)
             {
                 if (connectedClients[i] != clientSocket)
                 {
                     SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
                 }
-            }
+            
         }
     }
 };
@@ -669,7 +667,7 @@ struct Receive
     {
         std::string receivedData;
         std::vector<char> buffer(4096);
-        ssize_t bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
+        unsigned int bytesRead = SSL_read(clientSocket, buffer.data(), buffer.size());
 
         while (bytesRead > 0)
         {
@@ -680,7 +678,7 @@ struct Receive
             }
         }
 
-        if (bytesRead == -1)
+    if ((int)bytesRead == -1)
         {
             std::cout << "Error receiving data" << std::endl;
         }

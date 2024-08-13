@@ -15,7 +15,6 @@ void delIt(const string &path)
         if (is_directory(path))
         {
 
-            int del1 = 0;
             auto del2 = directory_iterator(path);
             int counter = 0;
             for (auto &del1 : del2)

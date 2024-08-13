@@ -25,17 +25,17 @@ short getTermSizeCols()
     return w.ws_col;
 }
 
-std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string &sideMsg)
+std::string getinput_getch(char &&MODE, long unsigned int &&maxLimit, const std::string &sideMsg)
 { // N==normal//P==Password
     std::cout << sideMsg;
     // signal(SIGINT, signalHandleServer);
     enable_conio_mode();
-    int cursor_pos = 0;
-    short cols_out = getTermSizeCols();
+    unsigned int cursor_pos = 0;
+    unsigned int cols_out = getTermSizeCols();
 
     while (true)
     {
-        short int cols = getTermSizeCols();
+        unsigned short cols = getTermSizeCols();
         if (message.size() < cols && message.size() > 1)
         {
             std::cout << saveCursor;
@@ -43,9 +43,9 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string 
             std::cout << sideMsg;
             if (MODE == 'P')
             {
-                for (int i : modeP)
+                for (char i : modeP)
                 {
-                    std::cout << '*';
+                    std::cout << i;
                 }
             }
             else if (MODE == 'N')
@@ -201,7 +201,7 @@ std::string getinput_getch(char &&MODE, const int &&maxLimit, const std::string 
                         {
                             std::string s(1, c);
                             message.insert(message.begin() + cursor_pos, s);
-                            modeP.insert(modeP.begin() + cursor_pos, c);
+                            modeP.insert(modeP.begin() + cursor_pos, '*');
                             cout << "*";
                             cursor_pos++;
                         }

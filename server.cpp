@@ -46,10 +46,10 @@ std::vector<SSL *> tlsSocks;
 SSL_CTX *ctx;
 std::map<std::string, std::chrono::seconds::rep> timeMap;
 std::map<std::string, short int> triesIp;
+unsigned short limOfUsers = 2;
 int serverSocket;
 short timeLimit = 90;
 short running;
-short limOfUsers = 2;
 short joins;
 
 const std::string limReached =
@@ -113,7 +113,7 @@ void signalHandleServer(int signum) {
 void broadcastMessage(const string &message, SSL *senderSocket,
                       int &senderSock) {
   lock_guard<mutex> lock(clientsMutex);
-  for (int i = 0; i < connectedClients.size(); i++) {
+  for (unsigned int i = 0; i < connectedClients.size(); i++) {
     if (connectedClients[i] != senderSock) {
       std::cout << "Sending msg to tls sock: " << tlsSocks[i] << std::endl;
       SSL_write(tlsSocks[i], message.c_str(), message.length());
@@ -124,7 +124,7 @@ void broadcastMessage(const string &message, SSL *senderSocket,
 std::string countUsernames(string &clientsNamesStr) {
   clientsNamesStr.clear();
   if (clientsNamesStr.empty()) {
-    for (int i = 0; i < clientUsernames.size(); ++i) {
+    for (unsigned int i = 0; i < clientUsernames.size(); ++i) {
       if (clientUsernames.size() >= 2) {
         clientsNamesStr.append(clientUsernames[i] + ",");
       } else {
@@ -142,7 +142,6 @@ std::string countUsernames(string &clientsNamesStr) {
 void updateActiveFile(auto data) {
   ifstream read(userPath);
   string active;
-  int activeInt;
 
   ofstream write(userPath);
 
@@ -156,7 +155,7 @@ void updateActiveFile(auto data) {
 
 void setupSignalHandlers() { signal(SIGINT, signalHandleServer); }
 
-void leaveCl(SSL *clientSocket, int &clsock, int id = -1,
+void leaveCl(SSL *clientSocket, int &clsock, unsigned int id = -1,
              const std::string &username = "none") {
   std::lock_guard<std::mutex> lock(clientsMutex);
   SSL_shutdown(clientSocket);
@@ -170,7 +169,7 @@ void leaveCl(SSL *clientSocket, int &clsock, int id = -1,
   auto ittls = std::remove(tlsSocks.begin(), tlsSocks.end(), clientSocket);
   tlsSocks.erase(ittls, tlsSocks.end());
 
-  if (id != -1 && id < clientHashVerifiedClients.size()) {
+  if ((int)id != -1 && id < clientHashVerifiedClients.size()) {
     clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + id);
   }
   if (username != "none" && clientUsernames.size()) {
@@ -504,10 +503,11 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket,
                     to_string(pnO).length()); // send no password needed signal
         }
 
-        if (int valid = std::find(connectedClients.begin(),
+        unsigned int valid = std::find(connectedClients.begin(),
                                   connectedClients.end(), clsock) -
-                            connectedClients.begin() !=
-                        connectedClients.size()) {
+                            connectedClients.begin();
+                            
+        if (valid != (long int)connectedClients.size()) {
           std::string clientsNamesStr;
 
           char buffer[4096] = {0};
@@ -534,7 +534,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket,
               "Username already exists. You are have been kicked.@";
           if (clientUsernames.size() > 0) // checks if username already exists
           {
-            for (uint8_t i = 0; i < clientUsernames.size(); i++) {
+            for (unsigned int i = 0; i < clientUsernames.size(); i++) {
               if (clientUsernames[i] == userStr) {
                 cout << "Client with the same username detected. kicking.."
                      << endl;
@@ -547,7 +547,7 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket,
             }
           }
           if (userStr.find(' ')) {
-            for (int i = 0; i < userStr.length(); i++) {
+            for (unsigned int i = 0; i < userStr.length(); i++) {
               if (userStr[i] == ' ') {
                 userStr[i] = '_';
               }
@@ -817,7 +817,6 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket,
                           return;
                         }
                       } else if (clientUsernames[1] == userStr) {
-                        int index2 = 1 - 1;
                         string pathpub2 =
                             fmt::format("server-recieved-client-keys/"
                                         "{}-pubkeyfromclient.pem",
@@ -1177,7 +1176,6 @@ int main() {
         {
           SSL_write(ssl_cl, OKSIG, strlen(OKSIG));
           encServer enc;
-          LoadKey load;
           const std::string req = "Server needs to accept your join request. "
                                   "Waiting for server to accept..";
           const std::string notAccepted =
