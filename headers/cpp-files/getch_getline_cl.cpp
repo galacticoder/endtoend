@@ -80,20 +80,20 @@ std::string getinput_getch(char &&MODE, const std::string &&unallowed, unsigned 
     std::thread msgReceived(checkMessage, std::ref(running), update_interval);
     msgReceived.detach();
 
-    std::atomic<bool> pingingrunning{true};
-    const unsigned int ui = 2;
-    std::thread pingingServer(pingServer, si, prt, std::ref(pingingrunning), ui);
-    pingingServer.detach();
+    // std::atomic<bool> pingingrunning{true};
+    // const unsigned int ui = 2;
+    // std::thread pingingServer(pingServer, si, prt, std::ref(pingingrunning), ui);
+    // pingingServer.detach();
 
     while (true)
     {
         unsigned short cols = getTermSizeCols();
-        if (pingingrunning == false)
-        {
-            std::cout << eraseLine;
-            std::cout << "Server has been shutdown" << std::endl;
-            raise(SIGINT);
-        }
+        // if (pingingrunning == false)
+        // {
+        //     std::cout << eraseLine;
+        //     std::cout << "Server has been shutdown" << std::endl;
+        //     raise(SIGINT);
+        // }
         if (running == false)
         {
             disable_conio_mode();

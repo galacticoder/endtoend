@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include "../header-files/fetchHttp.h"
 #include <curl/curl.h>
 #include <unistd.h>
 #include <openssl/err.h>
@@ -15,10 +14,13 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <thread>
+#include "../header-files/fetchHttp.h"
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
+
+extern void signalhandle(int signum);
 
 size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -68,6 +70,8 @@ int fetchAndSave(const std::string &site, const std::string &outfile)
 
 void pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
 {
+    // std::cout << "read" << std::endl;
+    signal(SIGINT, signalhandle);
     const auto wait_duration = std::chrono::seconds(update_secs);
     while (1)
     {
@@ -84,7 +88,7 @@ void pingServer(const char *host, unsigned short port, std::atomic<bool> &runnin
 
             if (inet_pton(AF_INET, host, &serverAddress.sin_addr) <= 0)
             {
-                running = false;
+                raise(SIGINT);
             }
 
             if (connect(clientSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
@@ -107,7 +111,7 @@ void pingServer(const char *host, unsigned short port, std::atomic<bool> &runnin
             else
             {
                 close(clientSocket);
-                running = false;
+                raise(SIGINT);
             }
             std::this_thread::sleep_for(wait_duration);
         }

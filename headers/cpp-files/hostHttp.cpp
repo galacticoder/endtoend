@@ -13,6 +13,14 @@ namespace http = boost::beast::http;
 
 using tcp = boost::asio::ip::tcp;
 
+namespace something
+{
+    void func()
+    {
+        std::cout << "something " << std::endl;
+    }
+}
+
 void handle_request(beast::tcp_stream &stream, http::request<http::string_body> req, const std::string &path)
 {
     http::response<http::string_body> res;

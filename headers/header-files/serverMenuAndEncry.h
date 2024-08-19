@@ -607,13 +607,12 @@ struct Send
 
     void broadcastBase64Data(int clientSocket, const std::string &encodedData, vector<int> &connectedClients, vector<SSL *> &tlsSocks)
     {
-            for (unsigned int i = 0; i < connectedClients.size(); i++)
+        for (unsigned int i = 0; i < connectedClients.size(); i++)
+        {
+            if (connectedClients[i] != clientSocket)
             {
-                if (connectedClients[i] != clientSocket)
-                {
-                    SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
-                }
-            
+                SSL_write(tlsSocks[i], encodedData.c_str(), encodedData.length());
+            }
         }
     }
 };
@@ -678,7 +677,7 @@ struct Receive
             }
         }
 
-    if ((int)bytesRead == -1)
+        if ((int)bytesRead == -1)
         {
             std::cout << "Error receiving data" << std::endl;
         }

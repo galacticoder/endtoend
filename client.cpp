@@ -22,13 +22,16 @@
 #include <vector>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <mutex>
+#include <ncurses.h>
 #include <openssl/evp.h>
 #include "headers/header-files/encry.h"
-#include "headers/header-files/getch_getline_cl.h"
+#include "headers/header-files/linux_conio.h"
+// #include "headers/header-files/getch_getline_cl.h"
 #include "headers/header-files/fileAndDirHandler.h"
 #include "headers/header-files/leave.h"
-#include "headers/header-files/linux_conio.h"
-#include "headers/header-files/termCmds.h"
+// #include "headers/header-files/linux_conio.h"
+// #include "headers/header-files/termCmds.h"
 #include "headers/header-files/fetchHttp.h"
 
 #define GREEN_TEXT "\033[32m" // green text color
@@ -36,17 +39,30 @@
 #define connectionSignal "C"
 #define S_KEYS "server-keys/"
 #define usersActivePath "txt-files/usersActive.txt"
+// #define S_PATH "server-recieved-client-keys"
+#define formatPath "keys-from-server/"
+#define fpath "your-keys/"
+// #define PING_BYTE 0x01
 
 int startSock;
+long int track = 0;
 short leavePattern;
-short checkMsg = 0;
-short checkTimeVar = 0;
 std::vector<int> clsock;
-std::vector<std::string> usersActiveVector;
+// std::vector<std::string> usersActiveVector;
 SSL *tlsSock;
 SSL_CTX *pubclctx;
 EVP_PKEY *receivedPublicKey;
 EVP_PKEY *prkey;
+std::mutex mut;
+std::mutex openssl_mutex;
+std::atomic<bool> pingingrunning{true};
+
+WINDOW *subaddr;
+WINDOW *inputaddr;
+WINDOW *viewaddr;
+
+// int heightGlobal = LINES;
+// int widthGlobal = COLS;
 
 std::string t_w(std::string strIp) // trim whitespaces
 {
@@ -59,90 +75,113 @@ std::string t_w(std::string strIp) // trim whitespaces
     return strIp;
 }
 
+void cleanWins()
+{
+    std::cout << "here" << std::endl;
+    if (subaddr)
+    {
+        std::cout << "trying Del subaddr" << std::endl;
+        delwin(subaddr);
+        std::cout << "Del subaddr" << std::endl;
+    }
+    if (inputaddr)
+    {
+        std::cout << "trying Del inputaddr" << std::endl;
+        delwin(inputaddr);
+        std::cout << "Del inputaddr" << std::endl;
+    }
+    if (viewaddr)
+    {
+        std::cout << "trying viewaddr" << std::endl;
+        delwin(viewaddr);
+        std::cout << "Del viewaddr" << std::endl;
+    }
+    curs_set(1);
+    endwin();
+    std::cout << "done" << std::endl;
+}
+
+void cleanUpOpenssl()
+{
+    std::lock_guard<std::mutex> lock(openssl_mutex); // Lock the mutex
+    // std::lock_guard<std::mutex> lock(mut);
+    std::cout << "clean ssl" << std::endl;
+    std::cout << "prkey test to see if seg fault happens from it: " << prkey << std::endl;
+    if (tlsSock)
+    {
+        std::cout << "cleaning sock ssl" << std::endl;
+        SSL_shutdown(tlsSock);
+        SSL_free(tlsSock);
+        tlsSock = nullptr;
+        std::cout << "done sock" << std::endl;
+    }
+    if (startSock)
+    {
+        std::cout << "closing sock" << std::endl;
+        close(startSock);
+        startSock = 0;
+        std::cout << "closed sock" << std::endl;
+    }
+    if (receivedPublicKey)
+    {
+        std::cout << "freeing rcpk" << std::endl;
+        EVP_PKEY_free(receivedPublicKey);
+        receivedPublicKey = nullptr;
+        std::cout << "freed" << std::endl;
+    }
+
+    if (prkey)
+    {
+        std::cout << "freeing prkey" << std::endl;
+        EVP_PKEY_free(prkey);
+        prkey = nullptr;
+        std::cout << "freed prkey" << std::endl;
+    }
+
+    if (pubclctx)
+    {
+        std::cout << "freeing ctx" << std::endl;
+        SSL_CTX_free(pubclctx);
+        pubclctx = nullptr;
+        std::cout << "freed ctx" << std::endl;
+    }
+    std::cout << "done" << std::endl;
+
+    EVP_cleanup();
+}
+
 void signalhandle(int signum)
 {
-    disable_conio_mode();
-    termcmd setdefault;
-    setdefault.set_curs_vb();
-    setdefault.set_inp();
+    {
+        std::lock_guard<std::mutex> lock(mut);
+        pingingrunning = false;
+    }
+    { // clean up memory used
+        std::cout << "starting clean of ncurses" << std::endl;
+        cleanWins();
+        std::cout << "clean of ncurses done" << std::endl;
+        std::cout << "starting clean of openssl" << std::endl;
+        cleanUpOpenssl();
+        std::cout << "clean of openssl done" << std::endl;
+    }
+
     if (leavePattern == 0)
     {
         std::cout << "You have disconnected from the empty chat." << std::endl;
-        leave();
-        leaveFile(usersActivePath);
-        if (tlsSock)
-        {
-            SSL_shutdown(tlsSock);
-            SSL_free(tlsSock);
-        }
-        if (startSock)
-        {
-            close(startSock);
-        }
-        if (pubclctx)
-        {
-            SSL_CTX_free(pubclctx);
-        }
-        if (prkey)
-        {
-            EVP_PKEY_free(prkey);
-        }
-        EVP_cleanup();
-        std::cout << eraseLine;
-        exit(signum);
     }
     else if (leavePattern == 1)
     {
         std::cout << "You have left the chat" << std::endl;
-        leave();
-        leaveFile(usersActivePath);
-        if (tlsSock)
-        {
-            SSL_shutdown(tlsSock);
-            SSL_free(tlsSock);
-        }
-        if (startSock)
-        {
-            close(startSock);
-        }
-        if (pubclctx)
-        {
-            SSL_CTX_free(pubclctx);
-        }
-        if (prkey)
-        {
-            EVP_PKEY_free(prkey);
-        }
-        if (receivedPublicKey)
-        {
-            EVP_PKEY_free(receivedPublicKey);
-        }
-        EVP_cleanup();
-        std::cout << eraseLine;
-        exit(signum);
     }
-    else if (leavePattern == 90)
-    {
-        leave();
-        leaveFile(usersActivePath);
 
-        if (tlsSock)
-        {
-            SSL_shutdown(tlsSock);
-            SSL_free(tlsSock);
-        }
-        if (startSock)
-        {
-            close(startSock);
-        }
-        if (pubclctx)
-        {
-            SSL_CTX_free(pubclctx);
-        }
-        EVP_cleanup();
-        std::cout << eraseLine;
-        exit(signum);
+    // clean up
+    { // del files and dir
+        leave();
+        leaveFile(usersActivePath);
     }
+    // std::cout << "\n";
+    std::cout << eraseLine;
+    exit(signum);
 }
 
 std::string getTime()
@@ -173,7 +212,7 @@ std::string getTime()
     return stringFormatTime;
 }
 
-void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
+void receiveMessages(SSL *tlsSock, WINDOW *subwin)
 {
     Recieve receive;
     LoadKey load;
@@ -183,7 +222,7 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
         ssize_t bytesReceived = SSL_read(tlsSock, buffer, sizeof(buffer) - 1);
         if (bytesReceived > 0)
         {
-            Dec decoding;
+            track++;
             Dec decrypt;
             buffer[bytesReceived] = '\0';
             std::string receivedMessage(buffer);
@@ -192,17 +231,20 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
             if (receivedMessage.substr(receivedMessage.length() - 2, receivedMessage.length()) == "#N") // not verified message
             {
                 leavePattern = 90;
-                Dec decNV;
                 receivedMessage = receivedMessage.substr(0, receivedMessage.length() - 2);
-                decNV.Base64Decode(receivedMessage);
+                decrypt.Base64Decode(receivedMessage);
                 try
                 {
-                    std::string decNVS = decrypt.dec(privateKey, decodedMessage);
-                    disable_conio_mode();
-                    std::cout << decNVS << std::endl;
-                    raise(SIGINT);
+                    std::string decNVS = decrypt.dec(prkey, decodedMessage);
+                    curs_set(0);
+
+                    wmove(subwin, track, 0);
+                    decNVS += "\n";
+                    wprintw(subwin, decNVS.c_str(), track);
+                    wrefresh(subwin);
+                    curs_set(1);
                 }
-                catch (const CryptoPP::Exception &e)
+                catch (const std::exception &e)
                 {
                     raise(SIGINT);
                 }
@@ -214,8 +256,6 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
                 ssize_t btcl2 = SSL_read(tlsSock, sec2Buff, sizeof(sec2Buff));
                 sec2Buff[btcl2] = '\0';
                 std::string cl2recv(sec2Buff); // for file path to save to and extract username from
-                // std::cout << "Seckey 2: " << cl2recv << std::endl;
-                // std::cout << "Seckey 2 decoded: " << dec.Base64Decode(cl2recv) << std::endl;
 
                 int firstPipe;
                 int secondPipe;
@@ -229,43 +269,35 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
                 std::string encodedData2 = receive.receiveBase64Data(tlsSock);
                 std::string decodedData2 = receive.base64Decode(encodedData2);
                 receive.saveFilePem(cl2recv, decodedData2);
-                // }
-
-                // if (std::filesystem::is_regular_file(cl2recv))
-                // {
-                // std::cout << fmt::format("Recieved {}'s pub key", pubUser) << std::endl;
-                // continue;
-                // }
-                // else
-                // {
-                //     std::cout << fmt::format("{}'s public key file does not exist", pubUser) << std::endl;
-                //     std::cout << "You have been disconnected due to not being able to encrypt messages due to public key not being found." << std::endl;
-                //     raise(SIGINT);
-                // }
 
                 // std::cout << fmt::format("Attempting to load {}'s public key", pubUser) << std::endl;
                 receivedPublicKey = load.LoadPubOpenssl(cl2recv, 0);
 
                 if (!receivedPublicKey)
                 {
-                    std::cout << fmt::format("{}'s public key cannot be loaded", pubUser) << std::endl;
+                    // std::cout << fmt::format("{}'s public key cannot be loaded", pubUser) << std::endl;
                     raise(SIGINT);
                 }
-
-                // receivedMessage.clear();
             }
 
             else if (receivedMessage.find('|') == std::string::npos)
             {
-                decodedMessage = decoding.Base64Decode(receivedMessage);
+                decodedMessage = decrypt.Base64Decode(receivedMessage);
                 try
                 {
-                    std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                    passval(decryptedMessage);
-                    checkMsg = 1;
+                    std::string decryptedMessage = decrypt.dec(prkey, decodedMessage);
+                    curs_set(0);
+
+                    wmove(subwin, track, 0);
+                    decryptedMessage += "\n";
+                    wprintw(subwin, decryptedMessage.c_str(), track);
+                    wrefresh(subwin);
+
+                    curs_set(1);
                 }
                 catch (const std::exception &e)
                 {
+                    continue;
                 }
             }
 
@@ -273,10 +305,27 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
             {
                 if (receivedMessage.find('|') == std::string::npos && receivedMessage.substr(receivedMessage.length() - 3, receivedMessage.length()) != "PSE")
                 {
-                    disable_conio_mode();
-                    std::cout << receivedMessage << std::endl;
-                    enable_conio_mode();
-                    continue;
+                    try
+                    {
+                        curs_set(0);
+
+                        std::string decryptedDec = decrypt.Base64Decode(decrypt.dec(prkey, receivedMessage));
+
+                        wmove(subwin, track, 0);
+                        decryptedDec += "\n";
+                        wprintw(subwin, decryptedDec.c_str(), track);
+                        wrefresh(subwin);
+
+                        curs_set(1);
+                        // track++;
+                        // resetPos(subwin);
+
+                        continue;
+                    }
+                    catch (const std::exception &e)
+                    {
+                        continue;
+                    }
                 }
             }
 
@@ -285,29 +334,121 @@ void receiveMessages(SSL *tlsSock, EVP_PKEY *privateKey)
             std::string cipher = receivedMessage.substr(secondPipe + 1);
             std::string time = receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
             std::string user = receivedMessage.substr(0, firstPipe);
-            decodedMessage = decoding.Base64Decode(cipher);
+            decodedMessage = decrypt.Base64Decode(cipher);
 
             try
             {
                 if (receivedMessage.find('|') != std::string::npos) // for messages from client
                 {
-                    std::string decryptedMessage = decrypt.dec(privateKey, decodedMessage);
-                    const std::string passmsg = fmt::format("{}: {}", user, decryptedMessage);
-                    passval(passmsg, time);
-                    checkMsg = 1;
-                    checkTimeVar = 1;
+                    std::string decryptedMessage = decrypt.dec(prkey, decodedMessage);
+                    std::string passmsg = fmt::format("{}: {}", user, decryptedMessage);
+                    curs_set(0);
+
+                    wmove(subwin, track, 0);
+                    passmsg += "\n";
+                    wprintw(subwin, passmsg.c_str(), track);
+                    wrefresh(subwin);
+
+                    curs_set(1);
                 }
             }
             catch (const std::exception &e)
             {
+                continue;
             }
         }
     }
 }
 
+void handleResize()
+{
+    int y, x;
+    getmaxyx(stdscr, y, x);
+
+    wresize(viewaddr, y - 3, x);
+    wresize(inputaddr, 3, x);
+    mvwin(inputaddr, y - 3, 0);
+
+    werase(viewaddr);
+    werase(inputaddr);
+    wrefresh(viewaddr);
+    wrefresh(inputaddr);
+
+    refresh();
+    doupdate();
+}
+
+void typing(const std::string &userStr)
+{
+    std::string message;
+
+    Enc cipher64;
+    int ch;
+
+    while (true)
+    {
+        ch = wgetch(inputaddr);
+        if (ch == 13)
+        {
+            if (t_w(message) == "/quit")
+            {
+                // cleanWins();
+                raise(SIGINT);
+            }
+            else if (!message.empty() && t_w(message) != "/quit")
+            {
+                // check if message is length and if it reaches the width of the subwin if so track++
+                track++;
+                curs_set(0);
+
+                wmove(subaddr, track, 0);
+
+                message += "\n";
+                // send msg
+                std::string stringFormatTime = getTime();
+                // print the time later
+                std::string form = fmt::format("{}(You): {}", userStr, message);
+                message = t_w(message);
+                std::string cipherText = cipher64.enc(receivedPublicKey, message);
+                std::string newenc = cipher64.Base64Encode(cipherText);
+                SSL_write(tlsSock, newenc.c_str(), newenc.length());
+                //-----------------
+                wprintw(subaddr, form.c_str(), track);
+                wrefresh(subaddr);
+                // print time
+                // wmove(subwin, track, width - 5 - stringFormatTime.length());
+                // wprintw(subwin, stringFormatTime.c_str(), track);
+
+                wclear(inputaddr);
+                box(inputaddr, 0, 0);
+                wrefresh(inputaddr);
+                message.clear();
+                wmove(inputaddr, 1, 1);
+                curs_set(1);
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else if (ch == KEY_RESIZE)
+        {
+            std::lock_guard<std::mutex> lock(mut);
+            handleResize();
+        }
+
+        else
+        {
+            message += ch;
+            wprintw(inputaddr, "%c", ch);
+            wrefresh(inputaddr);
+        }
+    }
+}
 int main()
 {
     signal(SIGINT, signalhandle);
+
     leavePattern = 90;
     char serverIp[30] = "127.0.0.1"; // change to the server i
     const std::string portPath = "txt-files/PORT.txt";
@@ -318,17 +459,12 @@ int main()
     std::istringstream(PORTSTR) >> PORT;
 
     initOpenSSL initializeTls;
-    termcmd curs;
     Enc enc;
     Dec dec;
     LoadKey load;
     Send sendssl;
     Recieve receive;
 
-    {
-        curs.set_curs_vb(0);
-        curs.set_inp(0);
-    }
     { // init openssl
         SSL_library_init();
         OpenSSL_add_all_algorithms();
@@ -384,6 +520,8 @@ int main()
 
     startSock = socket(AF_INET, SOCK_STREAM, 0);
 
+    // while (pingingrunning != false)
+    // {
     { // connect to the server using socket
         sockaddr_in serverAddress;
         serverAddress.sin_family = AF_INET;
@@ -398,7 +536,7 @@ int main()
 
         if (connect(startSock, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
         {
-            std::cout << "Cannot connect to server\n";
+            std::cout << "Cannot connect to server. Check server port\n";
             raise(SIGINT);
         }
 
@@ -414,7 +552,12 @@ int main()
             std::cout << "Server sent unknown signal. Leaving for security." << std::endl;
             raise(SIGINT);
         }
+
+        // std::thread(send_ping, startSock).detach();
     }
+    const unsigned int ui = 1;
+    std::thread pingingServer(pingServer, serverIp, PORT, std::ref(pingingrunning), ui);
+    pingingServer.detach();
 
     tlsSock = SSL_new(pubclctx);
 
@@ -434,12 +577,14 @@ int main()
         }
     }
 
+    // exit(1);
     char initbuf[200] = {0};
     ssize_t initbytes = SSL_read(tlsSock, initbuf, sizeof(initbuf) - 1);
     initbuf[initbytes] = '\0';
     std::string initMsg(initbuf);
     // get message to see if you are rate limited or the server is full
 
+    // exit(1)
     if (initMsg.length() > 10 && initMsg.substr(initMsg.length() - 11, initMsg.length()) == "RATELIMITED")
     {
         std::cout << dec.Base64Decode(initMsg.substr(0, initMsg.length() - 11)) << std::endl;
@@ -471,6 +616,7 @@ int main()
         raise(SIGINT);
     }
 
+    // exit(1);
     char requestBuf[200] = {0};
     ssize_t requestBytes = SSL_read(tlsSock, requestBuf, sizeof(requestBuf) - 1);
     requestBuf[requestBytes] = '\0';
@@ -510,6 +656,9 @@ int main()
         raise(SIGINT);
     }
 
+    // std::cout << "here" << std::endl;
+    // close(startSock);
+    // exit(1);
     char passSignal[200] = {0};
     ssize_t bytesPassSig = SSL_read(tlsSock, passSignal, sizeof(passSignal) - 1);
     passSignal[bytesPassSig] = '\0';
@@ -526,11 +675,8 @@ int main()
     {
         const std::string serverPassMsg = "This server is password protected. Enter the password to join: ";
         Enc encryptServerPass;
-        curs.set_curs_vb();
-        curs.set_inp();
-        std::string password = getinput_getch(MODE_P, "", getTermSizeCols(), serverPassMsg, serverIp, PORT);
-        curs.set_curs_vb(0);
-        curs.set_inp(0);
+        std::string password; /*= getinput_getch(MODE_P, "", getTermSizeCols(), serverPassMsg, serverIp, PORT);*/
+        std::getline(std::cin, password);
         std::cout << eraseLine;
         std::string encryptedPassword = encryptServerPass.enc(serverPublicKey, password);
         EVP_PKEY_free(serverPublicKey);
@@ -567,25 +713,23 @@ int main()
         }
     }
 
-    curs.set_curs_vb();
-    curs.set_inp();
-    std::string user = getinput_getch(MODE_N, "/|\\| ", 12, "Enter a username to go by: ", serverIp, PORT);
-    curs.set_curs_vb(0);
-    curs.set_inp(0);
+    std::string user; /* = getinput_getch(MODE_N, "/|\\| ", 12, "Enter a username to go by: ", serverIp, PORT);*/
+    // std::getline(std::cin, user);
+    std::cin >> user;
 
     std::cout << eraseLine;
-    if (user != "\u2702")
-    {
-        std::cout << "Username: " << boldMode << user << boldModeReset << std::endl;
-        if (user.empty() || user.length() > 12 || user.length() <= 3)
-        { // set these on top
-            disable_conio_mode();
-            std::cout << "Invalid username. Disconnecting from server\n";
-            raise(SIGINT);
-        }
+    // if (user != "\u2702")
+    // {
+    std::cout << "Username: " << user << std::endl;
+    if (user.empty() || user.length() > 12 || user.length() <= 3)
+    { // set these on top
+        // disable_conio_mode();
+        std::cout << "Invalid username. Disconnecting from server\n";
+        raise(SIGINT);
     }
+    // }
 
-    SSL_write(tlsSock, user.c_str(), sizeof(user));
+    SSL_write(tlsSock, user.c_str(), user.length());
 
     char usernameBuffer[200] = {0};
     ssize_t bytesReceived = SSL_read(tlsSock, usernameBuffer, sizeof(usernameBuffer) - 1);
@@ -595,7 +739,7 @@ int main()
     if (userStr.substr(userStr.length() - 2, userStr.length()) == "#V")
     {
         std::cout << userStr.substr(0, userStr.length() - 2) << std::endl;
-        exit(1);
+        // exit(1);
     }
     else if (userStr.back() == '@')
     {
@@ -779,46 +923,13 @@ int main()
         int secondPipe;
         std::string pubUser;
 
-        // if (secKey.length() > 50)
-        // {
-        //     std::string s2find = ".pem";
-        //     int found = secKey.find(".pem") + s2find.length();
-        //     std::cout << "found is: " << found << std::endl;
-        //     if (found != std::string::npos)
-        //     {
-        //         std::string encodedKey = secKey.substr(found);
-        //         std::cout << "encoded key: " << encodedKey << std::endl;
-        //         secKey = secKey.substr(0, found);
-        //         std::cout << "secKey substringed: " << secKey << std::endl;
-        //         firstPipe = secKey.find_last_of("/");
-        //         secondPipe = secKey.find_last_of("-");
-        //         pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-        //         std::cout << "pubuser: " << pubUser << std::endl;
-        //         std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
-        //         std::string decodedData2 = receive.base64Decode(encodedKey);
-        //         receive.saveFilePem(secKey, decodedData2);
-        //     }
-        //     else
-        //     {
-        //         std::cout << "Couldnt format sec key" << std::endl;
-        //         raise(SIGINT);
-        //     }
-        // }
-
-        // else if (secKey.length() < 50)
-        // {
-        // std::cout << "else secKey: " << secKey << std::endl;
         firstPipe = secKey.find_last_of("/");
-        // std::cout << "else secKey: " << secKey << std::endl;
         secondPipe = secKey.find_last_of("-");
         pubUser = secKey.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-        // std::cout << "else pubuser: " << pubUser << std::endl;
 
         std::cout << fmt::format("Recieving {}'s public key", pubUser) << std::endl;
         std::string encodedData2 = receive.receiveBase64Data(tlsSock);
-        // std::cout << "encoded data: " << encodedData2 << std::endl;
         std::string decodedData2 = receive.base64Decode(encodedData2);
-        // std::cout << "decoded data: " << decodedData2 << std::endl;
         receive.saveFilePem(secKey, decodedData2);
         // }
 
@@ -841,11 +952,13 @@ int main()
             std::cout << fmt::format("{}'s public key loaded", pubUser) << std::endl;
             if (activeInt > 1)
             {
+                // start chat window here
                 std::cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - 1 other user in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
             else
             {
+                // start chat window here
                 std::cout << GREEN_TEXT << fmt::format("-- You have joined the chat as {} - {} users in chat - To quit the chat type '/quit' -\n", userStr, activeInt) << RESET_TEXT;
                 leavePattern = 1;
             }
@@ -857,51 +970,51 @@ int main()
         }
     }
 
-    std::thread receiver(receiveMessages, tlsSock, prkey);
-    receiver.detach();
+    // start windows for user msg viewing and inputting
+    initscr();
+    cbreak();
+    nonl();
+    noecho();
+    keypad(stdscr, TRUE);
 
-    std::string message;
+    int height = LINES;
+    int width = COLS;
 
-    curs.set_curs_vb();
-    curs.set_inp();
+    int msg_view_h = height - 3;
+    int msg_input_h = 3;
 
-    while (true)
+    WINDOW *msg_input_win = newwin(msg_input_h, width, msg_view_h, 0);
+    box(msg_input_win, 0, 0);
+
+    WINDOW *msg_view_win = newwin(msg_view_h - 1, width - 2, 1, 1);
+    box(msg_view_win, 0, 0);
+
+    wrefresh(msg_view_win);
+    wrefresh(msg_input_win);
+
+    mvwprintw(msg_view_win, 0, 4, "Chat");
+    wrefresh(msg_view_win);
+
+    WINDOW *subwin = derwin(msg_view_win, height - 6, width - 4, 1, 1);
+    scrollok(subwin, TRUE);
+    idlok(subwin, TRUE);
+
+    wmove(msg_input_win, 1, 1);
+
+    subaddr = subwin;
+    inputaddr = msg_input_win;
+    viewaddr = msg_view_win;
+
+    std::thread(receiveMessages, tlsSock, subwin).detach();
+    std::thread(typing, std::ref(userStr)).detach();
+
+    while (1)
     {
-        message = getinput_getch(MODE_N, "", getTermSizeCols(), "", serverIp, PORT);
-        std::cout << std::endl;
-        std::cout << "\033[A";
-        std::cout << "\r";
-        std::cout << "\033[K";
-        if (t_w(message) == "/quit")
-        {
-            raise(SIGINT);
-        }
-        else if (message.empty())
-        { // skips empty message
-            continue;
-        }
-        message = t_w(message);
-
-        Enc cipher64;
-
-        std::string cipherText = cipher64.enc(receivedPublicKey, message);
-        std::string newenc = cipher64.Base64Encode(cipherText);
-
-        SSL_write(tlsSock, newenc.c_str(), newenc.length());
-
-        std::string stringFormatTime = getTime();
-
-        if (message != "\u2702")
-        {
-            std::string form = fmt::format("{}(You): {}", userStr, message);
-            std::cout << GREEN_TEXT << form << RESET_TEXT;
-            std::cout << std::setw(getTermSizeCols() /* - stringFormatTime.size()*/ - form.size() / 2 - 20) << stringFormatTime; //
-        }
-        else
-        {
-            std::cout << eraseLine;
-        }
     }
+    //--------------------------
+
+    // }
+    // std::cout << "Server has been shutdown" << std::endl;
     raise(SIGINT);
     return 0;
 }
