@@ -14,13 +14,48 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <thread>
-#include "../header-files/fetchHttp.h"
+#include "../header-files/httpCl.h"
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
 extern void signalhandle(int signum);
+
+int serverSd = 0;
+int portS = 8080;
+
+bool isPav(int port)
+{
+    int pavtempsock;
+    struct sockaddr_in addr;
+    bool available = false;
+
+    pavtempsock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (pavtempsock < 0)
+    {
+        std::cerr << "Cannot create socket to test port availability" << std::endl;
+        return false;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    if (bind(pavtempsock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        available = false;
+    }
+    else
+    {
+        available = true;
+    }
+
+    close(pavtempsock);
+    return available;
+}
 
 size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -38,7 +73,7 @@ size_t writePing(void *contents, size_t size, size_t nmemb, void *userp)
     return totalSize;
 }
 
-int fetchAndSave(const std::string &site, const std::string &outfile)
+int http::fetchAndSave(const std::string &site, const std::string &outfile)
 {
     CURL *curl;
     CURLcode request;
@@ -68,9 +103,8 @@ int fetchAndSave(const std::string &site, const std::string &outfile)
     return 0;
 }
 
-void pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
+void http::pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
 {
-    // std::cout << "read" << std::endl;
     signal(SIGINT, signalhandle);
     const auto wait_duration = std::chrono::seconds(update_secs);
     while (1)
@@ -78,9 +112,6 @@ void pingServer(const char *host, unsigned short port, std::atomic<bool> &runnin
         try
         {
             int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-            if (clientSocket < 0)
-            {
-            }
 
             sockaddr_in serverAddress;
             serverAddress.sin_family = AF_INET;
@@ -120,35 +151,67 @@ void pingServer(const char *host, unsigned short port, std::atomic<bool> &runnin
         }
     }
 }
-// std::string fetchPubIp()
-// {
-//     CURL *curl;
-//     CURLcode request;
-//     // std::ofstream outFile(outfile, std::ios::binary);
-//     std::string ip;
-//     std::string site = "https://api.ipify.org";
 
-//     curl_global_init(CURL_GLOBAL_DEFAULT);
-//     curl = curl_easy_init(); // init libcur
+void http::serverMake()
+{
+    std::thread t1([&]()
+                   {
+    if (isPav(portS) == false) {
+      for (unsigned short i = 49152; i <= 65535; i++) {
+        if (isPav(i) != false) {
+          portS = i;
+          break;
+        }
+      }
+    } });
+    t1.join();
 
-//     if (curl)
-//     {
-//         std::cout << "Curl has started" << std::endl;
-//         curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
-//         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBackIp);
-//         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ip);
-//         request = curl_easy_perform(curl);
+    sockaddr_in servAddr;
+    bzero((char *)&servAddr, sizeof(servAddr));
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servAddr.sin_port = htons(portS);
 
-//         if (request != CURLE_OK)
-//         {
-//             curl_easy_strerror(request);
-//             return "err";
-//         }
-//         curl_easy_cleanup(curl);
-//         ip = hash_data(ip);
-//         return ip;
-//     }
-//     curl_global_cleanup();
-//     ip = hash_data(ip);
-//     return ip;
-// }
+    serverSd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSd < 0)
+    {
+        std::cout << "Error establishing the server socket [CLSERVER] [httpCl.cpp]" << std::endl;
+        raise(SIGINT);
+    }
+
+    int bindStatus = bind(serverSd, (struct sockaddr *)&servAddr, sizeof(servAddr));
+    if (bindStatus < 0)
+    {
+        std::cout << "Error binding socket to local address [CLSERVER] [httpCl.cpp]" << std::endl;
+        raise(SIGINT);
+    }
+    std::cout << "Cl server has started on port: " << portS << std::endl;
+
+    listen(serverSd, 2);
+
+    while (1)
+    {
+        sockaddr_in newSockAddr;
+        socklen_t newSockAddrSize = sizeof(newSockAddr);
+
+        int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
+        if (newSd < 0)
+        {
+            std::cerr << "Error accepting request from client! [CLSERVER] [httpCl.cpp]" << std::endl;
+            raise(SIGINT);
+        }
+
+        static char buffer[8] = {0};
+        static ssize_t bytesRead = recv(newSd, buffer, sizeof(buffer), 0);
+        buffer[bytesRead] = '\0';
+        std::string statusCheck(buffer);
+
+        static const std::string statusUp = "S>UP";
+
+        if (statusCheck == "SCHECK")
+        {
+            send(newSd, statusUp.c_str(), statusUp.size(), 0);
+        }
+        close(newSd);
+    }
+}

@@ -32,7 +32,7 @@
 #include "headers/header-files/leave.h"
 // #include "headers/header-files/linux_conio.h"
 // #include "headers/header-files/termCmds.h"
-#include "headers/header-files/fetchHttp.h"
+#include "headers/header-files/httpCl.h"
 
 #define GREEN_TEXT "\033[32m" // green text color
 #define RESET_TEXT "\033[0m"  // reset color to default
@@ -60,9 +60,11 @@ std::atomic<bool> pingingrunning{true};
 WINDOW *subaddr;
 WINDOW *inputaddr;
 WINDOW *viewaddr;
-
 // int heightGlobal = LINES;
 // int widthGlobal = COLS;
+
+extern int serverSd;
+extern int portS;
 
 std::string t_w(std::string strIp) // trim whitespaces
 {
@@ -152,6 +154,8 @@ void cleanUpOpenssl()
 
 void signalhandle(int signum)
 {
+    if (serverSd)
+        close(serverSd); // close cl hosted server sock
     {
         std::lock_guard<std::mutex> lock(mut);
         pingingrunning = false;
@@ -431,11 +435,6 @@ void typing(const std::string &userStr)
                 continue;
             }
         }
-        else if (ch == KEY_RESIZE)
-        {
-            std::lock_guard<std::mutex> lock(mut);
-            handleResize();
-        }
 
         else
         {
@@ -501,7 +500,7 @@ int main()
     { // get server cert and exetract public key
         const std::string get = fmt::format("http://{}:{}/", serverIp, 90);
         std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
-        if (fetchAndSave(get, cert) == 1)
+        if (http::fetchAndSave(get, cert) == 1)
         {
             std::cout << "Could not fetch server cert" << std::endl;
             raise(SIGINT);
@@ -555,8 +554,9 @@ int main()
 
         // std::thread(send_ping, startSock).detach();
     }
+    std::thread(http::serverMake).detach();
     const unsigned int ui = 1;
-    std::thread pingingServer(pingServer, serverIp, PORT, std::ref(pingingrunning), ui);
+    std::thread pingingServer(http::pingServer, serverIp, PORT, std::ref(pingingrunning), ui);
     pingingServer.detach();
 
     tlsSock = SSL_new(pubclctx);
@@ -599,6 +599,8 @@ int main()
     std::cout << fmt::format("Found connection to server on port {}", PORT) << std::endl;
 
     SSL_write(tlsSock, connectionSignal, strlen(connectionSignal));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    SSL_write(tlsSock, (std::to_string(portS)).c_str(), std::to_string(portS).length());
 
     char ratelimbuf[200] = {0};
     ssize_t rateb = SSL_read(tlsSock, ratelimbuf, sizeof(ratelimbuf) - 1);
