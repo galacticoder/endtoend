@@ -10,7 +10,7 @@ namespace http
 {
     // std::string http::hash_data(const std::string &pt);
     int fetchAndSave(const std::string &site, const std::string &outfile);
-    void pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs);
+    void pingServer(const char *host, unsigned short port);
     void serverMake();
 }
 

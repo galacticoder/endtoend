@@ -14,7 +14,8 @@
 #include "leave.h"
 
 const unsigned int KEYSIZE = 4096;
-
+// extern std::function<void(int)> shutdown_handler;
+// extern void signal_handler(int signal);
 struct KeysMake
 {
     KeysMake(const std::string &privateKeyFile, const std::string &publicKeyFile, int bits = KEYSIZE)
@@ -66,7 +67,7 @@ struct LoadKey
 {
     LoadKey() = default;
 
-    void extractPubKey(const std::string certFile, const std::string &pubKey)
+    static void extractPubKey(const std::string certFile, const std::string &pubKey)
     {
         FILE *certFileOpen = fopen(certFile.c_str(), "r");
         if (!certFileOpen)
@@ -111,7 +112,7 @@ struct LoadKey
         ERR_free_strings();
     }
 
-    EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile, const short echo = 1)
+    static EVP_PKEY *LoadPrvOpenssl(const std::string &privateKeyFile, const short echo = 1)
     {
         BIO *bio = BIO_new_file(privateKeyFile.c_str(), "r");
         if (!bio)
@@ -137,7 +138,7 @@ struct LoadKey
         return pkey;
     }
 
-    EVP_PKEY *LoadPubOpenssl(const std::string &publicKeyFile, const short echo = 1)
+    static EVP_PKEY *LoadPubOpenssl(const std::string &publicKeyFile, const short echo = 1)
     {
         BIO *bio = BIO_new_file(publicKeyFile.c_str(), "r");
         if (!bio)
@@ -161,7 +162,7 @@ struct LoadKey
 
         return pkey;
     }
-    EVP_PKEY *loadPemEVP(const std::string pem_key)
+    static EVP_PKEY *loadPemEVP(const std::string pem_key)
     {
         BIO *bio = BIO_new_mem_buf(pem_key.c_str(), -1);
 
@@ -179,7 +180,7 @@ struct LoadKey
 struct Enc
 {
     Enc() = default;
-    std::string enc(EVP_PKEY *pkey, const std::string &data)
+    static std::string Encrypt(EVP_PKEY *pkey, const std::string &data)
     {
         EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
         if (!ctx)
@@ -216,7 +217,7 @@ struct Enc
         return out;
     }
 
-    std::string Base64Encode(const std::string &input)
+    static std::string Base64Encode(const std::string &input)
     {
         std::string encoded;
         CryptoPP::StringSource(input, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
@@ -227,7 +228,7 @@ struct Enc
 struct Dec
 {
     Dec() = default;
-    std::string dec(EVP_PKEY *pkey, const std::string &encrypted_data)
+    static std::string Decrypt(EVP_PKEY *pkey, const std::string &encrypted_data)
     {
         EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
         if (!ctx)
@@ -263,61 +264,27 @@ struct Dec
         out.resize(out_len);
         return out;
     }
-    std::string Base64Decode(const std::string &input)
+    static std::string Base64Decode(const std::string &input)
     {
         std::string decoded;
         CryptoPP::StringSource(input, true, new CryptoPP::Base64Decoder(new CryptoPP::StringSink(decoded)));
         return decoded;
     }
 };
-
-struct initOpenSSL
-{
-    initOpenSSL() = default;
-    void InitOpenssl()
-    {
-        SSL_load_error_strings();
-        OpenSSL_add_ssl_algorithms();
-    }
-
-    // creating context
-    SSL_CTX *createCtx()
-    {
-        const SSL_METHOD *method = SSLv23_server_method();
-        SSL_CTX *ctx = SSL_CTX_new(method);
-        if (!ctx)
-        {
-            ERR_print_errors_fp(stderr);
-            raise(SIGINT);
-        }
-        return ctx;
-    }
-    // config context
-    void configureContext(SSL_CTX *ctx, const std::string &certFilePath)
-    {
-        if (!SSL_CTX_load_verify_locations(ctx, certFilePath.c_str(), NULL))
-        {
-            ERR_print_errors_fp(stderr);
-            exit(EXIT_FAILURE);
-        }
-        std::cout << fmt::format("Loaded server cert file ({})", certFilePath) << std::endl;
-    }
-};
-
 struct Send
 {
     Send() = default;
     // string buffer = struct.readFile(filePath); file path is a string to the file path
     // string encodedData = struct.b64EF(string buffer);
     // struct.sendBase64Data(clientSocket, encodedData);
-    std::string b64EF(std::string &data)
+    static std::string b64EF(std::string &data)
     {
         std::string encoded;
         CryptoPP::StringSource(data, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
         return encoded;
     }
 
-    std::string readFile(const std::string &filePath)
+    static std::string readFile(const std::string &filePath)
     {
         std::ifstream file(filePath);
         if (!file.is_open())
@@ -337,7 +304,7 @@ struct Send
         return buffer;
     }
 
-    void sendBase64Data(SSL *socket, const std::string &encodedData)
+    static void sendBase64Data(SSL *socket, const std::string &encodedData)
     {
         ssize_t sentBytes = SSL_write(socket, encodedData.c_str(), encodedData.size());
         if (sentBytes == -1)
@@ -347,7 +314,7 @@ struct Send
         }
     }
 
-    void broadcastBase64Data(int clientSocket, const std::string &encodedData, std::vector<int> &connectedClients, std::vector<SSL *> &tlsSocks)
+    static void broadcastBase64Data(int clientSocket, const std::string &encodedData, std::vector<int> &connectedClients, std::vector<SSL *> &tlsSocks)
     {
         for (unsigned int i = 0; i < connectedClients.size(); i++)
         {
@@ -359,13 +326,13 @@ struct Send
     }
 };
 
-struct Recieve
+struct Receive
 {
-    Recieve() = default;
+    Receive() = default;
     // std::string encodedData = receiveBase64Data(clientSocket);
     // std::vector<uint8_t> decodedData = base64Decode(encodedData);
     // saveFile(filePath, decodedData);
-    std::string read_pem_key(const std::string &path)
+    static std::string read_pem_key(const std::string &path)
     {
         std::ifstream file(path);
         if (!file.is_open())
@@ -377,44 +344,35 @@ struct Recieve
         return pemKey;
     }
 
-    std::string base64Decode(const std::string &encodedData)
+    static std::string Base64Decode(const std::string &encodedData)
     {
         std::string decoded;
         CryptoPP::StringSource(encodedData, true, new CryptoPP::Base64Decoder(new CryptoPP::StringSink(decoded)));
         return decoded;
     }
 
-    void saveFile(const std::string &filePath, const std::string &buffer)
+    static void saveFile(const std::string &filePath, const std::string &buffer)
     {
         std::ofstream file(filePath);
-        if (!file.is_open())
+        if (file.is_open())
         {
-            std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
+            file << buffer;
+            return;
         }
-
-        file << buffer;
-
-        if (!file)
-        {
-            throw std::runtime_error("Error writing to file");
-        }
+        std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
     }
-    void saveFilePem(const std::string &filePath, const std::string &buffer)
+    static void saveFilePem(const std::string &filePath, const std::string &buffer)
     {
         std::ofstream file(filePath, std::ios::binary);
-        if (!file.is_open())
+        if (file.is_open())
         {
-            throw std::runtime_error(fmt::format("Could not open file to write: ", filePath));
+            file << buffer;
+            return;
         }
-
-        file << buffer;
-
-        if (!file)
-        {
-            throw std::runtime_error("Error writing to file");
-        }
+        std::cout << fmt::format("Could not open file to write: ", filePath) << std::endl;
+        raise(SIGINT);
     }
-    std::string receiveBase64Data(SSL *clientSocket)
+    static std::string receiveBase64Data(SSL *clientSocket)
     {
         std::vector<char> buffer(4096);
         std::string receivedData;
@@ -437,7 +395,7 @@ struct Recieve
         return receivedData;
     }
 
-    std::string getPemKey(SSL *clientSock, const std::string &filepath)
+    static std::string getPemKey(SSL *clientSock, const std::string &filepath)
     {
         char buffer[1024] = {0};
         int valread = SSL_read(clientSock, buffer, 1024);

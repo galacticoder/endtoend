@@ -20,8 +20,8 @@ namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
-extern std::function<void(int)> shutdown_handler;
-extern void signal_handler(int signal);
+// extern std::function<void(int)> shutdown_handler;
+// extern void signalHandling::signal_handler(int signal);
 
 int serverSd = 0;
 int portS = 8080;
@@ -104,9 +104,11 @@ int http::fetchAndSave(const std::string &site, const std::string &outfile)
     return 0;
 }
 
-void http::pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
+void http::pingServer(const char *host, unsigned short port)
 {
-    signal(SIGINT, signal_handler);
+    int update_secs = 1;
+    // signal(SIGINT, signal_handler);
+
     const auto wait_duration = std::chrono::seconds(update_secs);
     while (1)
     {
@@ -149,6 +151,7 @@ void http::pingServer(const char *host, unsigned short port, std::atomic<bool> &
         }
         catch (const std::exception &e)
         {
+            std::cout << "Exception caught in [httpCl.cpp] http::pingServer: " << e.what() << std::endl;
         }
     }
 }
