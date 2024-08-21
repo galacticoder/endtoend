@@ -123,7 +123,7 @@ int main()
     std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", formatPath, "server");
     std::string certPath = fmt::format("{}server-cert.pem", formatPath);
     std::string privateKeyPath = fmt::format("{}{}-privkey.pem", fpath, "mykey");
-    //
+
     { // create directories
         createDir(fpath);
         createDir(formatPath);
