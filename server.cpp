@@ -179,9 +179,7 @@ void updateActiveFile(auto data)
   }
 }
 
-void setupSignalHandlers() { signal(SIGINT, signalHandleServer); }
-
-void leaveCl(SSL *clientSocket, int &clsock, const std::string &hashedIp, unsigned int id = -1, const std::string &username = "")
+void leaveCl(SSL *clientSocket, int &clsock, const std::string &hashedIp, unsigned int id = -1, const std::string &username = "", const std::string &pathPub = "")
 {
   std::lock_guard<std::mutex> lock(clientsMutex);
   SSL_shutdown(clientSocket);
@@ -198,7 +196,8 @@ void leaveCl(SSL *clientSocket, int &clsock, const std::string &hashedIp, unsign
   {
     clientHashVerifiedClients.erase(clientHashVerifiedClients.begin() + id);
   }
-  if (username != "" && clientUsernames.size() > 0)
+
+  if (!username.empty() && clientUsernames.size() > 0)
   {
     auto it = std::find(clientUsernames.begin(), clientUsernames.end(), username);
     if (it != clientUsernames.end())
@@ -206,25 +205,40 @@ void leaveCl(SSL *clientSocket, int &clsock, const std::string &hashedIp, unsign
       clientUsernames.erase(it);
     }
   }
+
   if (clp[hashedIp])
   {
     clp.erase(hashedIp);
   }
-  // if (usernames[hashedIp])
-  // {
 
-  //   usernames.erase(hashedIp);
-  // }
+  if (!pathPub.empty())
+  {
+    std::cout << "Deleting user pubkey" << std::endl;
+    remove(pathPub);
+    try
+    {
+      if (!is_regular_file(pathPub))
+      {
+        std::cout << fmt::format("Client's pubkey file ({}) has been deleted", pathPub) << std::endl;
+      }
+      else if (is_regular_file(pathPub))
+      {
+        std::cout << fmt::format("Client's pubkey file ({}) cannot be deleted", pathPub) << std::endl;
+      }
+    }
+    catch (const std::exception &e)
+    {
+      std::cout << fmt::format("Error occurred while attempting to delete client pubkey [{}]: {}", pathPub, e.what()) << std::endl;
+    }
+  }
   std::cout << "Client clean up finished" << std::endl;
 }
 
 void clStat(SSL *clientSocket, int &clsock, const std::string &hashedIp)
 {
   std::cout << "Started thread for clstat" << std::endl;
-  // const auto wait_duration = std::chrono::milliseconds(50);
   while (1)
   {
-    // std::cout << "Started thread for clstat" << std::endl;
     try
     {
       int cSockStatus = socket(AF_INET, SOCK_STREAM, 0);
@@ -235,15 +249,12 @@ void clStat(SSL *clientSocket, int &clsock, const std::string &hashedIp)
 
       if (inet_pton(AF_INET, "127.0.0.1" /*replace with user ip*/, &serverAddress.sin_addr) <= 0)
       {
-        std::cerr << "pton conversion error" << std::endl;
-        // raise(SIGINT);
+        std::cerr << "Pton conversion error in clStat" << std::endl;
       }
 
       if (connect(cSockStatus, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
       {
-        // close(clientSocket);
         std::cout << fmt::format("Client disconnected [CANNOT CONNECT TO SERVER] [P:{}]", clp[hashedIp]) << std::endl;
-        // raise(SIGINT);
         auto itCl = (find(connectedClients.begin(), connectedClients.end(), clsock)) - connectedClients.begin();
         std::string username;
         usernames.erase(hashedIp);
@@ -267,15 +278,12 @@ void clStat(SSL *clientSocket, int &clsock, const std::string &hashedIp)
 
       else
       {
-        std::cout << "readStr: " << readStr << std::endl;
         close(cSockStatus);
-        // raise(SIGINT);
       }
-
-      // std::this_thread::sleep_for(wait_duration);
     }
     catch (const std::exception &e)
     {
+      std::cout << "Exception caught in clStat function: " << e.what() << std::endl;
     }
   }
   exitSt = 1;
@@ -314,17 +322,14 @@ void waitTimer(const std::string hashedClientIp)
   // attempt to keep joining
   if (running == 0)
   {
-    std::cout << "Starting timer timeout for user with hash ip: "
-              << hashedClientIp << std::endl;
+    std::cout << "Starting timer timeout for user with hash ip: " << hashedClientIp << std::endl;
     running = 1;
     int len = hashedClientIp.length();
     while (timeLimit != 0)
     {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       timeLimit--;
-      std::cout << fmt::format("Timer user [{}..]: ",
-                               hashedClientIp.substr(0, len / 4))
-                << timeLimit << std::endl;
+      std::cout << fmt::format("Timer user [{}..]: ", hashedClientIp.substr(0, len / 4)) << timeLimit << std::endl;
       std::cout << "\x1b[A";
       std::cout << eraseLine;
     }
@@ -332,29 +337,22 @@ void waitTimer(const std::string hashedClientIp)
     if (timeLimit == 0)
     {
       triesIp[hashedClientIp] = 0;
-      timeMap[hashedClientIp] =
-          std::chrono::duration_cast<std::chrono::seconds>(
-              std::chrono::system_clock::now().time_since_epoch())
-              .count();
+      timeMap[hashedClientIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       timeLimit = 90;
       running = 0;
-      std::cout
-          << fmt::format("Tries for IP hash ({}) has been resetted and can now join", hashedClientIp) << std::endl;
+      std::cout << fmt::format("Tries for IP hash ({}) has been resetted and can now join", hashedClientIp) << std::endl;
     }
   }
 }
 
-bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock, const std::string &hashedIp, std::unordered_map<int, string> &serverHash, int &pnInt,
-                   int &indexClientOut, const std::string &username)
+bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock, const std::string &hashedIp, std::unordered_map<int, string> &serverHash, int &pnInt, int &indexClientOut, const std::string &username)
 {
-  std::string notVerified = "You have been kicked from the server for not "
-                            "inputting the correct password#N";
+  std::string notVerified = "You have been kicked from the server for not inputting the correct password#N";
   try
   {
     if (clientHashVerifiedClients.size() < 3)
     {
-      if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 &&
-          pnInt != 2)
+      if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 && pnInt != 2)
       {
         const string newP = fmt::format("{}{}-pubkeyfromclient.pem", SRCPATH, username);
         if (is_regular_file(newP))
@@ -396,8 +394,7 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
             SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
             std::this_thread::sleep_for(std::chrono::seconds(1));
             leaveCl(clientSocket, clsock, hashedIp, indexClientOut, username);
-            std::cout << "Disconnected client for non verified password"
-                      << std::endl;
+            std::cout << "Disconnected client for non verified password" << std::endl;
             return true;
           }
         }
@@ -424,16 +421,59 @@ bool checkPassHash(const std::string &passGetArg, SSL *clientSocket, int clsock,
   return true;
 }
 
-// void test()
-// {
-//     if (bytesReceived <= 0)
-//     {
-//         {
-//             leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-//             std::cout << exitMsg << endl;
-//         }
-//     }
-// }
+int checkB64(const std::string &msg)
+{
+  try
+  {
+    DecServer decode;
+    const std::string store = decode.Base64Decode(msg);
+    {
+      for (int i = 0; i < store.size(); i++)
+      {
+        if (char(int(store[i])) > 128 && char(int(store[i])) < 0)
+        {
+          return -1;
+        }
+      }
+
+      return 0;
+    }
+  }
+  catch (const std::exception &e)
+  {
+    std::cout << "Exception caught in checkB64 caught: " << e.what() << std::endl;
+    return -1;
+  }
+}
+
+std::string getTime()
+{
+  auto now = std::chrono::system_clock::now();
+  std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+  std::tm *localTime = std::localtime(&currentTime);
+
+  bool isPM = localTime->tm_hour >= 12;
+  string stringFormatTime = asctime(localTime);
+
+  int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
+
+  stringstream ss;
+  ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
+  string formattedTime = ss.str();
+
+  std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+  std::smatch match;
+  if (regex_search(stringFormatTime, match, time_pattern))
+  {
+    string str = match.str(0);
+    size_t pos = stringFormatTime.find(str);
+    stringFormatTime.replace(pos, str.length(), formattedTime);
+  }
+  if (!stringFormatTime.empty())
+    return stringFormatTime;
+
+  return "";
+}
 
 void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map<int, string> serverHash, int pnInt, const string serverKeysPath, const string serverPrvKeyPath, const string serverPubKeyPath, std::string hashedIp, int &val)
 {
@@ -452,582 +492,560 @@ void handleClient(SSL *clientSocket, int clsock, int serverSocket, unordered_map
 
     if (pingStr == "C")
     {
-      try
-      {
-        char clpBuff[200] = {0};
-        ssize_t bytesClP = SSL_read(clientSocket, clpBuff, sizeof(clpBuff) - 1);
-        clpBuff[bytesClP] = '\0';
-        std::string clP(clpBuff);
+      // try
+      // {
+      //   char clpBuff[200] = {0};
+      //   ssize_t bytesClP = SSL_read(clientSocket, clpBuff, sizeof(clpBuff) - 1);
+      //   clpBuff[bytesClP] = '\0';
+      //   std::string clP(clpBuff);
 
-        try
+      //   try
+      //   {
+      //     clp[hashedIp] = atoi(clP.c_str());
+      //   }
+      //   catch (const std::exception &e)
+      //   {
+      //     std::cout << "Cannot use stoi on clP: " << e.what() << std::endl;
+      //     std::cout << "Kicked thread: " << std::this_thread::get_id() << e.what() << std::endl;
+      //     leaveCl(clientSocket, clsock, hashedIp);
+      //     return;
+      //   }
+
+      //   std::cout << fmt::format("clP [{}..]: ", hashedIp.substr(0, hashedIp.length() / 4)) << clp[hashedIp] << std::endl;
+
+      // std::thread(clStat, clientSocket, std::ref(clsock), std::ref(hashedIp)).detach();
+
+      while (exitSt != 1)
+      {
+        short found;
+
+        for (const auto &pair : timeMap)
         {
-          clp[hashedIp] = atoi(clP.c_str());
+          if (pair.first == hashedIp)
+          {
+            found = 1;
+            auto now = std::chrono::system_clock::now();
+            auto newNowTime = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+
+            auto storedTime = timeMap[pair.first];
+            auto elapsed = newNowTime - storedTime;
+
+            if (elapsed < 90 && triesIp[hashedIp] >= 4)
+            {
+              // this dooes not get reached no more
+              thread(waitTimer, hashedIp).detach(); // starts the wait time
+              const std::string rateLimited = fmt::format("Rate limit reached. Try again in {} seconds", timeLimit);
+              std::string encodedV = enc.Base64Encode(rateLimited);
+              encodedV.append("RATELIMITED");
+
+              std::cout << "Encoded sending rate limit: " << encodedV << std::endl;
+              SSL_write(clientSocket, encodedV.c_str(), encodedV.size());
+              std::this_thread::sleep_for(std::chrono::seconds(1));
+              leaveCl(clientSocket, clsock, hashedIp);
+              std::cout << "Client kicked for attempting to join too frequently" << std::endl;
+              break;
+            }
+          }
         }
-        catch (const std::exception &e)
+
+        if (found != 1)
         {
-          std::cout << "Cannot use stoi on clP: " << e.what() << std::endl;
-          std::cout << "Kicked thread: " << std::this_thread::get_id() << e.what() << std::endl;
+          timeMap[hashedIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        }
+        if (val != 3)
+        {
+          std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+          std::string encoded = enc.Base64Encode((std::string)OKSIG);
+          encoded.append("OK");
+          SSL_write(clientSocket, encoded.c_str(), encoded.size());
+        }
+        else if (val == 4)
+        {
+          std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+          std::string encoded = enc.Base64Encode((std::string)OKSIG);
+          encoded.append("OK");
+          SSL_write(clientSocket, encoded.c_str(), encoded.size());
+        }
+
+        {
+          lock_guard<mutex> lock(clientsMutex);
+          connectedClients.push_back(clsock);
+          tlsSocks.push_back(clientSocket);
+        }
+
+        if (clientUsernames.size() == limOfUsers) // never reached again
+        {
+          std::string encoded = enc.Base64Encode(limReached);
+          encoded.append("LIM");
+          SSL_write(clientSocket, limReached.c_str(), limReached.length());
           leaveCl(clientSocket, clsock, hashedIp);
+          std::cout << "Kicked user who attempted to join past client limit" << std::endl;
           return;
         }
 
-        std::cout << fmt::format("clP [{}..]: ", hashedIp.substr(0, hashedIp.length() / 4)) << clp[hashedIp] << std::endl;
+        int pnS = 1;
+        int pnO = 2;
+        std::string passGetArg;
 
-        std::thread(clStat, clientSocket, std::ref(clsock), std::ref(hashedIp)).detach();
+        auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
+        int indexClientOut = itCl - connectedClients.begin();
 
-        while (exitSt != 1)
+        if (clientHashVerifiedClients.size() != 3)
         {
-          short found;
+          clientHashVerifiedClients.push_back(0);
+        }
 
-          for (const auto &pair : timeMap)
+        std::cout << "Size of clientHashVerifiedClients vector: " << clientHashVerifiedClients.size() << endl;
+
+        if (clientHashVerifiedClients.size() < 3)
+        {
+          if (pnInt == 1 && clientHashVerifiedClients[indexClientOut] != 1)
           {
-            if (pair.first == hashedIp)
+            cout << "Sending pass verify signal" << endl;
+            SSL_write(clientSocket, to_string(pnS).c_str(), to_string(pnS).size());
+            std::cout << "Waiting to receive password from client.." << std::endl;
+
+            std::string passGet = receive.receiveBase64Data(clientSocket);
+            std::cout << "Pass cipher recieved from client: " << passGet << std::endl;
+
+            std::cout << fmt::format("Loading server private key from path [{}]", serverPrvKeyPath) << std::endl;
+
+            LoadKey loadServerKey;
+            EVP_PKEY *serverPrivate = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
+
+            if (serverPrivate)
             {
-              found = 1;
-              auto now = std::chrono::system_clock::now();
-              auto newNowTime = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-
-              auto storedTime = timeMap[pair.first];
-              auto elapsed = newNowTime - storedTime;
-
-              if (elapsed < 90 && triesIp[hashedIp] >= 4)
-              {
-                // this dooes not get reached no more
-                thread(waitTimer, hashedIp).detach(); // starts the wait time
-                const std::string rateLimited = fmt::format("Rate limit reached. Try again in {} seconds", timeLimit);
-                std::string encodedV = enc.Base64Encode(rateLimited);
-                encodedV.append("RATELIMITED");
-
-                std::cout << "Encoded sending rate limit: " << encodedV << std::endl;
-                SSL_write(clientSocket, encodedV.c_str(), encodedV.size());
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                leaveCl(clientSocket, clsock, hashedIp);
-                std::cout << "Client kicked for attempting to join too frequently" << std::endl;
-                break;
-              }
-            }
-          }
-
-          if (found != 1)
-          {
-            timeMap[hashedIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-          }
-          if (val != 3)
-          {
-            std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
-            std::string encoded = enc.Base64Encode((std::string)OKSIG);
-            encoded.append("OK");
-            SSL_write(clientSocket, encoded.c_str(), encoded.size());
-          }
-          else if (val == 4)
-          {
-            std::cout << fmt::format("Sending hashed ip [{}..] signal okay", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
-            std::string encoded = enc.Base64Encode((std::string)OKSIG);
-            encoded.append("OK");
-            SSL_write(clientSocket, encoded.c_str(), encoded.size());
-          }
-
-          {
-            lock_guard<mutex> lock(clientsMutex);
-            connectedClients.push_back(clsock);
-            tlsSocks.push_back(clientSocket);
-          }
-
-          if (clientUsernames.size() == limOfUsers) // never reached again
-          {
-            std::string encoded = enc.Base64Encode(limReached);
-            encoded.append("LIM");
-            SSL_write(clientSocket, limReached.c_str(), limReached.length());
-            leaveCl(clientSocket, clsock, hashedIp);
-            std::cout << "Kicked user who attempted to join past client limit" << std::endl;
-            return;
-          }
-
-          int pnS = 1;
-          int pnO = 2;
-          std::string passGetArg;
-
-          auto itCl = find(connectedClients.begin(), connectedClients.end(), clsock); // find clientSocket index
-          int indexClientOut = itCl - connectedClients.begin();
-
-          if (clientHashVerifiedClients.size() != 3)
-          {
-            clientHashVerifiedClients.push_back(0);
-          }
-
-          std::cout << "Size of clientHashVerifiedClients vector: " << clientHashVerifiedClients.size() << endl;
-
-          if (clientHashVerifiedClients.size() < 3)
-          {
-            if (pnInt == 1 && clientHashVerifiedClients[indexClientOut] != 1)
-            {
-              cout << "Sending pass verify signal" << endl;
-              SSL_write(clientSocket, to_string(pnS).c_str(), to_string(pnS).size());
-              std::cout << "Waiting to receive password from client.." << std::endl;
-
-              std::string passGet = receive.receiveBase64Data(clientSocket);
-              std::cout << "Pass cipher recieved from client: " << passGet << std::endl;
-
-              std::cout << fmt::format("Loading server private key from path [{}]", serverPrvKeyPath) << std::endl;
-
-              LoadKey loadServerKey;
-              EVP_PKEY *serverPrivate = loadServerKey.LoadPrvOpenssl(serverPrvKeyPath);
-
-              if (serverPrivate)
-              {
-                std::cout << "Loaded server private key for decryption of passGet" << std::endl;
-              }
-              else
-              {
-                std::cout << "Could not load server private key for decryption. Killing server." << std::endl;
-                raise(SIGINT);
-              }
-              std::cout << "Decoding pass cipher" << std::endl;
-              std::string decodedPassGet = dec.Base64Decode(passGet);
-
-              if (passGet.size() == 0)
-              {
-                std::cout << "User password is 0 bytes. Kicking.." << std::endl;
-                leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-                std::cout << "Kicked user with error password." << std::endl;
-                return;
-              }
-
-              std::cout << "Password cipher size: " << passGet.size() << std::endl;
-              passGet = dec.dec(serverPrivate, decodedPassGet);
-              EVP_PKEY_free(serverPrivate);
-
-              passGetArg = passGet;
-
-              std::cout << "Validating password hash sent by user" << std::endl;
-
-              if (bcrypt::validatePassword(passGet, serverHash[1]) == 1 && !passGet.empty())
-              {
-                SSL_write(clientSocket, verified.c_str(), verified.length());
-                clientHashVerifiedClients[indexClientOut] = 1;
-                std::cout << "User password verified and added to clientHashVerifiedClients vector" << std::endl;
-                std::cout << "Updated vector size: " << clientHashVerifiedClients.size() << std::endl;
-              }
-              else
-              {
-                SSL_write(clientSocket, notVerified.c_str(), notVerified.length()); // sends them the not verified message
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-                std::cout << fmt::format("User with hashed ip [{}..] has entered the wrong password and has been kicked", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
-                return;
-              }
-            }
-            else if (pnInt == 2)
-            {
-              std::cout << fmt::format("Sending hashed ip [{}..] signal okay [2]", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
-              std::string encoded = enc.Base64Encode((std::string)OKSIG);
-              encoded.append("OK");
-              SSL_write(clientSocket, encoded.c_str(), encoded.size());
-            }
-          }
-          else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1)
-          {
-            SSL_write(clientSocket, to_string(pnO).c_str(), to_string(pnO).length()); // send no password needed signal
-          }
-
-          unsigned int valid = std::find(connectedClients.begin(), connectedClients.end(), clsock) - connectedClients.begin();
-
-          if (valid != (long int)connectedClients.size())
-          {
-            std::string clientsNamesStr;
-
-            char buffer[4096] = {0};
-            std::cout << "Recieving username from client.." << std::endl;
-            ssize_t bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer) - 1);
-            buffer[bytesReceived] = '\0';
-            std::string userStr(buffer);
-
-            if (clientHashVerifiedClients.size() < 3)
-            {
-              if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 &&
-                  pnInt != 2)
-              {
-                SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                std::cout << "Disconnected user with unverified password" << std::endl;
-                return;
-              }
-            }
-
-            const string exists = "Username already exists. You are have been kicked.@";
-            if (clientUsernames.size() > 0) // checks if username already exists
-            {
-              for (unsigned int i = 0; i < clientUsernames.size(); i++)
-              {
-                if (clientUsernames[i] == userStr)
-                {
-                  std::cout << "Client with the same username detected. kicking.." << std::endl;
-                  SSL_write(clientSocket, exists.c_str(), exists.length());
-                  std::this_thread::sleep_for(std::chrono::seconds(1));
-                  leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-                  std::cout << "Kicked client with same username kicked" << std::endl;
-                  return;
-                }
-              }
-            }
-            if (userStr.find(' '))
-            {
-              for (unsigned int i = 0; i < userStr.length(); i++)
-              {
-                if (userStr[i] == ' ')
-                {
-                  userStr[i] = '_';
-                }
-              }
-              SSL_write(clientSocket, userStr.c_str(), userStr.length());
-            }
-
-            if (userStr.empty())
-            {
-              leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-              std::cout << "Disconnected user with empty name" << std::endl;
+              std::cout << "Loaded server private key for decryption of passGet" << std::endl;
             }
             else
             {
-              if (checkPassHash(passGetArg, clientSocket, clsock, hashedIp, serverHash, pnInt, indexClientOut, userStr) != false)
+              std::cout << "Could not load server private key for decryption. Killing server." << std::endl;
+              raise(SIGINT);
+            }
+            std::cout << "Decoding pass cipher" << std::endl;
+            std::string decodedPassGet = dec.Base64Decode(passGet);
+
+            if (passGet.size() == 0)
+            {
+              std::cout << "User password is 0 bytes. Kicking.." << std::endl;
+              leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
+              std::cout << "Kicked user with error password." << std::endl;
+              return;
+            }
+
+            std::cout << "Password cipher size: " << passGet.size() << std::endl;
+            passGet = dec.dec(serverPrivate, decodedPassGet);
+            EVP_PKEY_free(serverPrivate);
+
+            passGetArg = passGet;
+
+            std::cout << "Validating password hash sent by user" << std::endl;
+
+            if (bcrypt::validatePassword(passGet, serverHash[1]) == 1 && !passGet.empty())
+            {
+              SSL_write(clientSocket, verified.c_str(), verified.length());
+              clientHashVerifiedClients[indexClientOut] = 1;
+              std::cout << "User password verified and added to clientHashVerifiedClients vector" << std::endl;
+              std::cout << "Updated vector size: " << clientHashVerifiedClients.size() << std::endl;
+            }
+            else
+            {
+              SSL_write(clientSocket, notVerified.c_str(), notVerified.length()); // sends them the not verified message
+              std::this_thread::sleep_for(std::chrono::seconds(1));
+              leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
+              std::cout << fmt::format("User with hashed ip [{}..] has entered the wrong password and has been kicked", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+              return;
+            }
+          }
+          else if (pnInt == 2)
+          {
+            std::cout << fmt::format("Sending hashed ip [{}..] signal okay [2]", hashedIp.substr(0, hashedIp.length() / 4)) << std::endl;
+            std::string encoded = enc.Base64Encode((std::string)OKSIG);
+            encoded.append("OK");
+            SSL_write(clientSocket, encoded.c_str(), encoded.size());
+          }
+        }
+        else if (pnInt == 2 && clientHashVerifiedClients[indexClientOut] != 1)
+        {
+          SSL_write(clientSocket, to_string(pnO).c_str(), to_string(pnO).length()); // send no password needed signal
+        }
+
+        unsigned int valid = std::find(connectedClients.begin(), connectedClients.end(), clsock) - connectedClients.begin();
+
+        if (valid != (long int)connectedClients.size())
+        {
+          std::string clientsNamesStr;
+
+          char buffer[4096] = {0};
+          std::cout << "Recieving username from client.." << std::endl;
+          ssize_t bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer) - 1);
+          buffer[bytesReceived] = '\0';
+          std::string userStr(buffer);
+
+          if (clientHashVerifiedClients.size() < 3)
+          {
+            if (bcrypt::validatePassword(passGetArg, serverHash[1]) != 1 &&
+                pnInt != 2)
+            {
+              SSL_write(clientSocket, notVerified.c_str(), notVerified.length());
+              std::this_thread::sleep_for(std::chrono::seconds(1));
+              leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
+              std::cout << "Disconnected user with unverified password" << std::endl;
+              return;
+            }
+          }
+
+          const string exists = "Username already exists. You are have been kicked.@";
+          if (clientUsernames.size() > 0) // checks if username already exists
+          {
+            for (unsigned int i = 0; i < clientUsernames.size(); i++)
+            {
+              if (clientUsernames[i] == userStr)
               {
-                clientUsernames.push_back(userStr);
-                std::cout << "Client username added to clientUsernames vector" << std::endl;
-                updateActiveFile(clientUsernames.size()); //
+                std::cout << "Client with the same username detected. kicking.." << std::endl;
+                SSL_write(clientSocket, exists.c_str(), exists.length());
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
+                std::cout << "Kicked client with same username kicked" << std::endl;
+                return;
+              }
+            }
+          }
+          if (userStr.find(' '))
+          {
+            for (unsigned int i = 0; i < userStr.length(); i++)
+            {
+              if (userStr[i] == ' ')
+              {
+                userStr[i] = '_';
+              }
+            }
+            SSL_write(clientSocket, userStr.c_str(), userStr.length());
+          }
+
+          if (userStr.empty())
+          {
+            leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
+            std::cout << "Disconnected user with empty name" << std::endl;
+          }
+          else
+          {
+            if (checkPassHash(passGetArg, clientSocket, clsock, hashedIp, serverHash, pnInt, indexClientOut, userStr) != false)
+            {
+              clientUsernames.push_back(userStr);
+              std::cout << "Client username added to clientUsernames vector" << std::endl;
+              updateActiveFile(clientUsernames.size()); //
+              {
+                std::string activeBuf = send.readFile(userPath); // file path is a string to the file path
+                std::string ed = send.b64EF(activeBuf);
+                send.sendBase64Data(clientSocket, ed);
+              }
+              joins++;
+
+              usernames[hashedIp] = userStr;
+
+              std::string userPubPath = fmt::format("keys-server/{}-pubkeyserver.pem", userStr);
+              std::string serverRecv;
+
+              if (clientUsernames.size() == 1)
+              {
+                serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr);
+              }
+              else if (clientUsernames.size() > 1)
+              {
+                serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+              }
+
+              { // receive the client pub key
+                std::string encodedData = receive.receiveBase64Data(clientSocket);
+                std::string decodedData = receive.base64Decode(encodedData);
+                receive.saveFilePem(serverRecv, decodedData);
+              }
+
+              std::string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
+
+              if (is_regular_file(serverRecv))
+              {
+                EVP_PKEY *pkeyloader = load.LoadPubOpenssl(serverRecv);
+
+                if (!pkeyloader)
                 {
-                  std::string activeBuf = send.readFile(userPath); // file path is a string to the file path
-                  std::string ed = send.b64EF(activeBuf);
-                  send.sendBase64Data(clientSocket, ed);
-                }
-                joins++;
-
-                usernames[hashedIp] = userStr;
-
-                std::string userPubPath = fmt::format("keys-server/{}-pubkeyserver.pem", userStr);
-                std::string serverRecv;
-
-                if (clientUsernames.size() == 1)
-                {
-                  serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr);
-                }
-                else if (clientUsernames.size() > 1)
-                {
-                  serverRecv = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                }
-
-                { // receive the client pub key
-                  std::string encodedData = receive.receiveBase64Data(clientSocket);
-                  std::string decodedData = receive.base64Decode(encodedData);
-                  receive.saveFilePem(serverRecv, decodedData);
-                }
-
-                std::string messagetouseraboutpub = "Public key that you sent to server cannot be loaded on server";
-
-                if (is_regular_file(serverRecv))
-                {
-                  EVP_PKEY *pkeyloader = load.LoadPubOpenssl(serverRecv);
-
-                  if (!pkeyloader)
-                  {
-                    std::cout << fmt::format("Cannot load user [{}] public key", userStr) << std::endl;
-                    messagetouseraboutpub = enc.Base64Encode(messagetouseraboutpub);
-                    messagetouseraboutpub.append("MSGNO");
-                    SSL_write(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length());
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                    usernames.erase(hashedIp);
-                    leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                    std::cout << fmt::format("Kicked user [{}]", userStr) << std::endl;
-                    return;
-                  }
-                  EVP_PKEY_free(pkeyloader);
-                }
-                else
-                {
-                  std::cout << fmt::format("User [{}] public key file on server does not exist", userStr) << std::endl;
+                  std::cout << fmt::format("Cannot load user [{}] public key", userStr) << std::endl;
                   messagetouseraboutpub = enc.Base64Encode(messagetouseraboutpub);
-                  messagetouseraboutpub.append("EXISTERR");
+                  messagetouseraboutpub.append("MSGNO");
                   SSL_write(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length());
                   std::this_thread::sleep_for(std::chrono::seconds(1));
                   usernames.erase(hashedIp);
-                  leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
+                  leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
                   std::cout << fmt::format("Kicked user [{}]", userStr) << std::endl;
                   return;
                 }
-                SSL_write(clientSocket, OKSIG, strlen(OKSIG));
+                EVP_PKEY_free(pkeyloader);
+              }
+              else
+              {
+                std::cout << fmt::format("User [{}] public key file on server does not exist", userStr) << std::endl;
+                messagetouseraboutpub = enc.Base64Encode(messagetouseraboutpub);
+                messagetouseraboutpub.append("EXISTERR");
+                SSL_write(clientSocket, messagetouseraboutpub.data(), messagetouseraboutpub.length());
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                usernames.erase(hashedIp);
+                leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                std::cout << fmt::format("Kicked user [{}]", userStr) << std::endl;
+                return;
+              }
+              SSL_write(clientSocket, OKSIG, strlen(OKSIG));
 
-                // file paths
-                std::string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[0]);
-                std::string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[0]);
+              // file paths
+              std::string sendToClient2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[0]);
+              std::string clientSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[0]);
 
+              if (clientUsernames.size() == 2)
+              {
+                std::cout << fmt::format("Sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
+                SSL_write(clientSocket, clientSavePathAs.data(), clientSavePathAs.length());
+                std::string fi = receive.read_pem_key(sendToClient2);
+                std::string encodedData = send.b64EF(fi);
+                send.sendBase64Data(clientSocket, encodedData);
+              }
+              else if (clientUsernames.size() == 1)
+              {
+                cout << "1 client connected. Waiting for another client to connect to continue" << endl;
+                while (1)
+                {
+                  std::this_thread::sleep_for(std::chrono::seconds(2));
+                  if (clientUsernames.size() < 1)
+                  {
+                    return;
+                  }
+                  else if (clientUsernames.size() > 1)
+                  {
+                    std::cout << "Another user connected, proceeding..." << std::endl;
+                    break;
+                  }
+                }
+
+                std::cout << "client Size : " << clientUsernames.size() << std::endl;
                 if (clientUsernames.size() == 2)
                 {
-                  std::cout << fmt::format("Sending {} from user {} to user {}", sendToClient2, clientUsernames[0], userStr) << endl;
-                  SSL_write(clientSocket, clientSavePathAs.data(), clientSavePathAs.length());
-                  std::string fi = receive.read_pem_key(sendToClient2);
-                  std::string encodedData = send.b64EF(fi);
-                  send.sendBase64Data(clientSocket, encodedData);
+                  std::string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[1]);
+                  SSL_write(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length());
+                  std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
-                else if (clientUsernames.size() == 1)
+                std::string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                std::string fi2 = receive.read_pem_key(sendToClient1);
+                std::string encodedDataClient = send.b64EF(fi2);
+                send.sendBase64Data(clientSocket, encodedDataClient); // send encoded key
+                cout << "Sent client 2's public key to client 1" << endl;
+              }
+              else
+              {
+                return;
+              }
+
+              if (joins > 2)
+              {
+                for (SSL *client : tlsSocks)
                 {
-                  cout << "1 client connected. Waiting for another client to connect to continue" << endl;
-                  while (1)
+                  if (client != tlsSocks[1])
                   {
-                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                    std::cout << "Sending pub key to sock: " << client << std::endl;
+                    std::string user1msg = "Pubkeysendingcl1";
+                    user1msg = enc.Base64Encode(user1msg);
+                    user1msg.append("PSE");
+                    SSL_write(client, user1msg.c_str(), user1msg.size());
+                    string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                    std::string cl1path = fmt::format("keys-from-server/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                    SSL_write(client, cl1path.c_str(), cl1path.size());
+                    std::string cl2again = receive.read_pem_key(sendToClient1);
+                    std::cout << "KEYTOSEND: " << cl2again << std::endl;
+                    std::string encodedDataClient2 = send.b64EF(cl2again);
+                    send.sendBase64Data(client, encodedDataClient2); // send encoded key
+                    cout << "Sent client 2's public key to client 1" << endl;
+                  }
+                }
+              }
+
+              clientsNamesStr = countUsernames(clientsNamesStr);
+
+              std::string joinMsgForServer = fmt::format("{} has joined the chat", userStr);
+
+              auto itUserIndex = find(clientUsernames.begin(), clientUsernames.end(), userStr);
+              int userIndex = itUserIndex - clientUsernames.begin();
+              std::string joinMsg;
+
+              bool isConnected = true;
+
+              if (userIndex < 1)
+              {
+                joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex + 1]);
+              }
+              else
+              {
+                joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex - 1]);
+              }
+
+              EVP_PKEY *userKey = load.LoadPubOpenssl(fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr));
+              if (userKey)
+              {
+                std::string encJoin = enc.Enc(userKey, joinMsg);
+                encJoin = enc.Base64Encode(encJoin);
+                EVP_PKEY_free(userKey);
+                SSL_write(clientSocket, encJoin.c_str(), encJoin.size());
+                std::cout << joinMsgForServer << std::endl;
+              }
+              else
+              {
+                std::cout << "Cannot load user key for sending join message" << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                usernames.erase(hashedIp);
+                leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                return;
+              }
+
+              std::cout << "Connected clients: (";
+              std::cout << clientsNamesStr;
+              std::cout << ")" << endl;
+
+              while (isConnected)
+              {
+                if (checkPassHash(passGetArg, clientSocket, clsock, hashedIp, serverHash, pnInt, indexClientOut, userStr) != false)
+                {
+                  std::string exitMsg = fmt::format("{} has left the chat", userStr);
+                  bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer));
+                  if (bytesReceived <= 0)
+                  {
+                    isConnected = false;
+                    {
+                      leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
+                      std::cout << exitMsg << endl;
+                    }
+
+                    if (clientUsernames.size() > 1)
+                    {
+                      if (clientUsernames[0] == userStr)
+                      {
+                        int index = 0 + 1;
+                        std::string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[index]);
+                        EVP_PKEY *keyLoad = load.LoadPubOpenssl(pathpub);
+                        if (keyLoad)
+                        {
+                          string op64 = enc.Base64Encode(enc.Enc(keyLoad, exitMsg));
+                          if (op64 != "err")
+                          {
+                            std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[0]) << std::endl;
+                            broadcastMessage(op64, clientSocket, clsock);
+                            EVP_PKEY_free(keyLoad);
+                          }
+                          else
+                          {
+                            std::cout << fmt::format("Error occurred during encryption of exit message [{}] ({})", exitMsg, userStr);
+                          }
+                        }
+                        else
+                        {
+                          std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[0]) << std::endl;
+                          usernames.erase(hashedIp);
+                          leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                          std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[0]) << std::endl;
+                          return;
+                        }
+                      }
+                      else if (clientUsernames[1] == userStr)
+                      {
+                        string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
+                        EVP_PKEY *keyLoad2 = load.LoadPubOpenssl(pathpub2);
+
+                        if (keyLoad2)
+                        {
+                          std::string op642 = enc.Base64Encode(enc.Enc(keyLoad2, exitMsg));
+                          if (op642 != "err")
+                          {
+                            std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[1]) << std::endl;
+                            broadcastMessage(op642, clientSocket, clsock);
+                            EVP_PKEY_free(keyLoad2);
+                          }
+                          else
+                          {
+                            std::cout << fmt::format("Error occurred during encryption of exit message [{}] ({})", exitMsg, userStr);
+                          }
+                        }
+                        else
+                        {
+                          std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[1]) << std::endl;
+                          usernames.erase(hashedIp);
+                          leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                          std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[1]) << std::endl;
+                          return;
+                        }
+                      }
+                    }
+
+                    if (clientUsernames.size() > 0)
+                    {
+                      auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
+
+                      if (user != clientUsernames.rend())
+                      {
+                        clientUsernames.erase((user + 1).base());
+                      }
+                    }
+
+                    leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                    updateActiveFile(clientUsernames.size());
+
+                    clientUsernames.size() < 1 ? std::cout << "No clients connected to the server" : std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << std::endl;
+
                     if (clientUsernames.size() < 1)
                     {
-                      return;
-                    }
-                    else if (clientUsernames.size() > 1)
-                    {
-                      std::cout << "Another user connected, proceeding..." << std::endl;
-                      break;
+                      std::cout << "Shutting down server due to no users." << std::endl;
+                      raise(SIGINT);
                     }
                   }
 
-                  std::cout << "client Size : " << clientUsernames.size() << std::endl;
-                  if (clientUsernames.size() == 2)
+                  else
                   {
-                    std::string client1toSavePathAs = fmt::format("keys-from-server/{}-pubkeyfromserver.pem", clientUsernames[1]);
-                    SSL_write(clientSocket, client1toSavePathAs.data(), client1toSavePathAs.length());
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                  }
-                  std::string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                  std::string fi2 = receive.read_pem_key(sendToClient1);
-                  std::string encodedDataClient = send.b64EF(fi2);
-                  send.sendBase64Data(clientSocket, encodedDataClient); // send encoded key
-                  cout << "Sent client 2's public key to client 1" << endl;
-                }
-                else
-                {
-                  return;
-                }
+                    buffer[bytesReceived] = '\0';
+                    std::string receivedData(buffer);
+                    std::cout << "Received data: " << receivedData << std::endl;
+                    cout << "Ciphertext message length: " << receivedData.length() << endl;
+                    std::string cipherText = receivedData;
 
-                if (joins > 2)
-                {
-                  for (SSL *client : tlsSocks)
-                  {
-                    if (client != tlsSocks[1])
+                    if (!cipherText.empty() && cipherText.length() > 30 && cipherText.length() < 4096)
                     {
-                      std::cout << "Sending pub key to sock: " << client << std::endl;
-                      std::string user1msg = "Pubkeysendingcl1";
-                      user1msg = enc.Base64Encode(user1msg);
-                      user1msg.append("PSE");
-                      SSL_write(client, user1msg.c_str(), user1msg.size());
-                      string sendToClient1 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                      std::string cl1path = fmt::format("keys-from-server/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                      SSL_write(client, cl1path.c_str(), cl1path.size());
-                      std::string cl2again = receive.read_pem_key(sendToClient1);
-                      std::cout << "KEYTOSEND: " << cl2again << std::endl;
-                      std::string encodedDataClient2 = send.b64EF(cl2again);
-                      send.sendBase64Data(client, encodedDataClient2); // send encoded key
-                      cout << "Sent client 2's public key to client 1" << endl;
-                    }
-                    else
-                    {
-                      std::cout << "Ignore" << std::endl;
-                    }
-                  }
-                }
-
-                clientsNamesStr = countUsernames(clientsNamesStr);
-
-                std::string joinMsgForServer = fmt::format("{} has joined the chat", userStr);
-
-                auto itUserIndex = find(clientUsernames.begin(), clientUsernames.end(), userStr);
-                int userIndex = itUserIndex - clientUsernames.begin();
-                std::string joinMsg;
-
-                bool isConnected = true;
-
-                if (userIndex < 1)
-                {
-                  joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex + 1]);
-                }
-                else
-                {
-                  joinMsg = fmt::format("{} has joined the chat", clientUsernames[userIndex - 1]);
-                }
-
-                EVP_PKEY *userKey = load.LoadPubOpenssl(fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr));
-                if (userKey)
-                {
-                  std::string encJoin = enc.Enc(userKey, joinMsg);
-                  encJoin = enc.Base64Encode(encJoin);
-                  EVP_PKEY_free(userKey);
-                  SSL_write(clientSocket, encJoin.c_str(), encJoin.size());
-                  std::cout << joinMsgForServer << std::endl;
-                }
-                else
-                {
-                  std::cout << "Cannot load user key for sending join message" << std::endl;
-                  std::this_thread::sleep_for(std::chrono::seconds(1));
-                  usernames.erase(hashedIp);
-                  leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                  return;
-                }
-
-                std::cout << "Connected clients: (";
-                std::cout << clientsNamesStr;
-                std::cout << ")" << endl;
-
-                while (isConnected)
-                {
-                  if (checkPassHash(passGetArg, clientSocket, clsock, hashedIp, serverHash, pnInt, indexClientOut, userStr) != false)
-                  {
-                    std::string exitMsg = fmt::format("{} has left the chat", userStr);
-                    bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer));
-                    if (bytesReceived <= 0)
-                    {
-                      isConnected = false;
+                      const std::string stringFormatTime = getTime();
+                      const std::string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
+                      if (checkB64(cipherText) != -1)
                       {
-                        leaveCl(clientSocket, clsock, hashedIp, indexClientOut);
-                        std::cout << exitMsg << endl;
-                      }
-
-                      if (clientUsernames.size() > 1)
-                      {
-                        if (clientUsernames[0] == userStr)
-                        {
-                          int index = 0 + 1;
-                          std::string pathpub = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[index]);
-                          EVP_PKEY *keyLoad = load.LoadPubOpenssl(pathpub);
-                          if (keyLoad)
-                          {
-                            string op64 = enc.Base64Encode(enc.Enc(keyLoad, exitMsg));
-                            if (op64 != "err")
-                            {
-                              std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[0]) << std::endl;
-                              broadcastMessage(op64, clientSocket, clsock);
-                              EVP_PKEY_free(keyLoad);
-                            }
-                          }
-                          else
-                          {
-                            std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[0]) << std::endl;
-                            usernames.erase(hashedIp);
-                            leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                            std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[0]) << std::endl;
-                            return;
-                          }
-                        }
-                        else if (clientUsernames[1] == userStr)
-                        {
-                          string pathpub2 = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsernames[1]);
-                          EVP_PKEY *keyLoad2 = load.LoadPubOpenssl(pathpub2);
-
-                          if (keyLoad2)
-                          {
-                            std::string op642 = enc.Base64Encode(enc.Enc(keyLoad2, exitMsg));
-                            if (op642 != "err")
-                            {
-                              std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[1]) << std::endl;
-                              broadcastMessage(op642, clientSocket, clsock);
-                              EVP_PKEY_free(keyLoad2);
-                            }
-                          }
-                          else
-                          {
-                            std::cout << fmt::format("User [{}] pub key cannot be loaded", clientUsernames[1]) << std::endl;
-                            usernames.erase(hashedIp);
-                            leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                            std::cout << fmt::format("User [{}] has been kicked due to key not loading", clientUsernames[1]) << std::endl;
-                            return;
-                          }
-                        }
-                      }
-
-                      if (clientUsernames.size() > 0)
-                      {
-                        auto user = find(clientUsernames.rbegin(), clientUsernames.rend(), userStr);
-
-                        if (user != clientUsernames.rend())
-                        {
-                          clientUsernames.erase((user + 1).base());
-                        }
-                      }
-
-                      updateActiveFile(clientUsernames.size());
-                      std::cout << "Clients connected: (" << countUsernames(clientsNamesStr) << ")" << std::endl;
-                      std::string pubfiletodel = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", userStr);
-
-                      std::cout << "Deleting user pubkey" << std::endl;
-                      remove(pubfiletodel);
-                      if (!is_regular_file(pubfiletodel))
-                      {
-                        std::cout << fmt::format("Client's pubkey file ({}) has been deleted", pubfiletodel) << std::endl;
-                      }
-                      else if (is_regular_file(pubfiletodel))
-                      {
-                        std::cout << fmt::format("Client's pubkey file ({}) cannot be deleted", pubfiletodel) << std::endl;
-                      }
-
-                      if (clientUsernames.size() < 1)
-                      {
-                        break;
-                      }
-                    }
-
-                    else
-                    {
-                      buffer[bytesReceived] = '\0';
-                      std::string receivedData(buffer);
-                      std::cout << "Received data: " << receivedData << std::endl;
-                      cout << "Ciphertext message length: " << receivedData.length() << endl;
-                      std::string cipherText = receivedData;
-
-                      if (!cipherText.empty() && cipherText.length() > 30 &&
-                          cipherText.length() < 4096)
-                      {
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t currentTime =
-                            std::chrono::system_clock::to_time_t(now);
-                        std::tm *localTime = std::localtime(&currentTime);
-
-                        bool isPM = localTime->tm_hour >= 12;
-                        string stringFormatTime = asctime(localTime);
-
-                        int tHour = (localTime->tm_hour > 12) ? (localTime->tm_hour - 12) : ((localTime->tm_hour == 0) ? 12 : localTime->tm_hour);
-
-                        stringstream ss;
-                        ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
-                        string formattedTime = ss.str();
-
-                        std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
-                        std::smatch match;
-                        if (regex_search(stringFormatTime, match, time_pattern))
-                        {
-                          string str = match.str(0);
-                          size_t pos = stringFormatTime.find(str);
-                          stringFormatTime.replace(pos, str.length(), formattedTime);
-                        }
-                        string formattedCipher = userStr + "|" + stringFormatTime + "|" + cipherText;
-                        broadcastMessage(formattedCipher, clientSocket, clsock);
+                        if (!stringFormatTime.empty())
+                          broadcastMessage(formattedCipher, clientSocket, clsock);
+                        else
+                          std::cout << "stringFormatTime is empty" << std::endl;
                       }
                       else
                       {
-                        leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr);
-                        std::cout << "Kicked user for invalid message length" << std::endl;
+                        std::cout << "CipherText base 64 invalid. Not sending" << std::endl;
                       }
                     }
+                    else
+                    {
+                      leaveCl(clientSocket, clsock, hashedIp, indexClientOut, userStr, userPubPath);
+                      std::cout << "Kicked user for invalid message length" << std::endl;
+                    }
                   }
-                }
-                if (clientUsernames.size() < 1)
-                {
-                  cout << "Shutting down server due to no users." << endl;
-                  raise(SIGINT);
                 }
               }
             }
           }
         }
+        // }
         return;
       }
-      catch (exception &e)
-      {
-        std::cout << "Server has been killed due to error (1): " << e.what() << std::endl;
-        raise(SIGINT);
-      }
+      // catch (exception &e)
+      // {
+      //   std::cout << "Server has been killed due to error (1): " << e.what() << std::endl;
+      //   raise(SIGINT);
+      // }
     }
     else
     {

@@ -20,7 +20,8 @@ namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
-extern void signalhandle(int signum);
+extern std::function<void(int)> shutdown_handler;
+extern void signal_handler(int signal);
 
 int serverSd = 0;
 int portS = 8080;
@@ -105,7 +106,7 @@ int http::fetchAndSave(const std::string &site, const std::string &outfile)
 
 void http::pingServer(const char *host, unsigned short port, std::atomic<bool> &running, unsigned int update_secs)
 {
-    signal(SIGINT, signalhandle);
+    signal(SIGINT, signal_handler);
     const auto wait_duration = std::chrono::seconds(update_secs);
     while (1)
     {

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <functional>
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -39,32 +40,32 @@
 #define connectionSignal "C"
 #define S_KEYS "server-keys/"
 #define usersActivePath "txt-files/usersActive.txt"
-// #define S_PATH "server-recieved-client-keys"
 #define formatPath "keys-from-server/"
 #define fpath "your-keys/"
-// #define PING_BYTE 0x01
 
-int startSock;
 long int track = 0;
 short leavePattern;
 std::vector<int> clsock;
-// std::vector<std::string> usersActiveVector;
-SSL *tlsSock;
-SSL_CTX *pubclctx;
-EVP_PKEY *receivedPublicKey;
-EVP_PKEY *prkey;
 std::mutex mut;
 std::mutex openssl_mutex;
 std::atomic<bool> pingingrunning{true};
+#include <pthread.h>
 
-WINDOW *subaddr;
-WINDOW *inputaddr;
-WINDOW *viewaddr;
-// int heightGlobal = LINES;
-// int widthGlobal = COLS;
+// WINDOW *subaddr;
+// WINDOW *inputaddr;
+// WINDOW *viewaddr;
 
 extern int serverSd;
 extern int portS;
+
+pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void safe_wrefresh(WINDOW *win)
+{
+    pthread_mutex_lock(&ncurses_mutex);
+    wrefresh(win);
+    pthread_mutex_unlock(&ncurses_mutex);
+}
 
 std::string t_w(std::string strIp) // trim whitespaces
 {
@@ -77,25 +78,31 @@ std::string t_w(std::string strIp) // trim whitespaces
     return strIp;
 }
 
-void cleanWins()
+void clean(EVP_PKEY *key)
+{
+    EVP_PKEY_free(key);
+    std::cout << "Key freed" << std::endl;
+}
+
+void cleanWins(WINDOW *win1, WINDOW *win2, WINDOW *win3)
 {
     std::cout << "here" << std::endl;
-    if (subaddr)
+    if (win1)
     {
         std::cout << "trying Del subaddr" << std::endl;
-        delwin(subaddr);
+        delwin(win1);
         std::cout << "Del subaddr" << std::endl;
     }
-    if (inputaddr)
+    if (win2)
     {
         std::cout << "trying Del inputaddr" << std::endl;
-        delwin(inputaddr);
+        delwin(win2);
         std::cout << "Del inputaddr" << std::endl;
     }
-    if (viewaddr)
+    if (win3)
     {
         std::cout << "trying viewaddr" << std::endl;
-        delwin(viewaddr);
+        delwin(win3);
         std::cout << "Del viewaddr" << std::endl;
     }
     curs_set(1);
@@ -103,12 +110,10 @@ void cleanWins()
     std::cout << "done" << std::endl;
 }
 
-void cleanUpOpenssl()
+void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, EVP_PKEY *prkey, SSL_CTX *ctx)
 {
-    std::lock_guard<std::mutex> lock(openssl_mutex); // Lock the mutex
-    // std::lock_guard<std::mutex> lock(mut);
+    std::lock_guard<std::mutex> lock(openssl_mutex);
     std::cout << "clean ssl" << std::endl;
-    std::cout << "prkey test to see if seg fault happens from it: " << prkey << std::endl;
     if (tlsSock)
     {
         std::cout << "cleaning sock ssl" << std::endl;
@@ -140,11 +145,11 @@ void cleanUpOpenssl()
         std::cout << "freed prkey" << std::endl;
     }
 
-    if (pubclctx)
+    if (ctx)
     {
         std::cout << "freeing ctx" << std::endl;
-        SSL_CTX_free(pubclctx);
-        pubclctx = nullptr;
+        SSL_CTX_free(ctx);
+        ctx = nullptr;
         std::cout << "freed ctx" << std::endl;
     }
     std::cout << "done" << std::endl;
@@ -152,41 +157,47 @@ void cleanUpOpenssl()
     EVP_cleanup();
 }
 
-void signalhandle(int signum)
+std::function<void(int)> shutdown_handler;
+void signal_handler(int signal)
 {
-    if (serverSd)
-        close(serverSd); // close cl hosted server sock
-    {
-        std::lock_guard<std::mutex> lock(mut);
-        pingingrunning = false;
-    }
-    { // clean up memory used
-        std::cout << "starting clean of ncurses" << std::endl;
-        cleanWins();
-        std::cout << "clean of ncurses done" << std::endl;
-        std::cout << "starting clean of openssl" << std::endl;
-        cleanUpOpenssl();
-        std::cout << "clean of openssl done" << std::endl;
-    }
-
-    if (leavePattern == 0)
-    {
-        std::cout << "You have disconnected from the empty chat." << std::endl;
-    }
-    else if (leavePattern == 1)
-    {
-        std::cout << "You have left the chat" << std::endl;
-    }
-
-    // clean up
-    { // del files and dir
-        leave();
-        leaveFile(usersActivePath);
-    }
-    // std::cout << "\n";
-    std::cout << eraseLine;
-    exit(signum);
+    shutdown_handler(signal);
 }
+
+// void signalhandle(int signum)
+// {
+//     if (serverSd)
+//         close(serverSd); // close cl hosted server sock
+//     {
+//         std::lock_guard<std::mutex> lock(mut);
+//         pingingrunning = false;
+//     }
+//     { // clean up memory used
+//         std::cout << "starting clean of ncurses" << std::endl;
+//         cleanWins();
+//         std::cout << "clean of ncurses done" << std::endl;
+//         std::cout << "starting clean of openssl" << std::endl;
+//         // cleanUpOpenssl();
+//         std::cout << "clean of openssl done" << std::endl;
+//     }
+
+//     if (leavePattern == 0)
+//     {
+//         std::cout << "You have disconnected from the empty chat." << std::endl;
+//     }
+//     else if (leavePattern == 1)
+//     {
+//         std::cout << "You have left the chat" << std::endl;
+//     }
+
+//     // clean up
+//     { // del files and dir
+//         leave();
+//         leaveFile(usersActivePath);
+//     }
+//     // std::cout << "\n";
+//     std::cout << eraseLine;
+//     exit(signum);
+// }
 
 std::string getTime()
 {
@@ -216,7 +227,7 @@ std::string getTime()
     return stringFormatTime;
 }
 
-void receiveMessages(SSL *tlsSock, WINDOW *subwin)
+void receiveMessages(SSL *tlsSock, WINDOW *subwin, EVP_PKEY *prkey, EVP_PKEY *receivedPublicKey)
 {
     Recieve receive;
     LoadKey load;
@@ -245,7 +256,7 @@ void receiveMessages(SSL *tlsSock, WINDOW *subwin)
                     wmove(subwin, track, 0);
                     decNVS += "\n";
                     wprintw(subwin, decNVS.c_str(), track);
-                    wrefresh(subwin);
+                    safe_wrefresh(subwin);
                     curs_set(1);
                 }
                 catch (const std::exception &e)
@@ -295,7 +306,7 @@ void receiveMessages(SSL *tlsSock, WINDOW *subwin)
                     wmove(subwin, track, 0);
                     decryptedMessage += "\n";
                     wprintw(subwin, decryptedMessage.c_str(), track);
-                    wrefresh(subwin);
+                    safe_wrefresh(subwin);
 
                     curs_set(1);
                 }
@@ -318,7 +329,7 @@ void receiveMessages(SSL *tlsSock, WINDOW *subwin)
                         wmove(subwin, track, 0);
                         decryptedDec += "\n";
                         wprintw(subwin, decryptedDec.c_str(), track);
-                        wrefresh(subwin);
+                        safe_wrefresh(subwin);
 
                         curs_set(1);
                         // track++;
@@ -351,7 +362,7 @@ void receiveMessages(SSL *tlsSock, WINDOW *subwin)
                     wmove(subwin, track, 0);
                     passmsg += "\n";
                     wprintw(subwin, passmsg.c_str(), track);
-                    wrefresh(subwin);
+                    safe_wrefresh(subwin);
 
                     curs_set(1);
                 }
@@ -364,7 +375,7 @@ void receiveMessages(SSL *tlsSock, WINDOW *subwin)
     }
 }
 
-void handleResize()
+void handleResize(WINDOW *inputaddr, WINDOW *viewaddr)
 {
     int y, x;
     getmaxyx(stdscr, y, x);
@@ -375,22 +386,22 @@ void handleResize()
 
     werase(viewaddr);
     werase(inputaddr);
-    wrefresh(viewaddr);
-    wrefresh(inputaddr);
+    safe_wrefresh(viewaddr);
+    safe_wrefresh(inputaddr);
 
     refresh();
     doupdate();
 }
 
-void typing(const std::string &userStr)
+void typing(const std::string &userStr, EVP_PKEY *receivedPublicKey, SSL *tlsSock, WINDOW *subaddr, WINDOW *inputaddr)
 {
     std::string message;
-
     Enc cipher64;
     int ch;
 
     while (true)
     {
+        // refresh();
         ch = wgetch(inputaddr);
         if (ch == 13)
         {
@@ -418,14 +429,14 @@ void typing(const std::string &userStr)
                 SSL_write(tlsSock, newenc.c_str(), newenc.length());
                 //-----------------
                 wprintw(subaddr, form.c_str(), track);
-                wrefresh(subaddr);
+                safe_wrefresh(subaddr);
                 // print time
                 // wmove(subwin, track, width - 5 - stringFormatTime.length());
                 // wprintw(subwin, stringFormatTime.c_str(), track);
 
                 wclear(inputaddr);
                 box(inputaddr, 0, 0);
-                wrefresh(inputaddr);
+                safe_wrefresh(inputaddr);
                 message.clear();
                 wmove(inputaddr, 1, 1);
                 curs_set(1);
@@ -435,18 +446,41 @@ void typing(const std::string &userStr)
                 continue;
             }
         }
-
         else
         {
             message += ch;
             wprintw(inputaddr, "%c", ch);
-            wrefresh(inputaddr);
+            safe_wrefresh(inputaddr);
         }
     }
 }
 int main()
 {
-    signal(SIGINT, signalhandle);
+    signal(SIGINT, signal_handler);
+    EVP_PKEY *receivedPublicKey = NULL;
+    EVP_PKEY *prkey = NULL;
+    SSL_CTX *ctx;
+    SSL *tlsSock;
+    WINDOW *msg_input_win;
+    WINDOW *msg_view_win;
+    WINDOW *subwin;
+    int startSock;
+    shutdown_handler = [&](int sig)
+    {
+        cleanWins(subwin, msg_input_win, msg_view_win);
+        cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, prkey, ctx);
+        leave();
+        leaveFile(usersActivePath);
+        if (leavePattern == 0)
+        {
+            std::cout << "You have disconnected from the empty chat." << std::endl;
+        }
+        else if (leavePattern == 1)
+        {
+            std::cout << "You have left the chat" << std::endl;
+        }
+        exit(sig);
+    };
 
     leavePattern = 90;
     char serverIp[30] = "127.0.0.1"; // change to the server i
@@ -480,16 +514,14 @@ int main()
     std::string cert = fmt::format("{}server-cert.pem", formatPath);
     std::string pr = fmt::format("{}{}-privkey.pem", fpath, "mykey");
 
-    { // initialize open tlsSock and create ctx
-        std::cout << "Initializing OpenSSL" << std::endl;
-        initializeTls.InitOpenssl();
-        std::cout << "OpenSSL initialized" << std::endl;
+    // initialize open tlsSock and create ctx
+    std::cout << "Initializing OpenSSL" << std::endl;
+    initializeTls.InitOpenssl();
+    std::cout << "OpenSSL initialized" << std::endl;
 
-        std::cout << "Creating ctx" << std::endl;
-        SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
-        pubclctx = ctx;
-        std::cout << "Ctx Created" << std::endl;
-    }
+    std::cout << "Creating ctx" << std::endl;
+    ctx = SSL_CTX_new(TLS_client_method());
+    std::cout << "Ctx Created" << std::endl;
 
     { // generate your keys
         std::cout << "Generating keys" << std::endl;
@@ -513,7 +545,7 @@ int main()
 
     { // configure ctx
         std::cout << "Configuring ctx" << std::endl;
-        initializeTls.configureContext(pubclctx, cert);
+        initializeTls.configureContext(ctx, cert);
         std::cout << "Context has been configured" << std::endl;
     }
 
@@ -554,12 +586,12 @@ int main()
 
         // std::thread(send_ping, startSock).detach();
     }
-    std::thread(http::serverMake).detach();
+    // std::thread(http::serverMake).detach();
     const unsigned int ui = 1;
-    std::thread pingingServer(http::pingServer, serverIp, PORT, std::ref(pingingrunning), ui);
-    pingingServer.detach();
+    // std::thread pingingServer(http::pingServer, serverIp, PORT, std::ref(pingingrunning), ui);
+    // pingingServer.detach();
 
-    tlsSock = SSL_new(pubclctx);
+    tlsSock = SSL_new(ctx);
 
     { // connect using tlsSock
         if (tlsSock == nullptr)
@@ -600,7 +632,8 @@ int main()
 
     SSL_write(tlsSock, connectionSignal, strlen(connectionSignal));
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    SSL_write(tlsSock, (std::to_string(portS)).c_str(), std::to_string(portS).length());
+    portS = 38;
+    // SSL_write(tlsSock, (std::to_string(portS)).c_str(), std::to_string(portS).length());
 
     char ratelimbuf[200] = {0};
     ssize_t rateb = SSL_read(tlsSock, ratelimbuf, sizeof(ratelimbuf) - 1);
@@ -722,6 +755,7 @@ int main()
     std::cout << eraseLine;
     // if (user != "\u2702")
     // {
+
     std::cout << "Username: " << user << std::endl;
     if (user.empty() || user.length() > 12 || user.length() <= 3)
     { // set these on top
@@ -752,6 +786,7 @@ int main()
     clsock.push_back(startSock);
 
     prkey = load.LoadPrvOpenssl(pr);
+
     EVP_PKEY *pubkey = load.LoadPubOpenssl(pu);
 
     if (!prkey)
@@ -985,38 +1020,28 @@ int main()
     int msg_view_h = height - 3;
     int msg_input_h = 3;
 
-    WINDOW *msg_input_win = newwin(msg_input_h, width, msg_view_h, 0);
+    msg_input_win = newwin(msg_input_h, width, msg_view_h, 0);
     box(msg_input_win, 0, 0);
 
-    WINDOW *msg_view_win = newwin(msg_view_h - 1, width - 2, 1, 1);
+    msg_view_win = newwin(msg_view_h - 1, width - 2, 1, 1);
     box(msg_view_win, 0, 0);
 
-    wrefresh(msg_view_win);
-    wrefresh(msg_input_win);
+    safe_wrefresh(msg_view_win);
+    safe_wrefresh(msg_input_win);
 
     mvwprintw(msg_view_win, 0, 4, "Chat");
-    wrefresh(msg_view_win);
+    safe_wrefresh(msg_view_win);
 
-    WINDOW *subwin = derwin(msg_view_win, height - 6, width - 4, 1, 1);
+    subwin = derwin(msg_view_win, height - 6, width - 4, 1, 1);
     scrollok(subwin, TRUE);
     idlok(subwin, TRUE);
 
     wmove(msg_input_win, 1, 1);
-
-    subaddr = subwin;
-    inputaddr = msg_input_win;
-    viewaddr = msg_view_win;
-
-    std::thread(receiveMessages, tlsSock, subwin).detach();
-    std::thread(typing, std::ref(userStr)).detach();
-
-    while (1)
-    {
-    }
     //--------------------------
 
-    // }
-    // std::cout << "Server has been shutdown" << std::endl;
+    std::thread(receiveMessages, tlsSock, subwin, prkey, receivedPublicKey).detach();
+    std::thread(typing, std::ref(userStr), receivedPublicKey, tlsSock, subwin, msg_input_win).join();
+
     raise(SIGINT);
     return 0;
 }

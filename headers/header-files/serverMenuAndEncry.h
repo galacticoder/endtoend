@@ -11,6 +11,8 @@
 #include <sys/socket.h>
 #include <csignal>
 #include <unistd.h>
+#include <fmt/core.h>
+#include <iomanip>
 #include <unordered_map>
 #include <openssl/err.h>
 #include <openssl/evp.h>
