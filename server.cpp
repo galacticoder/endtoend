@@ -1326,6 +1326,10 @@ int main()
         {
           thread(handleClient, ssl_cl, clientSocket, serverSocket, serverHash, pnInt, serverKeysPath, server_priv_path, server_pub_path, hashedIp, std::ref(val)).detach();
         }
+        else
+        {
+          close(clientSocket);
+        }
       }
     }
     else if (pingStr == "ping")

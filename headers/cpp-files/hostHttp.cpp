@@ -13,14 +13,6 @@ namespace http = boost::beast::http;
 
 using tcp = boost::asio::ip::tcp;
 
-namespace something
-{
-    void func()
-    {
-        std::cout << "something " << std::endl;
-    }
-}
-
 void handle_request(beast::tcp_stream &stream, http::request<http::string_body> req, const std::string &path)
 {
     http::response<http::string_body> res;
@@ -60,7 +52,7 @@ void startHost()
 {
     try
     {
-        short int port = 90;
+        short int port = 80;
         const std::string path = "server-keys/server-cert.pem";
 
         net::io_context ioc;

@@ -19,10 +19,10 @@
 #define conSig "C"
 
 int startSock;
-EVP_PKEY *receivedPublicKey = NULL;
-EVP_PKEY *privateKey = NULL;
-SSL_CTX *ctx;
-SSL *tlsSock;
+EVP_PKEY *receivedPublicKey = nullptr;
+EVP_PKEY *privateKey = nullptr;
+SSL_CTX *ctx = nullptr;
+SSL *tlsSock = nullptr;
 
 class initOpenSSL
 {
@@ -76,7 +76,7 @@ public:
         }
 
         { // get server certPath and extract public key
-            const std::string get = fmt::format("http://{}:{}/", serverIp, 90);
+            const std::string get = fmt::format("http://{}:{}/", serverIp, 80);
             std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
             if (http::fetchAndSave(get, certPath) == 1)
             {
@@ -121,7 +121,6 @@ public:
         }
 
         tlsSock = SSL_new(ctx);
-        std::cout << "ehere" << std::endl;
 
         { // connect using tlsSock
             if (tlsSock == nullptr)

@@ -88,26 +88,21 @@ int main()
 {
     signal(SIGINT, signalHandling::signalShutdownHandler);
 
-    WINDOW *msg_input_win;
-    WINDOW *msg_view_win;
-    WINDOW *subwin;
+    WINDOW *msg_input_win = nullptr;
+    WINDOW *msg_view_win = nullptr;
+    WINDOW *subwin = nullptr;
 
     shutdown_handler = [&](int sig)
     {
         std::lock_guard<std::mutex> lock(mut);
         cleanUp::cleanWins(subwin, msg_input_win, msg_view_win);
         cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, privateKey, ctx);
-        leave();
-        leaveFile(usersActivePath);
-        if (leavePattern == 0)
-        {
-            std::cout << "You have disconnected from the empty chat." << std::endl;
-        }
-        else if (leavePattern == 1)
-        {
-            std::cout << "You have left the chat" << std::endl;
-        }
+        EVP_cleanup();
         exit(sig);
+        // leave();
+        // leaveFile(usersActivePath)
+        // leavePattern == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePattern == 1 ? std::cout << "You have left the chat" << std::endl
+        //                                                                                                                : std::cout;
     };
 
     leavePattern = 90;

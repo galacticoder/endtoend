@@ -22,43 +22,47 @@ public:
         if (win3)
         {
             delwin(win3);
+            curs_set(1);
+            endwin();
         }
-        curs_set(1);
-        endwin();
     }
 
     static void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, EVP_PKEY *prkey, SSL_CTX *ctx)
     {
         if (tlsSock)
         {
+            std::cout << "Closing tlssock " << std::endl;
             SSL_shutdown(tlsSock);
             SSL_free(tlsSock);
-            tlsSock = nullptr;
+            std::cout << "Closed tlssock" << std::endl;
         }
         if (startSock)
         {
+            std::cout << "Closing start sock" << std::endl;
             close(startSock);
             startSock = 0;
+            std::cout << "Closed start sock" << std::endl;
         }
         if (receivedPublicKey)
         {
+            std::cout << "Freeing received public key " << std::endl;
             EVP_PKEY_free(receivedPublicKey);
-            receivedPublicKey = nullptr;
+            std::cout << "Freed received public key" << std::endl;
         }
 
         if (prkey)
         {
+            std::cout << "Freeing private key" << std::endl;
             EVP_PKEY_free(prkey);
-            prkey = nullptr;
+            std::cout << "Freed private key" << std::endl;
         }
 
         if (ctx)
         {
+            std::cout << "Freeing SSL context" << std::endl;
             SSL_CTX_free(ctx);
-            ctx = nullptr;
+            std::cout << "Freed SSL context" << std::endl;
         }
-
-        EVP_cleanup();
     }
 };
 

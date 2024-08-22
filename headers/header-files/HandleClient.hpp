@@ -7,8 +7,6 @@
 #include <csignal>
 #include <mutex>
 #include "encry.h"
-// #include "Ncurses.hpp"
-// #include "Ncurses.hpp"
 #include "OpenSSL_TLS.hpp"
 #include "SignalHandler.hpp"
 
