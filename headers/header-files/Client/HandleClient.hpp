@@ -17,7 +17,7 @@
 
 extern long int lineTrack;
 extern int portS;
-extern short leavePattern;
+extern short leavePlace;
 extern std::string trimWhitespaces(std::string strIp);
 
 std::mutex HandleClientMutex;
@@ -214,7 +214,7 @@ public:
         if (activeUsers < 2)
         {
             std::cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << std::endl;
-            leavePattern = 0;
+            leavePlace = 0;
 
             while (true)
             {
@@ -250,7 +250,7 @@ public:
         if (!receivedPublicKey)
             raise(SIGINT);
 
-        leavePattern = 1;
+        leavePlace = 1;
         return receivedPublicKey;
     }
 };

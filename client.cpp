@@ -29,9 +29,9 @@
 #include "headers/header-files/Client/Encryption.hpp"
 
 long int lineTrack = 0;
-short leavePattern;
+short leavePlace;
+
 std::mutex mut;
-std::mutex openssl_mutex;
 
 extern int serverSd;
 extern int portS;
@@ -92,12 +92,12 @@ int main()
         Delete::DeletePath(KeysReceivedFromServerPath);
         Delete::DeletePath(YourKeysPath);
         Delete::DeletePath(UsersActivePath);
-        leavePattern == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePattern == 1 ? std::cout << "You have left the chat" << std::endl
-                                                                                                                       : std::cout;
+        leavePlace == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePlace == 1 ? std::cout << "You have left the chat" << std::endl
+                                                                                                                   : std::cout;
         exit(sig);
     };
 
-    leavePattern = 90;
+    leavePlace = 90;
     char serverIp[30] = "127.0.0.1"; // change to the server ip
     const std::string portPath = "txt-files/PORT.txt";
     std::ifstream file(portPath);
