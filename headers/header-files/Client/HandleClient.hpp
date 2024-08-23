@@ -6,9 +6,11 @@
 #include <fmt/core.h>
 #include <csignal>
 #include <mutex>
-#include "encry.h"
-#include "OpenSSL_TLS.hpp"
+#include "SendAndReceive.hpp"
+#include "Encryption.hpp"
+#include "Decryption.hpp"
 #include "SignalHandler.hpp"
+#include "FileHandling.hpp"
 
 #define connectionSignal "C"
 #define usersActivePath "txt-files/usersActive.txt"
@@ -39,7 +41,7 @@ public:
             while (true)
             {
                 track++;
-                std::string receivedMessage = TlsFunc::receiveMessage(tlsSock);
+                std::string receivedMessage = Receive::ReceiveMessage(tlsSock);
                 std::string decodedMessage;
 
                 SignalType anySignalReceive = signalHandling::getSignalType(receivedMessage);
@@ -47,8 +49,8 @@ public:
 
                 if (receivedMessage.find('|') == std::string::npos)
                 {
-                    decodedMessage = Dec::Base64Decode(receivedMessage);
-                    std::string decryptedMessage = Dec::Decrypt(prkey, decodedMessage);
+                    decodedMessage = Decode::Base64Decode(receivedMessage);
+                    std::string decryptedMessage = Decrypt::DecryptData(prkey, decodedMessage);
 
                     curs_set(0);
                     wmove(subwin, track, 0);
@@ -66,9 +68,9 @@ public:
                     std::string cipher = receivedMessage.substr(secondPipe + 1);
                     std::string time = receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
                     std::string user = receivedMessage.substr(0, firstPipe);
-                    decodedMessage = Dec::Base64Decode(cipher);
+                    decodedMessage = Decode::Base64Decode(cipher);
 
-                    std::string messageFromUser = fmt::format("{}: {}", user, Dec::Decrypt(prkey, decodedMessage));
+                    std::string messageFromUser = fmt::format("{}: {}", user, Decrypt::DecryptData(prkey, decodedMessage));
 
                     curs_set(0);
                     wmove(subwin, track, 0);
@@ -97,7 +99,7 @@ public:
             {
                 if (trimWhitespaces(message) == "/quit")
                 {
-                    raise(SIGINT);
+                    break;
                 }
                 else if (!message.empty() && trimWhitespaces(message) != "/quit")
                 {
@@ -109,9 +111,9 @@ public:
                     message = trimWhitespaces(message);
 
                     // encrypt and send message
-                    std::string cipherText = Enc::Encrypt(receivedPublicKey, message);
-                    cipherText = Enc::Base64Encode(cipherText);
-                    SSL_write(tlsSock, cipherText.c_str(), cipherText.length());
+                    std::string cipherText = Encrypt::EncryptData(receivedPublicKey, message);
+                    cipherText = Encode::Base64Encode(cipherText);
+                    Send::SendMessage(tlsSock, cipherText);
 
                     // print message on your screen
                     std::string messageFormat = fmt::format("{}(You): {}", userStr, message);
@@ -133,23 +135,25 @@ public:
                 threadSafeWrefresh(inputaddr);
             }
         }
+        return;
     }
 
-    static void initCheck(SSL *tlsSock)
+    static void
+    initCheck(SSL *tlsSock)
     {
         try
         {
-            std::string initMsg = TlsFunc::receiveMessage(tlsSock); // get message to see if you are rate limited or the server is full
+            std::string initMsg = Receive::ReceiveMessage(tlsSock); // get message to see if you are rate limited or the server is full
 
             SignalType signal = signalHandling::getSignalType(initMsg);
             signalHandling::handleSignal(signal, initMsg);
 
             // send connection signal and port your ping server is running on
-            SSL_write(tlsSock, connectionSignal, strlen(connectionSignal));
+            Send::SendMessage(tlsSock, (std::string)connectionSignal);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            SSL_write(tlsSock, (std::to_string(portS)).c_str(), std::to_string(portS).length());
+            Send::SendMessage(tlsSock, std::to_string(portS));
 
-            std::string requestNeeded = TlsFunc::receiveMessage(tlsSock);
+            std::string requestNeeded = Receive::ReceiveMessage(tlsSock);
 
             SignalType requestSignal = signalHandling::getSignalType(requestNeeded);
             signalHandling::handleSignal(requestSignal, requestNeeded);
@@ -157,7 +161,7 @@ public:
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
                 // check if you were accepted into the server or not (if request needed to join the server)
-                std::string acceptMessage = TlsFunc::receiveMessage(tlsSock);
+                std::string acceptMessage = Receive::ReceiveMessage(tlsSock);
 
                 SignalType acceptedSignal = signalHandling::getSignalType(acceptMessage);
                 signalHandling::handleSignal(acceptedSignal, acceptMessage);
@@ -173,7 +177,7 @@ public:
 
     static void handlePassword(const std::string &serverPubKeyPath, SSL *tlsSock)
     {
-        EVP_PKEY *serverPublicKey = LoadKey::LoadPubOpenssl(serverPubKeyPath);
+        EVP_PKEY *serverPublicKey = LoadKey::LoadPublicKey(serverPubKeyPath);
 
         serverPublicKey ? std::cout << "Server's public key has been loaded" << std::endl : std::cout << "Cannot load server's public key. Exiting." << std::endl;
 
@@ -184,15 +188,15 @@ public:
 
         std::string password;
         std::getline(std::cin, password);
-        std::string encryptedPassword = Enc::Encrypt(serverPublicKey, password);
-        encryptedPassword = Enc::Base64Encode(encryptedPassword);
+        std::string encryptedPassword = Encrypt::EncryptData(serverPublicKey, password);
+        encryptedPassword = Encode::Base64Encode(encryptedPassword);
 
         EVP_PKEY_free(serverPublicKey);
-        SSL_write(tlsSock, encryptedPassword.c_str(), encryptedPassword.length());
+        Send::SendMessage(tlsSock, encryptedPassword);
 
         std::cout << "Verifying password.." << std::endl;
 
-        std::string passwordVerification = TlsFunc::receiveMessage(tlsSock);
+        std::string passwordVerification = Receive::ReceiveMessage(tlsSock);
 
         SignalType handlePasswordVerification = signalHandling::getSignalType(passwordVerification);
         signalHandling::handleSignal(handlePasswordVerification, passwordVerification);
@@ -202,7 +206,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(HandleClientMutex);
 
-        std::string checkErrSignals = TlsFunc::receiveMessage(tlsSock);
+        std::string checkErrSignals = Receive::ReceiveMessage(tlsSock);
 
         SignalType checkingErrSignals = signalHandling::getSignalType(checkErrSignals);
         signalHandling::handleSignal(checkingErrSignals, checkErrSignals);
@@ -215,7 +219,7 @@ public:
             while (true)
             {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
-                activeUsers = readActiveUsers(usersActivePath);
+                activeUsers = ReadFile::readActiveUsers(usersActivePath);
                 if (activeUsers > 1)
                 {
                     break;
@@ -225,22 +229,22 @@ public:
             std::cout << "Another user connected, starting chat.." << std::endl;
         }
 
-        std::string userPublicKey = TlsFunc::receiveMessage(tlsSock);
+        std::string userPublicKey = Receive::ReceiveMessage(tlsSock);
 
         std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
 
         std::cout << fmt::format("Recieving {}'s public key", userName) << std::endl;
 
         // receive and save user public key
-        std::string userPubKeyEncodedData = Receive::receiveBase64Data(tlsSock);
-        std::string userPubKeyDecodedData = Receive::Base64Decode(userPubKeyEncodedData);
-        Receive::saveFilePem(userPublicKey, userPubKeyDecodedData);
+        std::string userPubKeyEncodedData = Receive::ReceiveMessage(tlsSock);
+        std::string userPubKeyDecodedData = Decode::Base64Decode(userPubKeyEncodedData);
+        SaveFile::saveFile(userPublicKey, userPubKeyDecodedData, std::ios::binary);
 
         std::cout << fmt::format("Recieved {}'s pub key", userName) << std::endl;
 
         std::cout << fmt::format("Attempting to load {}'s public key", userName) << std::endl;
 
-        receivedPublicKey = LoadKey::LoadPubOpenssl(userPublicKey);
+        receivedPublicKey = LoadKey::LoadPublicKey(userPublicKey);
         receivedPublicKey ? std::cout << fmt::format("{}'s public key loaded", userName) << std::endl : std::cout << fmt::format("Could not load {}'s public key", userName) << std::endl;
 
         if (!receivedPublicKey)

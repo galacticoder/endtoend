@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <csignal>
-#include "encry.h"
-#include "OpenSSL_TLS.hpp"
+#include "Keys.hpp"
+#include "SendAndReceive.hpp"
+#include "FileHandling.hpp"
+#include "Decryption.hpp"
 
 std::function<void(int)> shutdown_handler;
 
@@ -31,12 +33,12 @@ public:
     {
         if (signal == SignalType::LOADERR)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 7)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 7)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::EXISTERR)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 8)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 8)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::VERIFIED)
@@ -55,40 +57,40 @@ public:
         }
         else if (signal == SignalType::ACCEPTED)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
         }
         else if (signal == SignalType::NOTACCEPTED)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::RATELIMITED)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 11)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 11)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::SERVERLIMIT)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::SERVERLIMIT)
         {
-            std::cout << Dec::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
+            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::CLIENTREJOIN)
         {
-            std::string userPublicKey = TlsFunc::receiveMessage(tlsSock);
+            std::string userPublicKey = Receive::ReceiveMessage(tlsSock);
 
             std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
 
             // receive and save user public key
-            std::string encodedKeyData = Receive::receiveBase64Data(tlsSock);
-            std::string decodedKeyData = Receive::Base64Decode(encodedKeyData);
-            Receive::saveFilePem(userPublicKey, decodedKeyData);
+            std::string encodedKeyData = Receive::ReceiveMessage(tlsSock);
+            std::string DecodeodedKeyData = Decode::Base64Decode(encodedKeyData);
+            SaveFile::saveFile(userPublicKey, DecodeodedKeyData, std::ios::binary);
 
-            receivedPublicKey = LoadKey::LoadPubOpenssl(userPublicKey, 0);
+            receivedPublicKey = LoadKey::LoadPublicKey(userPublicKey, 0);
 
             if (!receivedPublicKey)
                 raise(SIGINT);
@@ -111,7 +113,7 @@ public:
             "RATELIMITED",
             "LIM",
             "ACC",
-            "DEC",
+            "Decode",
             "CLIENTREJOIN",
         };
 

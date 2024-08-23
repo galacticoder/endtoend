@@ -22,15 +22,16 @@
 #include <mutex>
 #include <ncurses.h>
 #include <openssl/evp.h>
-#include "headers/header-files/encry.h"
-#include "headers/header-files/fileAndDirHandler.h"
 #include "headers/header-files/leave.h"
-#include "headers/header-files/httpCl.h"
-#include "headers/header-files/Clean.hpp"
-#include "headers/header-files/Ncurses.hpp"
-#include "headers/header-files/SignalHandler.hpp"
-#include "headers/header-files/OpenSSL_TLS.hpp"
-#include "headers/header-files/HandleClient.hpp"
+#include "headers/header-files/Client/SendAndReceive.hpp"
+#include "headers/header-files/Client/FileHandling.hpp"
+#include "headers/header-files/Client/httpCl.h"
+#include "headers/header-files/Client/Clean.hpp"
+#include "headers/header-files/Client/Ncurses.hpp"
+#include "headers/header-files/Client/SignalHandler.hpp"
+#include "headers/header-files/Client/TlsSetup.hpp"
+#include "headers/header-files/Client/HandleClient.hpp"
+#include "headers/header-files/Client/Encryption.hpp"
 
 #define S_KEYS "server-keys/"
 #define usersActivePath "txt-files/usersActive.txt"
@@ -98,11 +99,11 @@ int main()
         cleanUp::cleanWins(subwin, msg_input_win, msg_view_win);
         cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, privateKey, ctx);
         EVP_cleanup();
+        leave();
+        leaveFile(usersActivePath);
+        leavePattern == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePattern == 1 ? std::cout << "You have left the chat" << std::endl
+                                                                                                                       : std::cout;
         exit(sig);
-        // leave();
-        // leaveFile(usersActivePath)
-        // leavePattern == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePattern == 1 ? std::cout << "You have left the chat" << std::endl
-        //                                                                                                                : std::cout;
     };
 
     leavePattern = 90;
@@ -120,13 +121,13 @@ int main()
     std::string privateKeyPath = fmt::format("{}{}-privkey.pem", fpath, "mykey");
 
     { // create directories
-        createDir(fpath);
-        createDir(formatPath);
-        createDir(S_KEYS);
+        Create::createDir(fpath);
+        Create::createDir(formatPath);
+        Create::createDir(S_KEYS);
     }
 
     // start connection to server using tls
-    TlsStart(serverIp, privateKeyPath, publicKeyPath, certPath, serverPubKeyPath, port);
+    StartTLS(serverIp, privateKeyPath, publicKeyPath, certPath, serverPubKeyPath, port);
     // start client server and pinging to the server
     std::thread(http::serverMake).detach();
     std::thread(http::pingServer, serverIp, port).detach();
@@ -135,7 +136,7 @@ int main()
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
-    std::string passSig = TlsFunc::receiveMessage(tlsSock);
+    std::string passSig = Receive::ReceiveMessage(tlsSock);
     handleClient::handlePassword(serverPubKeyPath, tlsSock);
 
     std::cout << "Enter your username: ";
@@ -151,14 +152,14 @@ int main()
     // send username to server
     SSL_write(tlsSock, user.c_str(), user.length());
 
-    std::string userStr = TlsFunc::receiveMessage(tlsSock);
+    std::string userStr = Receive::ReceiveMessage(tlsSock);
 
     // signal to check if name already exists on server
     SignalType handlerExistingName = signalHandling::getSignalType(userStr);
     signalHandling::handleSignal(handlerExistingName, userStr);
 
-    privateKey = LoadKey::LoadPrvOpenssl(privateKeyPath);      // load your private key
-    EVP_PKEY *pubkey = LoadKey::LoadPubOpenssl(publicKeyPath); // load your public key
+    privateKey = LoadKey::LoadPrivateKey(privateKeyPath);     // load your private key
+    EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath); // load your public key
 
     // check if your keys loaded
     if (!privateKey || !pubkey)
@@ -170,16 +171,16 @@ int main()
     EVP_PKEY_free(pubkey);
 
     // receive and save users active file
-    std::string usersActiveEncodedData = Receive::receiveBase64Data(tlsSock);
-    std::string usersActiveDecodedData = Receive::Base64Decode(usersActiveEncodedData);
-    Receive::saveFile(usersActivePath, usersActiveDecodedData);
+    std::string usersActiveEncodedData = Receive::ReceiveMessage(tlsSock) /*Receive::receiveBase64Data(tlsSock)*/;
+    std::string usersActiveDecodedData = Decode::Base64Decode(usersActiveEncodedData);
+    SaveFile::saveFile(usersActivePath, usersActiveDecodedData);
 
     if (std::filesystem::is_regular_file(publicKeyPath))
     {
         std::cout << fmt::format("Sending public key ({}) to server", publicKeyPath) << std::endl;
-        std::string publicKeyData = Receive::read_pem_key(publicKeyPath);
-        publicKeyData = Enc::Base64Encode(publicKeyData);
-        Send::sendBase64Data(tlsSock, publicKeyData);
+        std::string publicKeyData = ReadFile::readPemKeyContents(publicKeyPath);
+        publicKeyData = Encode::Base64Encode(publicKeyData);
+        Send::SendMessage(tlsSock, publicKeyData); // send your encoded key data to server
         std::cout << "Public key sent to server" << std::endl;
     }
     else
@@ -188,7 +189,7 @@ int main()
         raise(SIGINT);
     }
 
-    int activeUsers = readActiveUsers(usersActivePath);
+    int activeUsers = ReadFile::readActiveUsers(usersActivePath);
 
     receivedPublicKey = handleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, userStr, activeUsers);
 
