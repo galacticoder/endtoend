@@ -10,6 +10,7 @@
 #define ServerKeysPath "server-keys/"
 #define UsersActivePath "txt-files/usersActive.txt"
 #define KeysReceivedFromServerPath "keys-from-server/"
+#define TxtDirectoryPath "txt-files/"
 #define YourKeysPath "your-keys/"
 
 struct Create
@@ -42,10 +43,10 @@ struct Delete
                 std::cout << fmt::format("There was nothing to delete from path [{}]", path) << std::endl;
             else if (DeleteCounter == 1)
                 std::cout
-                    << fmt::format("{} key in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
+                    << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
             else if (DeleteCounter > 1)
                 std::cout
-                    << fmt::format("{} keys in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
+                    << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
 
             std::cout << fmt::format("Deleted directory [{}]", path) << std::endl;
         }

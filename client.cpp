@@ -86,25 +86,33 @@ int main()
     shutdown_handler = [&](int sig)
     {
         std::lock_guard<std::mutex> lock(mut);
+        std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
         cleanUp::cleanWins(subwin, msg_input_win, msg_view_win);
         cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, privateKey, ctx);
         EVP_cleanup();
         Delete::DeletePath(KeysReceivedFromServerPath);
         Delete::DeletePath(YourKeysPath);
-        Delete::DeletePath(UsersActivePath);
+        Delete::DeletePath(TxtDirectoryPath);
         leavePlace == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePlace == 1 ? std::cout << "You have left the chat" << std::endl
                                                                                                                    : std::cout;
         exit(sig);
     };
 
-    leavePlace = 90;
-    char serverIp[30] = "127.0.0.1"; // change to the server ip
-    const std::string portPath = "txt-files/PORT.txt";
-    std::ifstream file(portPath);
-    std::string PORTSTR;
-    std::getline(file, PORTSTR);
+    std::string serverIp;
     unsigned int port;
-    std::istringstream(PORTSTR) >> port;
+
+    std::cout << "Enter the server ip to connect to (Leave empty for local ip): ";
+    std::getline(std::cin, serverIp);
+
+    if (serverIp.empty())
+        serverIp = "127.0.0.1";
+
+    serverIp = trimWhitespaces(serverIp);
+
+    std::cout << "Enter the port to connect to: ";
+    std::string tmpPort;
+    std::getline(std::cin, tmpPort);
+    port = atoi(tmpPort.c_str());
 
     std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, "mykey");
     std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, "mykey");
@@ -113,6 +121,7 @@ int main()
 
     { // create directories
         Create::createDirectory(KeysReceivedFromServerPath);
+        Create::createDirectory(TxtDirectoryPath);
         Create::createDirectory(YourKeysPath);
     }
 
@@ -120,7 +129,7 @@ int main()
     StartTLS(serverIp, privateKeyPath, publicKeyPath, certPath, serverPubKeyPath, port);
     // start client server and pinging to the server
     std::thread(http::serverMake).detach();
-    std::thread(http::pingServer, serverIp, port).detach();
+    std::thread(http::pingServer, serverIp.c_str(), port).detach();
 
     handleClient::initCheck(tlsSock);
 

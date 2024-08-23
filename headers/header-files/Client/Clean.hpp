@@ -26,7 +26,7 @@ public:
     {
         if (tlsSock)
         {
-            std::cout << "\b\b\b\bClosing tlssock " << std::endl;
+            std::cout << "Closing tlssock " << std::endl;
             SSL_shutdown(tlsSock);
             SSL_free(tlsSock);
             std::cout << "Closed tlssock" << std::endl;

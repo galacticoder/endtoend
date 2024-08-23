@@ -127,19 +127,19 @@ private:
     }
 
 public:
-    StartTLS(const char *serverIp, const std::string &privateKeyPath, const std::string &publicKeyPath, const std::string &certPath, const std::string &serverPubKeyPath, unsigned int &port)
+    StartTLS(std::string &serverIp, const std::string &privateKeyPath, const std::string &publicKeyPath, const std::string &certPath, const std::string &serverPubKeyPath, unsigned int &port)
     {
         // initialize open tlsSock and create ctx
         initOpenSSL::InitOpenssl();
         ctx = SSL_CTX_new(TLS_client_method());
 
         generateKeys(privateKeyPath, publicKeyPath);
-        fetchAndSaveCertAndKey(serverIp, certPath, serverPubKeyPath);
+        fetchAndSaveCertAndKey(serverIp.c_str(), certPath, serverPubKeyPath);
         initOpenSSL::configureContext(ctx, certPath);
 
         startSock = socket(AF_INET, SOCK_STREAM, 0);
 
-        connectUsingTcpSocket(serverIp, port);
+        connectUsingTcpSocket(serverIp.c_str(), port);
 
         tlsSock = SSL_new(ctx);
 
