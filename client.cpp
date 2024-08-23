@@ -22,7 +22,6 @@
 #include <mutex>
 #include <ncurses.h>
 #include <openssl/evp.h>
-#include "headers/header-files/leave.h"
 #include "headers/header-files/Client/SendAndReceive.hpp"
 #include "headers/header-files/Client/FileHandling.hpp"
 #include "headers/header-files/Client/httpCl.h"
@@ -32,11 +31,6 @@
 #include "headers/header-files/Client/TlsSetup.hpp"
 #include "headers/header-files/Client/HandleClient.hpp"
 #include "headers/header-files/Client/Encryption.hpp"
-
-#define S_KEYS "server-keys/"
-#define usersActivePath "txt-files/usersActive.txt"
-#define formatPath "keys-from-server/"
-#define fpath "your-keys/"
 
 long int track = 0;
 short leavePattern;
@@ -99,8 +93,9 @@ int main()
         cleanUp::cleanWins(subwin, msg_input_win, msg_view_win);
         cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, privateKey, ctx);
         EVP_cleanup();
-        leave();
-        leaveFile(usersActivePath);
+        Delete::DeletePath(KeysReceivedFromServerPath);
+        Delete::DeletePath(YourKeysPath);
+        Delete::DeletePath(UsersActivePath);
         leavePattern == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePattern == 1 ? std::cout << "You have left the chat" << std::endl
                                                                                                                        : std::cout;
         exit(sig);
@@ -115,15 +110,14 @@ int main()
     unsigned int port;
     std::istringstream(PORTSTR) >> port;
 
-    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", fpath, "mykey");
-    std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", formatPath, "server");
-    std::string certPath = fmt::format("{}server-cert.pem", formatPath);
-    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", fpath, "mykey");
+    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, "mykey");
+    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, "mykey");
+    std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", KeysReceivedFromServerPath, "server");
+    std::string certPath = fmt::format("{}server-cert.pem", KeysReceivedFromServerPath);
 
     { // create directories
-        Create::createDir(fpath);
-        Create::createDir(formatPath);
-        Create::createDir(S_KEYS);
+        Create::createDirectory(KeysReceivedFromServerPath);
+        Create::createDirectory(YourKeysPath);
     }
 
     // start connection to server using tls
@@ -150,7 +144,7 @@ int main()
     }
 
     // send username to server
-    SSL_write(tlsSock, user.c_str(), user.length());
+    Send::SendMessage(tlsSock, user);
 
     std::string userStr = Receive::ReceiveMessage(tlsSock);
 
@@ -171,7 +165,7 @@ int main()
     EVP_PKEY_free(pubkey);
 
     // receive and save users active file
-    std::string usersActiveEncodedData = Receive::ReceiveMessage(tlsSock) /*Receive::receiveBase64Data(tlsSock)*/;
+    std::string usersActiveEncodedData = Receive::ReceiveMessage(tlsSock);
     std::string usersActiveDecodedData = Decode::Base64Decode(usersActiveEncodedData);
     SaveFile::saveFile(usersActivePath, usersActiveDecodedData);
 

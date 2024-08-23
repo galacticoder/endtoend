@@ -39,7 +39,7 @@ struct Send
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in SendMessage: " << e.what();
+            std::cout << "Exception caught in SendMessage: " << e.what() << std::endl;
             raise(SIGINT);
         }
     }
@@ -64,13 +64,13 @@ struct Receive
             else
             {
                 int error = SSL_get_error(socket, bytes);
-                std::cout << "Error occured during reading in receiveMessage. SSL error: " << error;
+                std::cout << "Error occured during reading in receiveMessage. SSL error: " << error << std::endl;
                 raise(SIGINT);
             }
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in receiveMessage: " << e.what();
+            std::cout << "Exception caught in receiveMessage: " << e.what() << std::endl;
             raise(SIGINT);
         }
         return "";

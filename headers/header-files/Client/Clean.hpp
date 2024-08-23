@@ -12,26 +12,21 @@ public:
     static void cleanWins(WINDOW *win1, WINDOW *win2, WINDOW *win3)
     {
         if (win1)
-        {
             delwin(win1);
-        }
         if (win2)
-        {
             delwin(win2);
-        }
         if (win3)
-        {
             delwin(win3);
-            curs_set(1);
-            endwin();
-        }
+
+        curs_set(1);
+        endwin();
     }
 
     static void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, EVP_PKEY *prkey, SSL_CTX *ctx)
     {
         if (tlsSock)
         {
-            std::cout << "Closing tlssock " << std::endl;
+            std::cout << "\b\b\b\bClosing tlssock " << std::endl;
             SSL_shutdown(tlsSock);
             SSL_free(tlsSock);
             std::cout << "Closed tlssock" << std::endl;
