@@ -15,7 +15,7 @@
 #define connectionSignal "C"
 #define usersActivePath "txt-files/usersActive.txt"
 
-extern long int track;
+extern long int lineTrack;
 extern int portS;
 extern short leavePattern;
 extern std::string trimWhitespaces(std::string strIp);
@@ -40,7 +40,7 @@ public:
         {
             while (true)
             {
-                track++;
+                lineTrack++;
                 std::string receivedMessage = Receive::ReceiveMessage(tlsSock);
                 std::string decodedMessage;
 
@@ -53,9 +53,9 @@ public:
                     std::string decryptedMessage = Decrypt::DecryptData(prkey, decodedMessage);
 
                     curs_set(0);
-                    wmove(subwin, track, 0);
+                    wmove(subwin, lineTrack, 0);
                     decryptedMessage += "\n";
-                    wprintw(subwin, decryptedMessage.c_str(), track);
+                    wprintw(subwin, decryptedMessage.c_str(), lineTrack);
                     threadSafeWrefresh(subwin);
                     curs_set(1);
                 }
@@ -73,9 +73,9 @@ public:
                     std::string messageFromUser = fmt::format("{}: {}", user, Decrypt::DecryptData(prkey, decodedMessage));
 
                     curs_set(0);
-                    wmove(subwin, track, 0);
+                    wmove(subwin, lineTrack, 0);
                     messageFromUser += "\n";
-                    wprintw(subwin, messageFromUser.c_str(), track);
+                    wprintw(subwin, messageFromUser.c_str(), lineTrack);
                     threadSafeWrefresh(subwin);
                     curs_set(1);
                 }
@@ -103,10 +103,10 @@ public:
                 }
                 else if (!message.empty() && trimWhitespaces(message) != "/quit")
                 {
-                    track++;
+                    lineTrack++;
                     curs_set(0);
 
-                    wmove(subaddr, track, 0);
+                    wmove(subaddr, lineTrack, 0);
 
                     message = trimWhitespaces(message);
 
@@ -117,7 +117,7 @@ public:
 
                     // print message on your screen
                     std::string messageFormat = fmt::format("{}(You): {}", userStr, message);
-                    wprintw(subaddr, messageFormat.c_str(), track);
+                    wprintw(subaddr, messageFormat.c_str(), lineTrack);
                     threadSafeWrefresh(subaddr);
 
                     wclear(inputaddr);

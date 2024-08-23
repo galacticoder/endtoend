@@ -2,7 +2,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <functional>
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -11,12 +10,9 @@
 #include <thread>
 #include <fmt/core.h>
 #include <netinet/in.h>
-#include <cstdio>
-#include <ctime>
 #include <cstdlib>
 #include <regex>
 #include <csignal>
-#include <vector>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <mutex>
@@ -32,7 +28,7 @@
 #include "headers/header-files/Client/HandleClient.hpp"
 #include "headers/header-files/Client/Encryption.hpp"
 
-long int track = 0;
+long int lineTrack = 0;
 short leavePattern;
 std::mutex mut;
 std::mutex openssl_mutex;
