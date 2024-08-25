@@ -486,7 +486,7 @@ int main()
     exit(signal);
   };
 
-  //find
+  // find
   int port = Networking::findAvailablePort();
   std::cout << "Port is: " << port << std::endl;
   serverSocket = Networking::startServerSocket(port);
