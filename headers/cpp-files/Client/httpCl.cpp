@@ -20,13 +20,10 @@ namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
-// extern std::function<void(int)> shutdown_handler;
-// extern void signalHandling::signal_handler(int signal);
-
 int serverSd = 0;
-int portS = 8080;
+int clientPort = 8080;
 
-bool isPav(int port)
+bool isPortAvailable(int port)
 {
     int pavtempsock;
     struct sockaddr_in addr;
@@ -107,7 +104,6 @@ int http::fetchAndSave(const std::string &site, const std::string &outfile)
 void http::pingServer(const char *host, unsigned short port)
 {
     int update_secs = 1;
-    // signal(SIGINT, signal_handler);
 
     const auto wait_duration = std::chrono::seconds(update_secs);
     while (1)
@@ -160,12 +156,13 @@ void http::serverMake()
 {
     std::thread t1([&]()
                    {
-    if (isPav(portS) == false) {
+    if (isPortAvailable(clientPort) == false) {
       for (unsigned short i = 49152; i <= 65535; i++) {
-        if (isPav(i) != false) {
-          portS = i;
-          break;
-        }
+          if (isPortAvailable(i) != false)
+          {
+              clientPort = i;
+              break;
+          }
       }
     } });
     t1.join();
@@ -174,7 +171,7 @@ void http::serverMake()
     bzero((char *)&servAddr, sizeof(servAddr));
     servAddr.sin_family = AF_INET;
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servAddr.sin_port = htons(portS);
+    servAddr.sin_port = htons(clientPort);
 
     serverSd = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSd < 0)
@@ -184,12 +181,13 @@ void http::serverMake()
     }
 
     int bindStatus = bind(serverSd, (struct sockaddr *)&servAddr, sizeof(servAddr));
+
     if (bindStatus < 0)
     {
         std::cout << "Error binding socket to local address [CLSERVER] [httpCl.cpp]" << std::endl;
         raise(SIGINT);
     }
-    std::cout << "Cl server has started on port: " << portS << std::endl;
+    std::cout << fmt::format("Client server has started on port [{}]", clientPort) << std::endl;
 
     listen(serverSd, 2);
 

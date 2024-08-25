@@ -48,7 +48,7 @@ struct Send
 struct Receive
 {
     Receive() = default;
-    static std::string ReceiveMessage(SSL *socket)
+    static std::string ReceiveMessageSSL(SSL *socket)
     {
         try
         {

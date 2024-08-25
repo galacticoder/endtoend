@@ -14,9 +14,6 @@
 #define MODE_P 'P'
 #define MODE_N 'N'
 #define SERVER_S 'S'
-#define S_PATH "server-recieved-client-keys"
-
-using namespace std;
 
 short int getTermSizeCols();
 std::string getinput_getch(char &&MODE = MODE_N, long unsigned int &&maxLimit = getTermSizeCols(), const std::string &sideMsg = "");

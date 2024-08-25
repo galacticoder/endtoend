@@ -6,8 +6,8 @@
 #include <atomic>
 #include <termios.h>
 #include <stdexcept>
-#include "../header-files/linux_conio.h"
-#include "../header-files/getch_getline_sv.h"
+#include "../header-files/Server/linux_conio.h"
+#include "../header-files/Server/getch_getline_sv.h"
 
 #define s_path_getch "server-keys"
 #define sk_path_getch "server-recieved-client-keys"

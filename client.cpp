@@ -34,7 +34,7 @@ short leavePlace;
 std::mutex mut;
 
 extern int serverSd;
-extern int portS;
+extern int clientPort;
 
 std::string trimWhitespaces(std::string strIp) // trim whitespaces
 {
@@ -83,7 +83,7 @@ int main()
     WINDOW *msg_view_win = nullptr;
     WINDOW *subwin = nullptr;
 
-    shutdown_handler = [&](int sig)
+    shutdownHandler = [&](int sig)
     {
         std::lock_guard<std::mutex> lock(mut);
         std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
@@ -135,7 +135,7 @@ int main()
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
-    std::string passSig = Receive::ReceiveMessage(tlsSock);
+    std::string passSig = Receive::ReceiveMessageSSL(tlsSock);
     handleClient::handlePassword(serverPubKeyPath, tlsSock);
 
     std::cout << "Enter your username: ";
@@ -151,11 +151,11 @@ int main()
     // send username to server
     Send::SendMessage(tlsSock, user);
 
-    std::string userStr = Receive::ReceiveMessage(tlsSock);
+    std::string userStr = Receive::ReceiveMessageSSL(tlsSock);
 
     // signal to check if name already exists on server
-    SignalType handlerExistingName = signalHandling::getSignalType(userStr);
-    signalHandling::handleSignal(handlerExistingName, userStr);
+    SignalType UsernameValiditySignal = signalHandling::getSignalType(userStr);
+    signalHandling::handleSignal(UsernameValiditySignal, userStr);
 
     privateKey = LoadKey::LoadPrivateKey(privateKeyPath);     // load your private key
     EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath); // load your public key
@@ -170,7 +170,7 @@ int main()
     EVP_PKEY_free(pubkey);
 
     // receive and save users active file
-    std::string usersActiveEncodedData = Receive::ReceiveMessage(tlsSock);
+    std::string usersActiveEncodedData = Receive::ReceiveMessageSSL(tlsSock);
     std::string usersActiveDecodedData = Decode::Base64Decode(usersActiveEncodedData);
     SaveFile::saveFile(usersActivePath, usersActiveDecodedData);
 

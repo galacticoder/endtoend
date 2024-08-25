@@ -4,8 +4,8 @@ CXXFLAGS=-std=c++20
 SERVER=server
 CLIENT=client
 SERVER_SRCS=server.cpp
-F_LINK=headers/cpp-files/linux_conio.cpp headers/cpp-files/bcrypt.cpp headers/cpp-files/blowfish.cpp headers/cpp-files/getch_getline_sv.cpp headers/cpp-files/leave.cpp headers/cpp-files/hostHttp.cpp 
-F_LINK_CLIENT=headers/cpp-files/leave.cpp headers/cpp-files/Client/httpCl.cpp
+F_LINK=headers/cpp-files/Server/bcrypt.cpp headers/cpp-files/Server/blowfish.cpp headers/cpp-files/Server/hostHttp.cpp 
+F_LINK_CLIENT=headers/cpp-files/Client/httpCl.cpp
 CLIENT_SRCS=client.cpp
 LIBS=-lcryptopp -lfmt -lncurses -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl
 LIBS_CLIENT=-lcryptopp -lfmt -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl -lncurses
@@ -18,7 +18,7 @@ packages:
 all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(SERVER_SRCS)
-	$(CXX) $(CXXFLAGS) -Wall -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
 
 $(CLIENT): $(CLIENT_SRCS)
 	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT)

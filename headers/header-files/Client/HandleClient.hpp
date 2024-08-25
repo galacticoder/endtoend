@@ -16,7 +16,7 @@
 #define usersActivePath "txt-files/usersActive.txt"
 
 extern long int lineTrack;
-extern int portS;
+extern int clientPort;
 extern short leavePlace;
 extern std::string trimWhitespaces(std::string strIp);
 
@@ -41,7 +41,7 @@ public:
             while (true)
             {
                 lineTrack++;
-                std::string receivedMessage = Receive::ReceiveMessage(tlsSock);
+                std::string receivedMessage = Receive::ReceiveMessageSSL(tlsSock);
                 std::string decodedMessage;
 
                 SignalType anySignalReceive = signalHandling::getSignalType(receivedMessage);
@@ -143,7 +143,7 @@ public:
     {
         try
         {
-            std::string initMsg = Receive::ReceiveMessage(tlsSock); // get message to see if you are rate limited or the server is full
+            std::string initMsg = Receive::ReceiveMessageSSL(tlsSock); // get message to see if you are rate limited or the server is full
 
             SignalType signal = signalHandling::getSignalType(initMsg);
             signalHandling::handleSignal(signal, initMsg);
@@ -151,9 +151,9 @@ public:
             // send connection signal and port your ping server is running on
             Send::SendMessage(tlsSock, (std::string)connectionSignal);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            Send::SendMessage(tlsSock, std::to_string(portS));
+            Send::SendMessage(tlsSock, std::to_string(clientPort));
 
-            std::string requestNeeded = Receive::ReceiveMessage(tlsSock);
+            std::string requestNeeded = Receive::ReceiveMessageSSL(tlsSock);
 
             SignalType requestSignal = signalHandling::getSignalType(requestNeeded);
             signalHandling::handleSignal(requestSignal, requestNeeded);
@@ -161,7 +161,7 @@ public:
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
                 // check if you were accepted into the server or not (if request needed to join the server)
-                std::string acceptMessage = Receive::ReceiveMessage(tlsSock);
+                std::string acceptMessage = Receive::ReceiveMessageSSL(tlsSock);
 
                 SignalType acceptedSignal = signalHandling::getSignalType(acceptMessage);
                 signalHandling::handleSignal(acceptedSignal, acceptMessage);
@@ -196,7 +196,7 @@ public:
 
         std::cout << "Verifying password.." << std::endl;
 
-        std::string passwordVerification = Receive::ReceiveMessage(tlsSock);
+        std::string passwordVerification = Receive::ReceiveMessageSSL(tlsSock);
 
         SignalType handlePasswordVerification = signalHandling::getSignalType(passwordVerification);
         signalHandling::handleSignal(handlePasswordVerification, passwordVerification);
@@ -206,7 +206,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(HandleClientMutex);
 
-        std::string checkErrSignals = Receive::ReceiveMessage(tlsSock);
+        std::string checkErrSignals = Receive::ReceiveMessageSSL(tlsSock);
 
         SignalType checkingErrSignals = signalHandling::getSignalType(checkErrSignals);
         signalHandling::handleSignal(checkingErrSignals, checkErrSignals);
@@ -229,14 +229,14 @@ public:
             std::cout << "Another user connected, starting chat.." << std::endl;
         }
 
-        std::string userPublicKey = Receive::ReceiveMessage(tlsSock);
+        std::string userPublicKey = Receive::ReceiveMessageSSL(tlsSock);
 
         std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
 
         std::cout << fmt::format("Recieving {}'s public key", userName) << std::endl;
 
         // receive and save user public key
-        std::string userPubKeyEncodedData = Receive::ReceiveMessage(tlsSock);
+        std::string userPubKeyEncodedData = Receive::ReceiveMessageSSL(tlsSock);
         std::string userPubKeyDecodedData = Decode::Base64Decode(userPubKeyEncodedData);
         SaveFile::saveFile(userPublicKey, userPubKeyDecodedData, std::ios::binary);
 

@@ -8,7 +8,7 @@
 #include "FileHandling.hpp"
 #include "Decryption.hpp"
 
-std::function<void(int)> shutdown_handler;
+std::function<void(int)> shutdownHandler;
 
 enum class SignalType
 {
@@ -81,12 +81,12 @@ public:
         }
         else if (signal == SignalType::CLIENTREJOIN)
         {
-            std::string userPublicKey = Receive::ReceiveMessage(tlsSock);
+            std::string userPublicKey = Receive::ReceiveMessageSSL(tlsSock);
 
             std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
 
             // receive and save user public key
-            std::string encodedKeyData = Receive::ReceiveMessage(tlsSock);
+            std::string encodedKeyData = Receive::ReceiveMessageSSL(tlsSock);
             std::string DecodeodedKeyData = Decode::Base64Decode(encodedKeyData);
             SaveFile::saveFile(userPublicKey, DecodeodedKeyData, std::ios::binary);
 
@@ -96,14 +96,12 @@ public:
                 raise(SIGINT);
         }
         else if (signal == SignalType::UNKNOWN)
-        {
             return;
-        }
     }
 
     static SignalType getSignalType(const std::string &msg)
     {
-        std::string array[11] = {
+        std::string signalsArray[11] = {
             "LOADERR",
             "EXSTERR",
             "#V",
@@ -113,13 +111,12 @@ public:
             "RATELIMITED",
             "LIM",
             "ACC",
-            "Decode",
+            "DEC",
             "CLIENTREJOIN",
         };
-
         for (int i = 0; i < 10; i++)
         {
-            if (msg.find(array[i]) < msg.size())
+            if (msg.find(signalsArray[i]) < msg.size())
             {
                 return (SignalType)i;
             }
@@ -128,7 +125,7 @@ public:
     }
     static void signalShutdownHandler(int signal)
     {
-        shutdown_handler(signal);
+        shutdownHandler(signal);
     }
 };
 
