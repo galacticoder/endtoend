@@ -78,7 +78,7 @@ int http::fetchAndSave(const std::string &site, const std::string &outfile)
     std::ofstream outFile(outfile, std::ios::binary);
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init(); // init libcur
+    curl = curl_easy_init(); // init libcurl
 
     if (curl)
     {
@@ -203,12 +203,12 @@ void http::serverMake()
             raise(SIGINT);
         }
 
-        static char buffer[8] = {0};
-        static ssize_t bytesRead = recv(newSd, buffer, sizeof(buffer), 0);
+        char buffer[8] = {0};
+        ssize_t bytesRead = recv(newSd, buffer, sizeof(buffer), 0);
         buffer[bytesRead] = '\0';
         std::string statusCheck(buffer);
 
-        static const std::string statusUp = "S>UP";
+        const std::string statusUp = "S>UP";
 
         if (statusCheck == "SCHECK")
         {
