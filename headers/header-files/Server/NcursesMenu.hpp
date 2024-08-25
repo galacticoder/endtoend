@@ -131,7 +131,6 @@ public:
 
         if (choice == 1)
         {
-            // std::cout << clearScreen;
             std::cout << "Enter a password: ";
             std::getline(std::cin, password);
             if (password.length() < minLim)
@@ -168,7 +167,6 @@ public:
         }
         else if (choice == 5) // user requests with pass
         {
-            // std::cout << clearScreen;
             std::cout << "Enter a password: ";
             std::getline(std::cin, password);
 
