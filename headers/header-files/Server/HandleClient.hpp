@@ -98,9 +98,9 @@ public:
         // check if client username contains unallowed characters
         for (int i = 0; i < ClientUsername.size(); i++)
         {
-            if (UnallowedCharacters.find(ClientUsername[i]))
+            if (UnallowedCharacters.find(ClientUsername[i]) < ClientUsername.size())
             {
-                std::cout << "Client username includes invalid character[s] from UnallowedCharacters variable. Kicking." << std::endl;
+                std::cout << fmt::format("Client username includes invalid character[s] from UnallowedCharacters variable. Kicking. [CHAR: {}]", ClientUsername[i]) << std::endl;
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
                 Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
                 CleanUp::CleanUpClient(ClientIndex);

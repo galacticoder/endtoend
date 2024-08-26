@@ -58,9 +58,7 @@ long int totalClientJoins;
 short exitSignal = 0;
 unsigned long pingCount = 0;
 
-const std::string limReached = "The limit of users has been reached for this chat. Exiting..";
-const std::string NotVerifiedMessage = "Wrong password. You have been kicked.#N"; // #N
-const std::string VerifiedMessage = "You have joined the server#V";               // #V
+extern int PasswordNeeded;
 
 std::function<void(int)> shutdownHandler;
 void signalHandleServer(int signal)
@@ -68,7 +66,7 @@ void signalHandleServer(int signal)
   shutdownHandler(signal);
 }
 
-void clStat(SSL *clientSocket, int &clsock, const std::string &ClientHashedIp)
+void clStat(SSL *clientSocketSSL, int &clientTcpSocket, const std::string &ClientHashedIp)
 {
   std::cout << "Started thread for clstat" << std::endl;
   while (1)
@@ -82,45 +80,34 @@ void clStat(SSL *clientSocket, int &clsock, const std::string &ClientHashedIp)
       serverAddress.sin_port = htons(clp[ClientHashedIp]);
 
       if (inet_pton(AF_INET, "127.0.0.1" /*replace with user ip*/, &serverAddress.sin_addr) <= 0)
-      {
         std::cerr << "Pton conversion error in clStat" << std::endl;
-      }
 
       if (connect(cSockStatus, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
       {
         std::cout << fmt::format("Client disconnected [CANNOT CONNECT TO SERVER] [P:{}]", clp[ClientHashedIp]) << std::endl;
         std::string username;
 
-        auto itCl = -1;
+        int itCl = -1;
 
         if (connectedClients.size() > 0)
-          itCl = (find(connectedClients.begin(), connectedClients.end(), clsock)) - connectedClients.begin();
+        {
+          itCl = (find(connectedClients.begin(), connectedClients.end(), clientTcpSocket)) - connectedClients.begin();
+          CleanUp::CleanUpClient(itCl);
+        }
+        else
+        {
+          CleanUp::CleanUpClient(-1, clientSocketSSL, clientTcpSocket);
+        }
 
-        usernames.erase(ClientHashedIp);
-
-        clientUsernames.size() > 0 &&itCl != -1 ? username = clientUsernames[itCl] : username = "";
-
-        // leaveCl(clientSocket, clsock, ClientHashedIp, itCl, username);
         break;
       }
 
       const std::string statusCheckMsg = "SCHECK";
       send(cSockStatus, statusCheckMsg.c_str(), statusCheckMsg.length(), 0);
 
-      char buffer[8] = {0};
-      int valread = recv(cSockStatus, buffer, sizeof(buffer), 0);
-      buffer[valread] = '\0';
-      std::string readStr(buffer);
+      std::string readStr = Receive::ReceiveMessageTcp(cSockStatus);
 
-      if (readStr == "S>UP")
-      {
-        close(cSockStatus);
-      }
-
-      else
-      {
-        close(cSockStatus);
-      }
+      close(cSockStatus);
     }
     catch (const std::exception &e)
     {
@@ -129,10 +116,7 @@ void clStat(SSL *clientSocket, int &clsock, const std::string &ClientHashedIp)
       break;
     }
   }
-  {
-    // std::lock_guard<std::mutex> lock(mutex);
-    exitSignal = 1;
-  }
+  exitSignal = 1;
 }
 
 void waitTimer(const std::string hashedClientIp)
@@ -227,6 +211,8 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
     const std::string ClientServerPort = Receive::ReceiveMessageSSL(clientSocket);
 
+    std::cout << "Client server port: " << ClientServerPort << std::endl;
+
     try
     {
       clp[ClientHashedIp] = atoi(ClientServerPort.c_str());
@@ -239,7 +225,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
       return;
     }
 
-    std::thread(clStat, clientSocket, std::ref(ClientTcpSocket), std::ref(ClientHashedIp)).detach();
+    // std::thread(clStat, clientSocket, std::ref(ClientTcpSocket), std::ref(ClientHashedIp)).detach();
 
     while (exitSignal != 1)
     {
@@ -254,10 +240,11 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
       PasswordVerifiedClients.push_back(0);
 
       std::cout << "Size of clientHashVerifiedClients vector: " << PasswordVerifiedClients.size() << std::endl;
+      std::cout << "Password needed: " << PasswordNeeded << std::endl;
 
       if (PasswordNeeded == 1)
       {
-        std::cout << "Sending password needed signal to thread [{}]" << std::this_thread::get_id() << std::endl;
+        std::cout << "Sending password needed signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
         const std::string PasswordNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED);
         Send::SendMessage(clientSocket, PasswordNeededSignal);
         HandleClient::ClientPasswordVerification(clientSocket, ClientIndex, ServerPrivateKeyPath, ClientHashedIp, serverHash);
@@ -272,11 +259,16 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
       HandleClient::ClientUsernameValidity(clientSocket, ClientIndex, ClientUsername);
 
+      Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal if their username is validated
+
       totalClientJoins++;
       clientUsernames.push_back(ClientUsername);
+
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
+      std::cout << "Sending usersactive amount" << std::endl;
       Send::SendMessage(clientSocket, std::to_string(clientUsernames.size())); // send the connected users amount
+      std::cout << "Sent usersactive amount: " << clientUsernames.size() << std::endl;
 
       usernames[ClientHashedIp] = ClientUsername;
 
@@ -315,6 +307,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
       if (clientUsernames.size() == 2)
       {
+        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
         std::cout << "Sending Client 1's key to Client 2" << std::endl;
         const std::string PublicKeyPath = PublicPath(clientUsernames[0]); // set the path for key to send
         const std::string SavePath = PublicPath(clientUsernames[0]);      // set the path for client to save as
@@ -325,6 +318,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
       }
       else if (clientUsernames.size() == 1)
       {
+        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
         std::cout << "1 client connected. Waiting for another client to connect to continue" << std::endl;
         while (1)
         {
@@ -471,7 +465,6 @@ int main()
   SSL_CTX *serverCtx;
   int serverSocket;
 
-  int PasswordNeeded;
   int RequestNeeded;
 
   const std::string serverHash = NcursesMenu::StartMenu();
@@ -524,6 +517,9 @@ int main()
 
   std::thread(startHost).detach();
   std::cout << "Started hosting server cert key" << std::endl;
+
+  // sigignore(SIGPIPE);
+  signal(SIGPIPE, SIG_IGN);
 
   while (true)
   {

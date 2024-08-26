@@ -33,31 +33,38 @@ struct Delete
 {
     static void DeletePath(const std::string &path)
     {
-        std::error_code errorCode;
-        if (std::filesystem::is_directory(path)) // check if the path given is a directory
+        try
         {
-            std::uintmax_t DeleteCounter = std::filesystem::remove_all(path);
-            std::filesystem::remove(path);
-
-            if (DeleteCounter == 0)
-                std::cout << fmt::format("There was nothing to delete from path [{}]", path) << std::endl;
-            else if (DeleteCounter == 1)
-                std::cout
-                    << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
-            else if (DeleteCounter > 1)
-                std::cout
-                    << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
-
-            std::cout << fmt::format("Deleted directory [{}]", path) << std::endl;
-        }
-        else if (std::filesystem::is_regular_file(path)) // check if the path given is a file
-        {
-            if (!std::filesystem::remove(path, errorCode))
+            std::error_code errorCode;
+            if (std::filesystem::is_directory(path)) // check if the path given is a directory
             {
-                errorCode.message();
-                return;
+                std::uintmax_t DeleteCounter = std::filesystem::remove_all(path);
+                std::filesystem::remove(path);
+
+                if (DeleteCounter == 0)
+                    std::cout << fmt::format("There was nothing to delete from path [{}]", path) << std::endl;
+                else if (DeleteCounter == 1)
+                    std::cout
+                        << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
+                else if (DeleteCounter > 1)
+                    std::cout
+                        << fmt::format("{} files in filepath [{}] have been deleted", DeleteCounter, path) << std::endl;
+
+                std::cout << fmt::format("Deleted directory [{}]", path) << std::endl;
             }
-            std::cout << fmt::format("Deleted file [{}]", path) << std::endl;
+            else if (std::filesystem::is_regular_file(path)) // check if the path given is a file
+            {
+                if (!std::filesystem::remove(path, errorCode))
+                {
+                    errorCode.message();
+                    return;
+                }
+                std::cout << fmt::format("Deleted file [{}]", path) << std::endl;
+            }
+        }
+        catch (const std::exception &error)
+        {
+            /*error only occurs when it cant find the file or directory to delete so just ignore*/;
         }
     }
 };

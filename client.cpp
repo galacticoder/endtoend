@@ -119,11 +119,10 @@ int main()
     std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", KeysReceivedFromServerPath, "server");
     std::string certPath = fmt::format("{}server-cert.pem", KeysReceivedFromServerPath);
 
-    { // create directories
-        Create::createDirectory(KeysReceivedFromServerPath);
-        Create::createDirectory(TxtDirectoryPath);
-        Create::createDirectory(YourKeysPath);
-    }
+    // create directories
+    Create::createDirectory(KeysReceivedFromServerPath);
+    Create::createDirectory(TxtDirectoryPath);
+    Create::createDirectory(YourKeysPath);
 
     // start connection to server using tls
     StartTLS(serverIp, privateKeyPath, publicKeyPath, certPath, serverPubKeyPath, port);
@@ -151,16 +150,16 @@ int main()
     // send username to server
     Send::SendMessage(tlsSock, user);
 
-    std::string userStr = Receive::ReceiveMessageSSL(tlsSock);
+    std::string checkErrorsWithUsername = Receive::ReceiveMessageSSL(tlsSock);
 
     // signal to check if name already exists on server
-    SignalType UsernameValiditySignal = signalHandling::getSignalType(userStr);
-    signalHandling::handleSignal(UsernameValiditySignal, userStr);
+    SignalType UsernameValiditySignal = signalHandling::getSignalType(checkErrorsWithUsername);
+    signalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
 
     privateKey = LoadKey::LoadPrivateKey(privateKeyPath);     // load your private key
     EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath); // load your public key
 
-    // check if your keys loaded
+    // check if your keys loadedz
     if (!privateKey || !pubkey)
     {
         std::cout << "Your keys cannot be loaded" << std::endl;
@@ -170,9 +169,8 @@ int main()
     EVP_PKEY_free(pubkey);
 
     // receive and save users active file
-    std::string usersActiveEncodedData = Receive::ReceiveMessageSSL(tlsSock);
-    std::string usersActiveDecodedData = Decode::Base64Decode(usersActiveEncodedData);
-    SaveFile::saveFile(usersActivePath, usersActiveDecodedData);
+    std::string usersActiveAmount = Receive::ReceiveMessageSSL(tlsSock);
+    SaveFile::saveFile(usersActivePath, usersActiveAmount);
 
     if (std::filesystem::is_regular_file(publicKeyPath))
     {
@@ -190,9 +188,9 @@ int main()
 
     int activeUsers = ReadFile::readActiveUsers(usersActivePath);
 
-    receivedPublicKey = handleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, userStr, activeUsers);
+    receivedPublicKey = handleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, user, activeUsers);
 
-    Ncurses::startUserMenu(msg_input_win, subwin, msg_view_win, tlsSock, userStr, receivedPublicKey, privateKey);
+    Ncurses::startUserMenu(msg_input_win, subwin, msg_view_win, tlsSock, user, receivedPublicKey, privateKey);
 
     raise(SIGINT);
     return 0;

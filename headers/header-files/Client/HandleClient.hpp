@@ -51,10 +51,10 @@ public:
                 {
                     decodedMessage = Decode::Base64Decode(receivedMessage);
                     std::string decryptedMessage = Decrypt::DecryptData(prkey, decodedMessage);
+                    decryptedMessage += "\n";
 
                     curs_set(0);
                     wmove(subwin, lineTrack, 0);
-                    decryptedMessage += "\n";
                     wprintw(subwin, decryptedMessage.c_str(), lineTrack);
                     threadSafeWrefresh(subwin);
                     curs_set(1);
@@ -117,6 +117,7 @@ public:
 
                     // print message on your screen
                     std::string messageFormat = fmt::format("{}(You): {}", userStr, message);
+                    messageFormat += '\n';
                     wprintw(subaddr, messageFormat.c_str(), lineTrack);
                     threadSafeWrefresh(subaddr);
 
@@ -138,8 +139,7 @@ public:
         return;
     }
 
-    static void
-    initCheck(SSL *tlsSock)
+    static void initCheck(SSL *tlsSock)
     {
         try
         {

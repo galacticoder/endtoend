@@ -73,7 +73,7 @@ private:
     }
     void fetchAndSaveCertAndKey(const char *serverIp, const std::string &certPath, const std::string &serverPubKeyPath) // get server certPath and extract public key
     {
-        const std::string get = fmt::format("http://{}:{}/", serverIp, 80);
+        const std::string get = fmt::format("http://{}:{}/", serverIp, 81);
         std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
 
         if (http::fetchAndSave(get, certPath) != 0)
@@ -103,11 +103,10 @@ private:
             std::cout << "Cannot connect to server. Check server port\n";
             raise(SIGINT);
         }
-        { // send connection signal and recieve okay signal from server
-            send(startSock, conSig, strlen(conSig), 0);
-            char signalOkay[200] = {0};
-            read(startSock, signalOkay, sizeof(signalOkay) - 1);
-        }
+        // send connection signal and recieve okay signal from server
+        send(startSock, conSig, strlen(conSig), 0);
+        char signalOkay[200] = {0};
+        read(startSock, signalOkay, sizeof(signalOkay) - 1);
     }
     void connectUsingTlsSocket(SSL *tlsSock) // connect to server and establish tls connection with server
     {

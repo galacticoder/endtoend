@@ -44,6 +44,7 @@ public:
         threadSafeWrefresh(msg_view_win);
 
         subwin = derwin(msg_view_win, height - 6, width - 4, 1, 1);
+
         scrollok(subwin, TRUE);
         idlok(subwin, TRUE);
 

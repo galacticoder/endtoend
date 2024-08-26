@@ -14,6 +14,7 @@
 #define eraseLine "\033[2K\r"
 #define clearScreen "\033[2J\r"
 
+int PasswordNeeded = 0;
 void signalHandleMenu(int signum);
 
 class NcursesMenu
@@ -145,6 +146,7 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server" << std::endl;
+            PasswordNeeded = 1;
             return bcrypt::generateHash(password);
         }
         else if (choice == 2)
@@ -182,9 +184,8 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server and users need to request to join the server" << std::endl;
-            std::string hash = bcrypt::generateHash(password);
-            hash.append("PNINT3");
-            return hash;
+            PasswordNeeded = 1;
+            return bcrypt::generateHash(password);
         }
         else if (choice == 6)
         {
