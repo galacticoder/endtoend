@@ -22,7 +22,7 @@ public:
         endwin();
     }
 
-    static void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, EVP_PKEY *prkey, SSL_CTX *ctx)
+    static void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, SSL_CTX *ctx)
     {
         if (tlsSock)
         {
@@ -45,18 +45,32 @@ public:
             std::cout << "Freed received public key" << std::endl;
         }
 
-        if (prkey)
-        {
-            std::cout << "Freeing private key" << std::endl;
-            EVP_PKEY_free(prkey);
-            std::cout << "Freed private key" << std::endl;
-        }
+        // privateKeyUniquePtr.reset();
+
+        // if (prkey)
+        // {
+        //     std::cout << "Freeing private key" << std::endl;
+        //     EVP_PKEY_free(prkey);
+        //     std::cout << "Freed private key" << std::endl;
+        // }
 
         if (ctx)
         {
             std::cout << "Freeing SSL context" << std::endl;
             SSL_CTX_free(ctx);
             std::cout << "Freed SSL context" << std::endl;
+        }
+    }
+};
+
+struct EVP_CLEANUP
+{
+    void operator()(EVP_PKEY *key)
+    {
+        if (key)
+        {
+            EVP_PKEY_free(key);
+            std::cout << "Deleted key" << std::endl;
         }
     }
 };

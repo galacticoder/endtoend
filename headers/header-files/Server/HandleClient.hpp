@@ -71,7 +71,7 @@ public:
         std::cout << "Updated vector size: " << PasswordVerifiedClients.size() << std::endl;
     }
 
-    static void ClientUsernameValidity(SSL *ClientSSLSocket, int &ClientIndex, const std::string &ClientUsername)
+    static int ClientUsernameValidity(SSL *ClientSSLSocket, int &&ClientIndex, const std::string &ClientUsername)
     {
         const std::string UnallowedCharacters = "\\/~ ";
         // checks if username already exists
@@ -81,8 +81,8 @@ public:
             const std::string NameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
             Send::SendMessage(ClientSSLSocket, NameAlreadyExistsMessage);
             CleanUp::CleanUpClient(ClientIndex);
-            std::cout << "Kicked client with same username kicked" << std::endl;
-            return;
+            std::cout << "Kicked client with same username" << std::endl;
+            return -1;
         }
 
         // check if client username is invalid in length
@@ -92,7 +92,7 @@ public:
             Send::SendMessage(ClientSSLSocket, InvalidUsernameLengthMessage);
             CleanUp::CleanUpClient(ClientIndex);
             std::cout << "Disconnected user with empty name" << std::endl;
-            return;
+            return -1;
         }
 
         // check if client username contains unallowed characters
@@ -104,9 +104,10 @@ public:
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
                 Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
                 CleanUp::CleanUpClient(ClientIndex);
-                return;
+                return -1;
             }
         }
+        return 0;
     }
 
     static int CheckUserLimitReached(SSL *userSSLSocket, int &userTcpSocket, int &limitOfUsers)

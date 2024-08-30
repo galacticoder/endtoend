@@ -68,13 +68,9 @@ public:
 
             if (SSLsocks.size() > 0)
             {
-                std::cout << "Deleting tls socks" << std::endl;
                 SSL_shutdown(SSLsocks[ClientIndex]);
-                std::cout << "shutdown tls socks" << std::endl;
                 SSL_free(SSLsocks[ClientIndex]);
-                std::cout << "freed tls socks" << std::endl;
                 close(connectedClients[ClientIndex]);
-                std::cout << "closed tls socks" << std::endl;
 
                 auto DeleteClientTcpSocket = std::remove(connectedClients.begin(), connectedClients.end(), connectedClients[ClientIndex]);
                 connectedClients.erase(DeleteClientTcpSocket, connectedClients.end());

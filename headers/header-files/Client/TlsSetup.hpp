@@ -20,7 +20,6 @@
 
 int startSock;
 EVP_PKEY *receivedPublicKey = nullptr;
-EVP_PKEY *privateKey = nullptr;
 SSL_CTX *ctx = nullptr;
 SSL *tlsSock = nullptr;
 
@@ -65,12 +64,6 @@ public:
 class StartTLS
 {
 private:
-    void generateKeys(const std::string &privateKeyPath, const std::string &publicKeyPath) // generate your keys
-    {
-        std::cout << "Generating keys" << std::endl;
-        GenerateKeys genKeys(privateKeyPath, publicKeyPath);
-        std::cout << "Keys have been generated" << std::endl;
-    }
     void fetchAndSaveCertAndKey(const char *serverIp, const std::string &certPath, const std::string &serverPubKeyPath) // get server certPath and extract public key
     {
         const std::string get = fmt::format("http://{}:{}/", serverIp, 81);
@@ -126,13 +119,19 @@ private:
     }
 
 public:
-    StartTLS(std::string &serverIp, const std::string &privateKeyPath, const std::string &publicKeyPath, const std::string &certPath, const std::string &serverPubKeyPath, unsigned int &port)
+    static void generateKeys(const std::string &privateKeyPath, const std::string &publicKeyPath) // generate your keys
+    {
+        std::cout << "Generating keys" << std::endl;
+        GenerateKeys genKeys(privateKeyPath, publicKeyPath);
+        std::cout << "Keys have been generated" << std::endl;
+    }
+
+    StartTLS(std::string &serverIp, const std::string &certPath, const std::string &serverPubKeyPath, unsigned int &port)
     {
         // initialize open tlsSock and create ctx
         initOpenSSL::InitOpenssl();
         ctx = SSL_CTX_new(TLS_client_method());
 
-        generateKeys(privateKeyPath, publicKeyPath);
         fetchAndSaveCertAndKey(serverIp.c_str(), certPath, serverPubKeyPath);
         initOpenSSL::configureContext(ctx, certPath);
 

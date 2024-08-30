@@ -12,18 +12,18 @@ std::function<void(int)> shutdownHandler;
 
 enum class SignalType
 {
-    LOADERR,
-    EXISTERR,
-    VERIFIED,
-    NOTVERIFIED,
-    EXISTNAME,
-    REQUESTNEEDED,
-    RATELIMITED,
-    SERVERLIMIT,
-    ACCEPTED,
-    NOTACCEPTED,
-    CLIENTREJOIN,
-    UNKNOWN
+    LOADERR,       // 0
+    EXISTERR,      // 1
+    VERIFIED,      // 2
+    NOTVERIFIED,   // 3
+    EXISTNAME,     // 4
+    REQUESTNEEDED, // 5
+    RATELIMITED,   // 6
+    SERVERLIMIT,   // 7
+    ACCEPTED,      // 8
+    NOTACCEPTED,   // 9
+    CLIENTREJOIN,  // 10
+    UNKNOWN        // 11
 };
 
 class signalHandling
@@ -52,7 +52,7 @@ public:
         }
         else if (signal == SignalType::EXISTNAME)
         {
-            std::cout << msg.substr(0, msg.length() - 9) << std::endl;
+            std::cout << msg.substr(0, msg.length() - 13) << std::endl;
             raise(SIGINT);
         }
         else if (signal == SignalType::ACCEPTED)
@@ -106,7 +106,7 @@ public:
             "EXSTERR",
             "#V",
             "#N",
-            "EXISTNAME",
+            "NAMEEXISTSERR",
             "REQ",
             "RATELIMITED",
             "LIM",

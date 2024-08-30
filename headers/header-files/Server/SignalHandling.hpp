@@ -33,7 +33,7 @@ std::vector<std::string> ServerMessages = {
     "Username already exists. You have been kicked.",
     "You have joined the server",
     "Wrong password. You have been kicked.",
-    "NAMEEXISTSERR",
+    "Username already exists on server",
     "Server needs to accept your join request. Waiting for server to accept..",
     "Rate limit reached. Try again in x seconds",
     "The limit of users has been reached for this chat. Exiting..",

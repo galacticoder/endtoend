@@ -31,10 +31,10 @@ void threadSafeWrefresh(WINDOW *win)
     pthread_mutex_unlock(&nmutex);
 }
 
-class handleClient
+class HandleClient
 {
 public:
-    static void receiveMessages(SSL *tlsSock, WINDOW *subwin, EVP_PKEY *prkey, EVP_PKEY *receivedPublicKey)
+    static void receiveMessages(SSL *tlsSock, WINDOW *subwin, EVP_PKEY *privateKey, EVP_PKEY *receivedPublicKey)
     {
         try
         {
@@ -47,20 +47,7 @@ public:
                 SignalType anySignalReceive = signalHandling::getSignalType(receivedMessage);
                 signalHandling::handleSignal(anySignalReceive, receivedMessage);
 
-                if (receivedMessage.find('|') == std::string::npos)
-                {
-                    decodedMessage = Decode::Base64Decode(receivedMessage);
-                    std::string decryptedMessage = Decrypt::DecryptData(prkey, decodedMessage);
-                    decryptedMessage += "\n";
-
-                    curs_set(0);
-                    wmove(subwin, lineTrack, 0);
-                    wprintw(subwin, decryptedMessage.c_str(), lineTrack);
-                    threadSafeWrefresh(subwin);
-                    curs_set(1);
-                }
-
-                else if (receivedMessage.find('|') != std::string::npos) // for messages from client
+                if (receivedMessage.find('|') != std::string::npos) // for messages from client
                 {
                     int firstPipe = receivedMessage.find_first_of("|");
                     int secondPipe = receivedMessage.find_last_of("|");
@@ -70,12 +57,24 @@ public:
                     std::string user = receivedMessage.substr(0, firstPipe);
                     decodedMessage = Decode::Base64Decode(cipher);
 
-                    std::string messageFromUser = fmt::format("{}: {}", user, Decrypt::DecryptData(prkey, decodedMessage));
+                    std::string messageFromUser = fmt::format("{}: {}", user, Decrypt::DecryptData(privateKey, decodedMessage));
 
                     curs_set(0);
                     wmove(subwin, lineTrack, 0);
                     messageFromUser += "\n";
                     wprintw(subwin, messageFromUser.c_str(), lineTrack);
+                    threadSafeWrefresh(subwin);
+                    curs_set(1);
+                }
+                else
+                {
+                    decodedMessage = Decode::Base64Decode(receivedMessage);
+                    std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
+                    decryptedMessage += "\n";
+
+                    curs_set(0);
+                    wmove(subwin, lineTrack, 0);
+                    wprintw(subwin, decryptedMessage.c_str(), lineTrack);
                     threadSafeWrefresh(subwin);
                     curs_set(1);
                 }

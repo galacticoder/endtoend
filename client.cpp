@@ -16,6 +16,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <mutex>
+#include <memory>
 #include <ncurses.h>
 #include <openssl/evp.h>
 #include "headers/header-files/Client/SendAndReceive.hpp"
@@ -79,20 +80,22 @@ int main()
 {
     signal(SIGINT, signalHandling::signalShutdownHandler);
 
-    WINDOW *msg_input_win = nullptr;
-    WINDOW *msg_view_win = nullptr;
+    WINDOW *messageInputWindow = nullptr;
+    WINDOW *messageViewWindow = nullptr;
     WINDOW *subwin = nullptr;
+
+    std::unique_ptr<EVP_PKEY, EVP_CLEANUP> privateKeyUniquePtr(nullptr);
 
     shutdownHandler = [&](int sig)
     {
         std::lock_guard<std::mutex> lock(mut);
         std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
-        cleanUp::cleanWins(subwin, msg_input_win, msg_view_win);
-        cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, privateKey, ctx);
+        cleanUp::cleanWins(subwin, messageInputWindow, messageViewWindow);
+        cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
-        Delete::DeletePath(KeysReceivedFromServerPath);
-        Delete::DeletePath(YourKeysPath);
-        Delete::DeletePath(TxtDirectoryPath);
+        // Delete::DeletePath(KeysReceivedFromServerPath);
+        // Delete::DeletePath(YourKeysPath);
+        // Delete::DeletePath(TxtDirectoryPath);
         leavePlace == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePlace == 1 ? std::cout << "You have left the chat" << std::endl
                                                                                                                    : std::cout;
         exit(sig);
@@ -114,8 +117,6 @@ int main()
     std::getline(std::cin, tmpPort);
     port = atoi(tmpPort.c_str());
 
-    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, "mykey");
-    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, "mykey");
     std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", KeysReceivedFromServerPath, "server");
     std::string certPath = fmt::format("{}server-cert.pem", KeysReceivedFromServerPath);
 
@@ -125,17 +126,17 @@ int main()
     Create::createDirectory(YourKeysPath);
 
     // start connection to server using tls
-    StartTLS(serverIp, privateKeyPath, publicKeyPath, certPath, serverPubKeyPath, port);
+    StartTLS(serverIp, certPath, serverPubKeyPath, port);
     // start client server and pinging to the server
     std::thread(http::serverMake).detach();
     std::thread(http::pingServer, serverIp.c_str(), port).detach();
 
-    handleClient::initCheck(tlsSock);
+    HandleClient::initCheck(tlsSock);
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
     std::string passSig = Receive::ReceiveMessageSSL(tlsSock);
-    handleClient::handlePassword(serverPubKeyPath, tlsSock);
+    HandleClient::handlePassword(serverPubKeyPath, tlsSock);
 
     std::cout << "Enter your username: ";
     std::string user;
@@ -154,10 +155,17 @@ int main()
 
     // signal to check if name already exists on server
     SignalType UsernameValiditySignal = signalHandling::getSignalType(checkErrorsWithUsername);
+
+    std::cout << "Username validity: " << (int)UsernameValiditySignal << std::endl;
     signalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
 
-    privateKey = LoadKey::LoadPrivateKey(privateKeyPath);     // load your private key
-    EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath); // load your public key
+    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);
+    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, user);
+
+    StartTLS::generateKeys(privateKeyPath, publicKeyPath);
+
+    EVP_PKEY *privateKey = LoadKey::LoadPrivateKey(privateKeyPath); // load your private key
+    EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath);       // load your public key
 
     // check if your keys loadedz
     if (!privateKey || !pubkey)
@@ -188,9 +196,9 @@ int main()
 
     int activeUsers = ReadFile::readActiveUsers(usersActivePath);
 
-    receivedPublicKey = handleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, user, activeUsers);
+    receivedPublicKey = HandleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, user, activeUsers);
 
-    Ncurses::startUserMenu(msg_input_win, subwin, msg_view_win, tlsSock, user, receivedPublicKey, privateKey);
+    Ncurses::startUserMenu(messageInputWindow, subwin, messageViewWindow, tlsSock, user, receivedPublicKey, privateKey);
 
     raise(SIGINT);
     return 0;

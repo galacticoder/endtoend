@@ -2,20 +2,18 @@
 #define _NCURSES
 
 #include <ncurses.h>
-#include <pthread.h>
 #include <thread>
 #include "HandleClient.hpp"
 
-pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
+std::mutex ncursesMutex;
 
 class Ncurses
 {
 public:
     static void threadSafeWrefresh(WINDOW *win)
     {
-        pthread_mutex_lock(&ncurses_mutex);
+        std::lock_guard<std::mutex> lock(ncursesMutex);
         wrefresh(win);
-        pthread_mutex_unlock(&ncurses_mutex);
     }
     static void startUserMenu(WINDOW *msg_input_win, WINDOW *subwin, WINDOW *msg_view_win, SSL *tlsSock, const std::string &userStr, EVP_PKEY *receivedPublicKey, EVP_PKEY *privateKey)
     {
@@ -50,8 +48,8 @@ public:
 
         wmove(msg_input_win, 1, 1);
 
-        std::thread(handleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey).detach();
-        std::thread(handleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, msg_input_win).join();
+        std::thread(HandleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey).detach();
+        std::thread(HandleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, msg_input_win).join();
     }
 };
 

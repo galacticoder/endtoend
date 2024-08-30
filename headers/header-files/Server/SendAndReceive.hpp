@@ -41,9 +41,11 @@ public:
                 else
                 {
                     int errorCode = SSL_get_error(socket, bytesWritten);
-                    std::cout << "Error occured during sending in SendMessage. SSL error: " << errorCode;
+                    std::cout << "Error occured during sending in SendMessage. SSL error: " << errorCode << std::endl;
+                    break;
                 }
             }
+            return;
         }
         catch (const std::exception &e)
         {
@@ -56,15 +58,16 @@ public:
         {
             if (socket != senderSocket)
             {
-                std::cout << "Sending message to tls sock []" << socket << std::endl;
+                std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
                 SendMessage(socket, message);
             }
         }
     }
     static void BroadcastEncryptedExitMessage(int &ClientIndex, int ClientToSendMsgIndex)
     {
+        std::cout << "Broadcasting exit message of user " << clientUsernames[ClientIndex] << "to " << clientUsernames[ClientToSendMsgIndex];
         std::string UserExitMessage = fmt::format("{} has left the chat", clientUsernames[ClientIndex]);
-        EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(ClientToSendMsgIndex)); // load other user public key
+        EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(clientUsernames[ClientToSendMsgIndex])); // load other user public key
         if (!LoadedUserPublicKey)
         {
             std::cout << fmt::format("User [{}] pub key cannot be loaded for encrypted exit message", clientUsernames[ClientToSendMsgIndex]) << std::endl;

@@ -47,7 +47,6 @@ std::vector<SSL *> SSLsocks;
 std::map<std::string, std::chrono::seconds::rep> timeMap;
 std::map<std::string, short> amountOfTriesFromIP;
 std::map<std::string, short> clp;
-std::map<std::string, std::string> usernames;
 std::queue<std::string> serverJoinRequests;
 
 int limitOfUsers = 2;
@@ -235,7 +234,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
         SSLsocks.push_back(clientSocket);
       }
 
-      int ClientIndex = (std::find(connectedClients.begin(), connectedClients.end(), ClientTcpSocket)) - connectedClients.begin(); // find Client index to use for deleting and managing client
+      int clientIndex = (std::find(connectedClients.begin(), connectedClients.end(), ClientTcpSocket)) - connectedClients.begin(); // find Client index to use for deleting and managing client
 
       PasswordVerifiedClients.push_back(0);
 
@@ -247,7 +246,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
         std::cout << "Sending password needed signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
         const std::string PasswordNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED);
         Send::SendMessage(clientSocket, PasswordNeededSignal);
-        HandleClient::ClientPasswordVerification(clientSocket, ClientIndex, ServerPrivateKeyPath, ClientHashedIp, serverHash);
+        HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, ClientHashedIp, serverHash);
       }
       else
       {
@@ -255,14 +254,17 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
         Send::SendMessage(clientSocket, PasswordNotNeededSignal);
       }
 
-      std::string ClientUsername = Receive::ReceiveMessageSSL(clientSocket);
+      std::string clientUsername = Receive::ReceiveMessageSSL(clientSocket);
 
-      HandleClient::ClientUsernameValidity(clientSocket, ClientIndex, ClientUsername);
+      const int usernameValidity = HandleClient::ClientUsernameValidity(clientSocket, clientIndex - 1, clientUsername);
+
+      if (usernameValidity != 0)
+        return;
 
       Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal if their username is validated
 
       totalClientJoins++;
-      clientUsernames.push_back(ClientUsername);
+      clientUsernames.push_back(clientUsername);
 
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
@@ -270,10 +272,8 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
       Send::SendMessage(clientSocket, std::to_string(clientUsernames.size())); // send the connected users amount
       std::cout << "Sent usersactive amount: " << clientUsernames.size() << std::endl;
 
-      usernames[ClientHashedIp] = ClientUsername;
-
-      std::string FormattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", ClientUsername);
-      const std::string UserPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", ClientUsername);
+      std::string FormattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", clientUsername);
+      const std::string UserPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
       // receive the client public and save it
       std::string EncodedUserPublicKey = Receive::ReceiveMessageSSL(clientSocket);
@@ -286,22 +286,22 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
         if (!LoadedUserPubKey)
         {
-          std::cout << fmt::format("Cannot load user [{}] public key", ClientUsername) << std::endl;
+          std::cout << fmt::format("Cannot load user [{}] public key", clientUsername) << std::endl;
           const std::string ErrorLoadingPublicKeyMessage = Encode::Base64Encode(ServerSetMessage::GetMessageBySignal(SignalType::LOADERR, 1));
           Send::SendMessage(clientSocket, ErrorLoadingPublicKeyMessage);
-          CleanUp::CleanUpClient(ClientIndex);
-          std::cout << fmt::format("Kicked user [{}]", ClientUsername) << std::endl;
+          CleanUp::CleanUpClient(clientIndex);
+          std::cout << fmt::format("Kicked user [{}]", clientUsername) << std::endl;
           return;
         }
         EVP_PKEY_free(LoadedUserPubKey);
       }
       else
       {
-        std::cout << fmt::format("User [{}] public key file on server does not exist", ClientUsername) << std::endl;
+        std::cout << fmt::format("User [{}] public key file on server does not exist", clientUsername) << std::endl;
         const std::string ErrorLoadingPublicKeyMessage = Encode::Base64Encode(ServerSetMessage::GetMessageBySignal(SignalType::EXISTERR, 1));
         Send::SendMessage(clientSocket, ErrorLoadingPublicKeyMessage);
-        CleanUp::CleanUpClient(ClientIndex);
-        std::cout << fmt::format("Kicked user [{}]", ClientUsername) << std::endl;
+        CleanUp::CleanUpClient(clientIndex);
+        std::cout << fmt::format("Kicked user [{}]", clientUsername) << std::endl;
         return;
       }
 
@@ -361,21 +361,21 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
         }
       }
 
-      const std::string ServerJoinMessage = fmt::format("{} has joined the chat", ClientUsername);
+      const std::string ServerJoinMessage = fmt::format("{} has joined the chat", clientUsername);
 
       std::string UserJoinMessage;
       bool isConnected = true;
 
-      ClientIndex < 1 ? UserJoinMessage = fmt::format("{} has joined the chat", clientUsernames[ClientIndex + 1]) : UserJoinMessage = fmt::format("{} has joined the chat", clientUsernames[ClientIndex - 1]);
+      clientIndex < 1 ? UserJoinMessage = fmt::format("{} has joined the chat", clientUsernames[clientIndex + 1]) : UserJoinMessage = fmt::format("{} has joined the chat", clientUsernames[clientIndex - 1]);
 
-      EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(ClientUsername));
+      EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
 
       if (!LoadedUserPubKey)
       {
         std::cout << "Cannot load user key for sending join message" << std::endl;
         const std::string KeyLoadingErrorMessage = ServerSetMessage::GetMessageBySignal(SignalType::LOADERR, 1);
         Send::SendMessage(clientSocket, KeyLoadingErrorMessage);
-        CleanUp::CleanUpClient(ClientIndex);
+        CleanUp::CleanUpClient(clientIndex);
         return;
       }
 
@@ -402,16 +402,17 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
       while (isConnected)
       {
-        std::string exitMsg = fmt::format("{} has left the chat", ClientUsername);
+        std::string exitMsg = fmt::format("{} has left the chat", clientUsername);
         char buffer[4096] = {0};
         ssize_t bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer));
         if (bytesReceived <= 0)
         {
           isConnected = false;
           if (clientUsernames.size() > 1)
-            Send::BroadcastEncryptedExitMessage(ClientIndex, clientUsernames.size() - 1 - ClientIndex);
+            Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % clientUsernames.size());
+
           std::cout << exitMsg << std::endl;
-          CleanUp::CleanUpClient(ClientIndex);
+          CleanUp::CleanUpClient(clientIndex);
 
           GetUsersConnected();
 
@@ -432,7 +433,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
           if (cipherText.length() < 4096)
           {
             const std::string CurrentTime = getTime();
-            const std::string formattedCipher = ClientUsername + "|" + CurrentTime + "|" + cipherText;
+            const std::string formattedCipher = clientUsername + "|" + CurrentTime + "|" + cipherText;
 
             if (CheckBase64(cipherText) != -1)
               Send::BroadcastMessage(clientSocket, formattedCipher);
@@ -442,9 +443,10 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
           else
           {
             if (clientUsernames.size() > 1)
-              Send::BroadcastEncryptedExitMessage(ClientIndex, clientUsernames.size() - 1 - ClientIndex);
+              Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % clientUsernames.size());
+
             std::cout << exitMsg << std::endl;
-            CleanUp::CleanUpClient(ClientIndex);
+            CleanUp::CleanUpClient(clientIndex);
             std::cout << "Kicked user for invalid message length" << std::endl;
           }
         }
