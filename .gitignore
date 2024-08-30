@@ -2,3 +2,8 @@
 testing-folder/
 client
 server
+txt-files/
+keys-from-server/
+server-recieved-client-keys/
+server-keys/
+your-keys/
