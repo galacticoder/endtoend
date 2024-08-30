@@ -230,13 +230,13 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
       if (PasswordNeeded == 1)
       {
         std::cout << "Sending password needed signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
-        const std::string PasswordNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED);
+        const std::string PasswordNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1);
         Send::SendMessage(clientSocket, PasswordNeededSignal);
         HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, ClientHashedIp, serverHash);
       }
       else
       {
-        const std::string PasswordNotNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED);
+        const std::string PasswordNotNeededSignal = ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
         Send::SendMessage(clientSocket, PasswordNotNeededSignal);
       }
 
@@ -445,7 +445,6 @@ int main()
 
   // find available port to use and setup the server to start listening for connections
   int port = Networking::findAvailablePort();
-  std::cout << "Port is: " << port << std::endl;
   serverSocket = Networking::startServerSocket(port);
 
   // make directories for storing server keys and received server keys

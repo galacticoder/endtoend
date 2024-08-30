@@ -135,8 +135,9 @@ int main()
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
-    std::string passSig = Receive::ReceiveMessageSSL(tlsSock);
-    HandleClient::handlePassword(serverPubKeyPath, tlsSock);
+    std::string passwordNeeded = Receive::ReceiveMessageSSL(tlsSock);
+
+    HandleClient::handlePassword(serverPubKeyPath, tlsSock, passwordNeeded);
 
     std::cout << "Enter your username: ";
     std::string user;
@@ -150,7 +151,6 @@ int main()
 
     // signal to check if name already exists on server
     SignalType UsernameValiditySignal = signalHandling::getSignalType(checkErrorsWithUsername);
-
     signalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
 
     std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);

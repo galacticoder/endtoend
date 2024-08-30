@@ -32,7 +32,7 @@ std::vector<std::string> signalStringsVector = {
 std::vector<std::string> ServerMessages = {
     "Public key that you sent to server cannot be loaded on server",
     "Username already exists. You have been kicked.",
-    "You have joined the server",
+    "You have entered the correct password",
     "Wrong password. You have been kicked.",
     "Username already exists on server",
     "Server needs to accept your join request. Waiting for server to accept..",
@@ -42,7 +42,7 @@ std::vector<std::string> ServerMessages = {
     "You request to join the server has not been accepted",
     "CLIENTREJOIN",
     "This server is password protected enter the password to join: ",
-    "", /*if server isnt password protected then they just join*/
+    "You have entered the server", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
     "", /*Okay signal has no message*/
     "Your request to join the server has been denied",

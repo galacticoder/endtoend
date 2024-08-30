@@ -62,9 +62,10 @@ public:
         if (signal != SignalType::CLIENTREJOIN && signal != SignalType::OKAYSIGNAL && signal != SignalType::UNKNOWN)
         {
             const std::string decodedMessage = Decode::Base64Decode(msg);
+
             std::cout << decodedMessage.substr(0, decodedMessage.length() - signalsVector[(int)signal].length()) << std::endl;
 
-            if (signal != SignalType::VERIFIED && signal != SignalType::ACCEPTED && signal != SignalType::OKAYSIGNAL)
+            if (signal != SignalType::VERIFIED && signal != SignalType::ACCEPTED && signal != SignalType::OKAYSIGNAL && signal != SignalType::PASSWORDNOTNEEDED && signal != SignalType::PASSWORDNEEDED && signal != SignalType::REQUESTNEEDED && signal != SignalType::SERVERJOINREQUESTACCEPTED)
                 raise(SIGINT);
         }
 

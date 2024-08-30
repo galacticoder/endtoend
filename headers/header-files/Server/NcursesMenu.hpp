@@ -14,7 +14,7 @@
 #define eraseLine "\033[2K\r"
 #define clearScreen "\033[2J\r"
 
-int PasswordNeeded = 0;
+int PasswordNeeded;
 void signalHandleMenu(int signum);
 
 class NcursesMenu
@@ -32,9 +32,9 @@ private:
         }
 
         std::cout << "Password: " << pass << std::endl;
-        sleep(2);
-        std::cout << eraseLine;
-        std::cout << "\x1b[A";
+        // sleep(2);
+        // std::cout << eraseLine;
+        // std::cout << "\x1b[A";
         return Hash::hashData(pass);
     }
 
@@ -153,6 +153,7 @@ public:
         {
             std::cout << clearScreen;
             std::cout << "Generating password for server..." << std::endl;
+            PasswordNeeded = 1;
             return generatePassword();
         }
         else if (choice == 3)

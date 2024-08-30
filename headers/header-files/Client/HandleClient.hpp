@@ -174,8 +174,16 @@ public:
         }
     }
 
-    static void handlePassword(const std::string &serverPubKeyPath, SSL *tlsSock)
+    static void handlePassword(const std::string &serverPubKeyPath, SSL *tlsSock, std::string message)
     {
+        SignalType passwordNeededSignal = signalHandling::getSignalType(message);
+
+        if (passwordNeededSignal == SignalType::PASSWORDNOTNEEDED)
+        {
+            signalHandling::handleSignal(passwordNeededSignal, message);
+            return;
+        }
+
         EVP_PKEY *serverPublicKey = LoadKey::LoadPublicKey(serverPubKeyPath);
 
         serverPublicKey ? std::cout << "Server's public key has been loaded" << std::endl : std::cout << "Cannot load server's public key. Exiting." << std::endl;
@@ -183,7 +191,7 @@ public:
         if (!serverPublicKey)
             raise(SIGINT);
 
-        std::cout << "This server is password protected. Enter the password to join: ";
+        signalHandling::handleSignal(passwordNeededSignal, message);
 
         std::string password;
         std::getline(std::cin, password);
