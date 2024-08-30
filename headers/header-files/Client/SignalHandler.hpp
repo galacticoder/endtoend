@@ -76,8 +76,8 @@ public:
 
             // receive and save user public key
             std::string encodedKeyData = Receive::ReceiveMessageSSL(tlsSock);
-            std::string DecodeodedKeyData = Decode::Base64Decode(encodedKeyData);
-            SaveFile::saveFile(userPublicKey, DecodeodedKeyData, std::ios::binary);
+            std::string DecodedKeyData = Decode::Base64Decode(encodedKeyData);
+            SaveFile::saveFile(userPublicKey, DecodedKeyData, std::ios::binary);
 
             receivedPublicKey = LoadKey::LoadPublicKey(userPublicKey, 0);
 

@@ -293,35 +293,26 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
       if (clientUsernames.size() == 2)
       {
-        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
-        std::cout << "Sending Client 1's key to Client 2" << std::endl;
-        const std::string PublicKeyPath = PublicPath(clientUsernames[0]); // set the path for key to send
-        const std::string SavePath = PublicPath(clientUsernames[0]);      // set the path for client to save as
-        Send::SendMessage(clientSocket, SavePath);                        // send path for client to save as
-        std::string KeyContents = ReadFile::ReadPemKeyContents(PublicKeyPath);
-        std::string EncodedKeyContents = Encode::Base64Encode(KeyContents);
-        Send::SendMessage(clientSocket, EncodedKeyContents); // send the encoded key
+        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
+        Send::SendKey(clientSocket, 0, clientIndex);
       }
+
       else if (clientUsernames.size() == 1)
       {
-        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
+        Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
         std::cout << "1 client connected. Waiting for another client to connect to continue" << std::endl;
+
         while (1)
         {
           std::this_thread::sleep_for(std::chrono::seconds(1));
 
           if (clientUsernames.size() < 1)
             return;
+
           else if (clientUsernames.size() > 1)
           {
             std::cout << "Another user connected, proceeding..." << std::endl;
-            std::cout << "Sending Client 2's key to Client 1" << std::endl;
-            const std::string PublicKeyPath = PublicPath(clientUsernames[1]); // set the path for key to send
-            const std::string SavePath = PublicPath(clientUsernames[1]);      // set the path for client to save as
-            Send::SendMessage(clientSocket, SavePath);                        // send path for client to save as
-            std::string KeyContents = ReadFile::ReadPemKeyContents(PublicKeyPath);
-            std::string EncodedKeyContents = Encode::Base64Encode(KeyContents);
-            Send::SendMessage(clientSocket, EncodedKeyContents); // send the encoded key
+            Send::SendKey(clientSocket, 1, clientIndex);
             break;
           }
         }
@@ -329,22 +320,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
 
       if (totalClientJoins > 2)
       {
-        for (SSL *client : SSLsocks)
-        {
-          if (client != SSLsocks[1])
-          {
-            std::cout << "Sending Client 2's key to Client 1" << std::endl;
-            const std::string PublicKeyPath = PublicPath(clientUsernames[1]); // set the path for key to send
-            const std::string SavePath = PublicPath(clientUsernames[1]);      // set the path for client to save as
-            const std::string RejoinSignal = ServerSetMessage::GetMessageBySignal(SignalType::CLIENTREJOIN);
-            Send::SendMessage(clientSocket, RejoinSignal);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            Send::SendMessage(clientSocket, SavePath); // send the path for the user to save as
-            std::string KeyContents = ReadFile::ReadPemKeyContents(PublicKeyPath);
-            std::string EncodedKeyContents = Encode::Base64Encode(KeyContents);
-            Send::SendMessage(clientSocket, EncodedKeyContents); // send the encoded key
-          }
-        }
+        Send::SendKey(clientSocket, 0, clientIndex);
       }
 
       const std::string ServerJoinMessage = fmt::format("{} has joined the chat", clientUsername);

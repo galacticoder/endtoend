@@ -11,6 +11,7 @@
 #include <openssl/ssl.h>
 #include "Keys.hpp"
 #include "Encryption.hpp"
+#include "SignalHandling.hpp"
 #include "CleanUp.hpp"
 
 extern std::vector<SSL *> SSLsocks;
@@ -20,11 +21,20 @@ extern std::vector<std::string> clientUsernames;
 
 class Send
 {
-    // private:
-    //     static ;
-
 public:
     Send() = default;
+    static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, int &clientIndex)
+    {
+        // // Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
+        std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
+        const std::string PublicKeyPath = PublicPath(clientUsernames[clientSendIndex]); // set the path for key to send
+        const std::string SavePath = PublicPath(clientUsernames[clientSendIndex]);      // set the path for client to save as
+        Send::SendMessage(clientSocket, SavePath);                                      // send path for client to save as
+        std::string KeyContents = ReadFile::ReadPemKeyContents(PublicKeyPath);
+        std::string EncodedKeyContents = Encode::Base64Encode(KeyContents);
+        Send::SendMessage(clientSocket, EncodedKeyContents); // send the encoded key
+    }
+
     static void SendMessage(SSL *socket, const std::string &message)
     { // send the full message without missing bytes
         try
@@ -65,7 +75,7 @@ public:
     }
     static void BroadcastEncryptedExitMessage(int &ClientIndex, int ClientToSendMsgIndex)
     {
-        std::cout << "Broadcasting exit message of user " << clientUsernames[ClientIndex] << "to " << clientUsernames[ClientToSendMsgIndex];
+        std::cout << "Broadcasting exit message of user " << clientUsernames[ClientIndex] << "to " << clientUsernames[ClientToSendMsgIndex] << std::endl;
         std::string UserExitMessage = fmt::format("{} has left the chat", clientUsernames[ClientIndex]);
         EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(clientUsernames[ClientToSendMsgIndex])); // load other user public key
         if (!LoadedUserPublicKey)

@@ -151,7 +151,6 @@ int main()
     // signal to check if name already exists on server
     SignalType UsernameValiditySignal = signalHandling::getSignalType(checkErrorsWithUsername);
 
-    std::cout << "Username validity: " << (int)UsernameValiditySignal << std::endl;
     signalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
 
     std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);

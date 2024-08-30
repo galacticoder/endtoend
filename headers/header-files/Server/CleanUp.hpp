@@ -1,5 +1,4 @@
-#ifndef CLEANSERVER
-#define CLEANSERVER
+#pragma once
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -99,5 +98,3 @@ public:
         }
     }
 };
-
-#endif

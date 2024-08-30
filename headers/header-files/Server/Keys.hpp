@@ -1,5 +1,4 @@
-#ifndef KEYS
-#define KEYS
+#pragma once
 
 #include <iostream>
 #include <csignal>
@@ -157,5 +156,3 @@ public:
         return pkey;
     }
 };
-
-#endif

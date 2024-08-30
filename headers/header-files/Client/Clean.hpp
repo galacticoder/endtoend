@@ -1,5 +1,4 @@
-#ifndef CLEANUP
-#define CLEANUP
+#pragma once
 
 #include <unistd.h>
 #include <ncurses.h>
@@ -74,5 +73,3 @@ struct EVP_CLEANUP
         }
     }
 };
-
-#endif
