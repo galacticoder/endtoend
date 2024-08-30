@@ -4,25 +4,26 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include "Encryption.hpp"
 
 extern short timeLimit;
 
 std::vector<std::string> signalStringsVector = {
-    "LOADERR",
-    "EXSTERR",
-    "#V",
-    "#N",
+    "KEYLOADERROR",
+    "NAMEEXISTS",
+    "PASSWORDVERIFIED",
+    "PASSWORDNOTVERIFIED",
     "NAMEEXISTSERR",
-    "REQ",
+    "SERVERNEEDSREQUEST",
     "RATELIMITED",
-    "LIM",
-    "ACC",
-    "DEC",
+    "USERLIMITREACHED",
+    "USERACCEPTED",
+    "USERNOTACCEPTED",
     "CLIENTREJOIN",
-    "1",
-    "2",
-    "INVALIDNAME",
-    "INVALIDLENGTH",
+    "PASSWORDNEEDED",
+    "PASSWORDNOTNEEDED",
+    "INVALIDNAMECHARS",
+    "INVALIDNAMELENGTH",
     "OKAYSIGNAL",
     "SERVERJOINREQUESTDENIED",
     "SERVERJOINREQUESTACCEPTED",
@@ -37,13 +38,13 @@ std::vector<std::string> ServerMessages = {
     "Server needs to accept your join request. Waiting for server to accept..",
     "Rate limit reached. Try again in x seconds",
     "The limit of users has been reached for this chat. Exiting..",
-    "ACC",
-    "DEC",
+    "You request to join the server has been accepted",
+    "You request to join the server has not been accepted",
     "CLIENTREJOIN",
-    "1",
-    "2",
+    "This server is password protected enter the password to join: ",
+    "", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
-    "",
+    "", /*Okay signal has no message*/
     "Your request to join the server has been denied",
     "Your request to join the server has been accepted",
 };
@@ -77,11 +78,11 @@ public:
     static std::string GetMessageBySignal(SignalType signalType, int AppendSignal = 0 /*Get the message with the signal appended (for sending signal to client)*/)
     {
         if ((int)signalType < ServerMessages.size() && AppendSignal == 1)
-            return ServerMessages[(int)signalType].append(signalStringsVector[(int)signalType]);
+            return Encode::Base64Encode(ServerMessages[(int)signalType].append(signalStringsVector[(int)signalType]));
+
         else if ((int)signalType < ServerMessages.size() && AppendSignal == 0)
-        {
-            return signalStringsVector[(int)signalType];
-        }
+            return Encode::Base64Encode(signalStringsVector[(int)signalType]);
+
         else
             std::cout << "Signal passed to SignalSetType::SetServerMessageBySignal is not a valid signal" << std::endl;
 

@@ -183,7 +183,7 @@ public:
         if (!serverPublicKey)
             raise(SIGINT);
 
-        std::cout << "This server is password protected. Enter the password to join: " << std::endl;
+        std::cout << "This server is password protected. Enter the password to join: ";
 
         std::string password;
         std::getline(std::cin, password);

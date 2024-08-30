@@ -152,20 +152,6 @@ void waitTimer(const std::string hashedClientIp)
   }
 }
 
-int CheckBase64(const std::string &message)
-{
-  const std::string store = Decode::Base64Decode(message);
-  for (unsigned i = 0; i < store.size(); i++)
-  {
-    if (char(int(store[i])) > 128 && char(int(store[i])) < 0)
-    {
-      return -1;
-    }
-  }
-
-  return 0;
-}
-
 std::string getTime()
 {
   auto now = std::chrono::system_clock::now();
@@ -435,7 +421,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, int &PasswordNeeded, 
             const std::string CurrentTime = getTime();
             const std::string formattedCipher = clientUsername + "|" + CurrentTime + "|" + cipherText;
 
-            if (CheckBase64(cipherText) != -1)
+            if (Encode::CheckBase64(cipherText) != -1)
               Send::BroadcastMessage(clientSocket, formattedCipher);
             else
               std::cout << "Ciphertext base 64 received invalid. Not sending" << std::endl;

@@ -10,6 +10,7 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <cryptopp/base64.h>
+#include "Decryption.hpp"
 
 class Encrypt
 {
@@ -106,6 +107,20 @@ public:
         std::string encoded;
         CryptoPP::StringSource(input, true, new CryptoPP::Base64Encoder(new CryptoPP::StringSink(encoded), false));
         return encoded;
+    }
+
+    static int CheckBase64(const std::string &message)
+    {
+        const std::string store = Decode::Base64Decode(message);
+        for (unsigned i = 0; i < store.size(); i++)
+        {
+            if (char(int(store[i])) > 128 && char(int(store[i])) < 0)
+            {
+                return -1;
+            }
+        }
+
+        return 0;
     }
 };
 

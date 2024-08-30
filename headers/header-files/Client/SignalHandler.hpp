@@ -10,20 +10,48 @@
 
 std::function<void(int)> shutdownHandler;
 
+std::vector<std::string> signalsVector = {
+    "KEYLOADERROR",
+    "NAMEEXISTS",
+    "PASSWORDVERIFIED",
+    "PASSWORDNOTVERIFIED",
+    "NAMEEXISTSERR",
+    "SERVERNEEDSREQUEST",
+    "RATELIMITED",
+    "USERLIMITREACHED",
+    "USERACCEPTED",
+    "USERNOTACCEPTED",
+    "CLIENTREJOIN",
+    "PASSWORDNEEDED",
+    "PASSWORDNOTNEEDED",
+    "INVALIDNAMECHARS",
+    "INVALIDNAMELENGTH",
+    "OKAYSIGNAL",
+    "SERVERJOINREQUESTDENIED",
+    "SERVERJOINREQUESTACCEPTED",
+};
+
 enum class SignalType
 {
-    LOADERR,       // 0
-    EXISTERR,      // 1
-    VERIFIED,      // 2
-    NOTVERIFIED,   // 3
-    EXISTNAME,     // 4
-    REQUESTNEEDED, // 5
-    RATELIMITED,   // 6
-    SERVERLIMIT,   // 7
-    ACCEPTED,      // 8
-    NOTACCEPTED,   // 9
-    CLIENTREJOIN,  // 10
-    UNKNOWN        // 11
+    KEYLOADERROR,
+    EXISTERR,
+    VERIFIED,
+    NOTVERIFIED,
+    NAMEEXISTSERR,
+    REQUESTNEEDED,
+    RATELIMITED,
+    SERVERLIMIT,
+    ACCEPTED,
+    NOTACCEPTED,
+    CLIENTREJOIN,
+    PASSWORDNEEDED,
+    PASSWORDNOTNEEDED,
+    INVALIDNAME,
+    INVALIDNAMELENGTH,
+    OKAYSIGNAL,
+    SERVERJOINREQUESTDENIED,
+    SERVERJOINREQUESTACCEPTED,
+    UNKNOWN
 };
 
 class signalHandling
@@ -31,54 +59,15 @@ class signalHandling
 public:
     static void handleSignal(SignalType signal, const std::string &msg, SSL *tlsSock = NULL, EVP_PKEY *receivedPublicKey = NULL)
     {
-        if (signal == SignalType::LOADERR)
+        if (signal != SignalType::CLIENTREJOIN && signal != SignalType::OKAYSIGNAL && signal != SignalType::UNKNOWN)
         {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 7)) << std::endl;
-            raise(SIGINT);
+            const std::string decodedMessage = Decode::Base64Decode(msg);
+            std::cout << decodedMessage.substr(0, decodedMessage.length() - signalsVector[(int)signal].length()) << std::endl;
+
+            if (signal != SignalType::VERIFIED && signal != SignalType::ACCEPTED && signal != SignalType::OKAYSIGNAL)
+                raise(SIGINT);
         }
-        else if (signal == SignalType::EXISTERR)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 8)) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::VERIFIED)
-        {
-            std::cout << msg.substr(0, msg.length() - 2) << std::endl;
-        }
-        else if (signal == SignalType::NOTVERIFIED)
-        {
-            std::cout << msg.substr(0, msg.length() - 2) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::EXISTNAME)
-        {
-            std::cout << msg.substr(0, msg.length() - 13) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::ACCEPTED)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
-        }
-        else if (signal == SignalType::NOTACCEPTED)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::RATELIMITED)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 11)) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::SERVERLIMIT)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
-            raise(SIGINT);
-        }
-        else if (signal == SignalType::SERVERLIMIT)
-        {
-            std::cout << Decode::Base64Decode(msg.substr(0, msg.length() - 3)) << std::endl;
-            raise(SIGINT);
-        }
+
         else if (signal == SignalType::CLIENTREJOIN)
         {
             std::string userPublicKey = Receive::ReceiveMessageSSL(tlsSock);
@@ -95,35 +84,21 @@ public:
             if (!receivedPublicKey)
                 raise(SIGINT);
         }
-        else if (signal == SignalType::UNKNOWN)
-            return;
     }
 
     static SignalType getSignalType(const std::string &msg)
     {
-        std::string signalsArray[11] = {
-            "LOADERR",
-            "EXSTERR",
-            "#V",
-            "#N",
-            "NAMEEXISTSERR",
-            "REQ",
-            "RATELIMITED",
-            "LIM",
-            "ACC",
-            "DEC",
-            "CLIENTREJOIN",
-        };
-        for (int i = 0; i < 10; i++)
+        const std::string decodedMessage = Decode::Base64Decode(msg);
+        for (unsigned int i = 0; i < signalsVector.size(); i++)
         {
-            if (msg.find(signalsArray[i]) < msg.size())
-            {
+            if (decodedMessage.find(signalsVector[i]) < decodedMessage.size())
                 return (SignalType)i;
-            }
         }
+
         return SignalType::UNKNOWN;
     }
-    static void signalShutdownHandler(int signal)
+
+    static void signalShutdownHandler(int signal) /*this is the shutdown handler*/
     {
         shutdownHandler(signal);
     }

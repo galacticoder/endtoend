@@ -140,13 +140,8 @@ int main()
 
     std::cout << "Enter your username: ";
     std::string user;
+    // std::getline(std::cin, user); // username length limit 4-12
     std::cin >> user;
-
-    if (user.length() > 12 || user.length() <= 3)
-    {
-        std::cout << "Invalid username. Disconnecting from server\n";
-        raise(SIGINT);
-    }
 
     // send username to server
     Send::SendMessage(tlsSock, user);

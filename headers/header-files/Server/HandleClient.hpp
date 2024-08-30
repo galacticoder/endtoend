@@ -71,13 +71,13 @@ public:
         std::cout << "Updated vector size: " << PasswordVerifiedClients.size() << std::endl;
     }
 
-    static int ClientUsernameValidity(SSL *ClientSSLSocket, int &&ClientIndex, const std::string &ClientUsername)
+    static int ClientUsernameValidity(SSL *ClientSSLSocket, int &&ClientIndex, const std::string &clientUsername)
     {
         const std::string UnallowedCharacters = "\\/~ ";
         // checks if username already exists
-        if (std::find(clientUsernames.begin(), clientUsernames.end(), ClientUsername) != clientUsernames.end())
+        if (std::find(clientUsernames.begin(), clientUsernames.end(), clientUsername) != clientUsernames.end())
         {
-            std::cout << "Client with the same username detected. kicking.." << std::endl;
+            std::cout << "Client with the same username detected has attempted to join. kicking.." << std::endl;
             const std::string NameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
             Send::SendMessage(ClientSSLSocket, NameAlreadyExistsMessage);
             CleanUp::CleanUpClient(ClientIndex);
@@ -86,8 +86,9 @@ public:
         }
 
         // check if client username is invalid in length
-        if (ClientUsername.size() <= 3 || ClientUsername.size() > 12)
+        if (clientUsername.size() <= 3 || clientUsername.size() > 12)
         {
+            std::cout << "Client with invalid username length has attempted to join. kicking.." << std::endl;
             const std::string InvalidUsernameLengthMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAMELENGTH, 1);
             Send::SendMessage(ClientSSLSocket, InvalidUsernameLengthMessage);
             CleanUp::CleanUpClient(ClientIndex);
@@ -96,17 +97,29 @@ public:
         }
 
         // check if client username contains unallowed characters
-        for (int i = 0; i < ClientUsername.size(); i++)
+        for (int i = 0; i < clientUsername.size(); i++)
         {
-            if (UnallowedCharacters.find(ClientUsername[i]) < ClientUsername.size())
+            if (UnallowedCharacters.find(clientUsername[i]) < clientUsername.size())
             {
-                std::cout << fmt::format("Client username includes invalid character[s] from UnallowedCharacters variable. Kicking. [CHAR: {}]", ClientUsername[i]) << std::endl;
+                std::cout << fmt::format("Client username includes invalid character[s] from UnallowedCharacters variable. Kicking. [CHAR: {}]", clientUsername[i]) << std::endl;
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
                 Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
                 CleanUp::CleanUpClient(ClientIndex);
+                std::cout << "Disconnected user with invalid character[s] in username name" << std::endl;
                 return -1;
             }
         }
+
+        if (Encode::CheckBase64(clientUsername) == -1)
+        {
+            std::cout << "Client username includes invalid character[s] in base 64 decoding attempt. Kicking." << std::endl;
+            const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
+            Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
+            CleanUp::CleanUpClient(ClientIndex);
+            std::cout << "Disconnected user with invalid character[s] in username name" << std::endl;
+            return -1;
+        }
+
         return 0;
     }
 
@@ -115,8 +128,7 @@ public:
         if (clientUsernames.size() == limitOfUsers)
         {
             const std::string userLimitReachedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERLIMIT, 1);
-            const std::string encodedLimitReachedMessage = Encode::Base64Encode(userLimitReachedMessage);
-            Send::SendMessage(userSSLSocket, encodedLimitReachedMessage);
+            Send::SendMessage(userSSLSocket, userLimitReachedMessage);
             CleanUp::CleanUpClient(-1, userSSLSocket, userTcpSocket);
             std::cout << "Kicked user that tried to join over users limit" << std::endl;
             return -1;
@@ -133,8 +145,7 @@ public:
                 std::thread(waitTimer, ClientHashedIp).detach(); // run the timer if not running already
 
             const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
-            std::string encodedRatelimitedMessage = Encode::Base64Encode(userRatelimitedMessage);
-            Send::SendMessage(userSSLSocket, encodedRatelimitedMessage);
+            Send::SendMessage(userSSLSocket, userRatelimitedMessage);
             CleanUp::CleanUpClient(-1, userSSLSocket, userTcpSocket);
             std::cout << "Client kicked for attempting to join too frequently" << std::endl;
             return -1;
@@ -156,8 +167,7 @@ public:
 
         // send user needs to request message
         const std::string serverRequestMessage = ServerSetMessage::GetMessageBySignal(SignalType::REQUESTNEEDED, 1);
-        const std::string encodedServerRequestMessage = Encode::Base64Encode(serverRequestMessage);
-        Send::SendMessage(userSSLsocket, encodedServerRequestMessage);
+        Send::SendMessage(userSSLsocket, serverRequestMessage);
 
         serverJoinRequests.push(ClientHashedIp);
         std::cout << fmt::format("User from hashed ip [{}..] is requesting to join the server. Accept or not?(y/n): ", ClientHashedIp.substr(0, ClientHashedIp.length() / 4));
@@ -167,16 +177,14 @@ public:
         if (answer == 'Y')
         {
             const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTACCEPTED, 1);
-            const std::string encodedAcceptedMessage = Encode::Base64Encode(userAcceptedMessage);
-            Send::SendMessage(userSSLsocket, encodedAcceptedMessage);
+            Send::SendMessage(userSSLsocket, userAcceptedMessage);
             serverJoinRequests.pop();
             std::cout << "\nUser has been allowed in server" << std::endl;
             return 0;
         }
 
         const std::string userNotAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTDENIED, 1);
-        const std::string encodedNotAcceptedMessage = Encode::Base64Encode(userNotAcceptedMessage);
-        Send::SendMessage(userSSLsocket, encodedNotAcceptedMessage);
+        Send::SendMessage(userSSLsocket, userNotAcceptedMessage);
         serverJoinRequests.pop();
         std::cout << "\nUser has been not been allowed in server" << std::endl;
         CleanUp::CleanUpClient(-1, userSSLsocket, userTcpSocket);

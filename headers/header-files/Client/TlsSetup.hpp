@@ -96,11 +96,13 @@ private:
             std::cout << "Cannot connect to server. Check server port\n";
             raise(SIGINT);
         }
+
         // send connection signal and recieve okay signal from server
         send(startSock, conSig, strlen(conSig), 0);
-        char signalOkay[200] = {0};
+        char signalOkay[1024] = {0};
         read(startSock, signalOkay, sizeof(signalOkay) - 1);
     }
+
     void connectUsingTlsSocket(SSL *tlsSock) // connect to server and establish tls connection with server
     {
         if (tlsSock == nullptr)
