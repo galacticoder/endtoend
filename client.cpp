@@ -78,7 +78,7 @@ std::string getTime()
 
 int main()
 {
-    signal(SIGINT, signalHandling::signalShutdownHandler);
+    signal(SIGINT, SignalHandling::signalShutdownHandler);
 
     WINDOW *messageInputWindow = nullptr;
     WINDOW *messageViewWindow = nullptr;
@@ -150,8 +150,8 @@ int main()
     std::string checkErrorsWithUsername = Receive::ReceiveMessageSSL(tlsSock);
 
     // signal to check if name already exists on server
-    SignalType UsernameValiditySignal = signalHandling::getSignalType(checkErrorsWithUsername);
-    signalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
+    SignalType UsernameValiditySignal = SignalHandling::getSignalType(checkErrorsWithUsername);
+    SignalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
 
     std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);
     std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, user);

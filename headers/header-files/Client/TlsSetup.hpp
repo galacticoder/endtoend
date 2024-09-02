@@ -97,8 +97,11 @@ private:
             raise(SIGINT);
         }
 
-        // send connection signal and recieve okay signal from server
-        send(startSock, conSig, strlen(conSig), 0);
+        // send connection signal
+        const std::string connectionSignal = SignalHandling::GetSignalAsString(SignalType::CONNECTIONSIGNAL);
+        send(startSock, connectionSignal.c_str(), connectionSignal.length(), 0);
+
+        // recieve okay signal from server
         char signalOkay[1024] = {0};
         read(startSock, signalOkay, sizeof(signalOkay) - 1);
     }

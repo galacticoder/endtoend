@@ -1,5 +1,4 @@
-#ifndef _CLIENTHANDLE_
-#define _CLIENTHANDLE_
+#pragma once
 
 #include <iostream>
 #include <thread>
@@ -12,7 +11,6 @@
 #include "SignalHandler.hpp"
 #include "FileHandling.hpp"
 
-#define connectionSignal "C"
 #define usersActivePath "txt-files/usersActive.txt"
 
 extern long int lineTrack;
@@ -44,8 +42,8 @@ public:
                 std::string receivedMessage = Receive::ReceiveMessageSSL(tlsSock);
                 std::string decodedMessage;
 
-                SignalType anySignalReceive = signalHandling::getSignalType(receivedMessage);
-                signalHandling::handleSignal(anySignalReceive, receivedMessage);
+                SignalType anySignalReceive = SignalHandling::getSignalType(receivedMessage);
+                SignalHandling::handleSignal(anySignalReceive, receivedMessage);
 
                 if (receivedMessage.find('|') != std::string::npos) // for messages from client
                 {
@@ -144,26 +142,28 @@ public:
         {
             std::string initMsg = Receive::ReceiveMessageSSL(tlsSock); // get message to see if you are rate limited or the server is full
 
-            SignalType signal = signalHandling::getSignalType(initMsg);
-            signalHandling::handleSignal(signal, initMsg);
+            SignalType signal = SignalHandling::getSignalType(initMsg);
+            SignalHandling::handleSignal(signal, initMsg);
 
             // send connection signal and port your ping server is running on
-            Send::SendMessage(tlsSock, (std::string)connectionSignal);
+            const std::string connectionSignal = SignalHandling::GetSignalAsString(SignalType::CONNECTIONSIGNAL);
+
+            Send::SendMessage(tlsSock, connectionSignal);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             Send::SendMessage(tlsSock, std::to_string(clientPort));
 
             std::string requestNeeded = Receive::ReceiveMessageSSL(tlsSock);
 
-            SignalType requestSignal = signalHandling::getSignalType(requestNeeded);
-            signalHandling::handleSignal(requestSignal, requestNeeded);
+            SignalType requestSignal = SignalHandling::getSignalType(requestNeeded);
+            SignalHandling::handleSignal(requestSignal, requestNeeded);
 
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
                 // check if you were accepted into the server or not (if request needed to join the server)
                 std::string acceptMessage = Receive::ReceiveMessageSSL(tlsSock);
 
-                SignalType acceptedSignal = signalHandling::getSignalType(acceptMessage);
-                signalHandling::handleSignal(acceptedSignal, acceptMessage);
+                SignalType acceptedSignal = SignalHandling::getSignalType(acceptMessage);
+                SignalHandling::handleSignal(acceptedSignal, acceptMessage);
             }
         }
 
@@ -176,11 +176,11 @@ public:
 
     static void handlePassword(const std::string &serverPubKeyPath, SSL *tlsSock, std::string message)
     {
-        SignalType passwordNeededSignal = signalHandling::getSignalType(message);
+        SignalType passwordNeededSignal = SignalHandling::getSignalType(message);
 
         if (passwordNeededSignal == SignalType::PASSWORDNOTNEEDED)
         {
-            signalHandling::handleSignal(passwordNeededSignal, message);
+            SignalHandling::handleSignal(passwordNeededSignal, message);
             return;
         }
 
@@ -191,7 +191,7 @@ public:
         if (!serverPublicKey)
             raise(SIGINT);
 
-        signalHandling::handleSignal(passwordNeededSignal, message);
+        SignalHandling::handleSignal(passwordNeededSignal, message);
 
         std::string password;
         std::getline(std::cin, password);
@@ -205,8 +205,8 @@ public:
 
         std::string passwordVerification = Receive::ReceiveMessageSSL(tlsSock);
 
-        SignalType handlePasswordVerification = signalHandling::getSignalType(passwordVerification);
-        signalHandling::handleSignal(handlePasswordVerification, passwordVerification);
+        SignalType handlePasswordVerification = SignalHandling::getSignalType(passwordVerification);
+        SignalHandling::handleSignal(handlePasswordVerification, passwordVerification);
     }
 
     static EVP_PKEY *receiveKeysAndConnect(SSL *tlsSock, EVP_PKEY *receivedPublicKey, const std::string &userStr, int &activeUsers)
@@ -215,8 +215,8 @@ public:
 
         std::string checkErrSignals = Receive::ReceiveMessageSSL(tlsSock);
 
-        SignalType checkingErrSignals = signalHandling::getSignalType(checkErrSignals);
-        signalHandling::handleSignal(checkingErrSignals, checkErrSignals);
+        SignalType checkingErrSignals = SignalHandling::getSignalType(checkErrSignals);
+        SignalHandling::handleSignal(checkingErrSignals, checkErrSignals);
 
         if (activeUsers < 2)
         {
@@ -261,5 +261,3 @@ public:
         return receivedPublicKey;
     }
 };
-
-#endif

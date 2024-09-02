@@ -44,12 +44,13 @@ public:
         CleanUpOpenSSL();
     }
 
-    static void CleanUpClient(int ClientIndex, SSL *ClientSSLsocket = NULL, int ClientTCPsocket = -1)
+    static void CleanUpClient(int clientIndex, SSL *ClientSSLsocket = NULL, int ClientTCPsocket = -1)
     {
         try
         {
             std::lock_guard<std::mutex> lock(ClientMutex);
-            if (ClientTCPsocket != -1 && ClientIndex == -1 && ClientSSLsocket != NULL)
+
+            if (ClientTCPsocket != -1 && clientIndex == -1 && ClientSSLsocket != NULL)
             {
                 SSL_shutdown(ClientSSLsocket);
                 SSL_free(ClientSSLsocket);
@@ -67,28 +68,28 @@ public:
 
             if (SSLsocks.size() > 0)
             {
-                SSL_shutdown(SSLsocks[ClientIndex]);
-                SSL_free(SSLsocks[ClientIndex]);
-                close(connectedClients[ClientIndex]);
+                SSL_shutdown(SSLsocks[clientIndex]);
+                SSL_free(SSLsocks[clientIndex]);
+                close(connectedClients[clientIndex]);
 
-                auto DeleteClientTcpSocket = std::remove(connectedClients.begin(), connectedClients.end(), connectedClients[ClientIndex]);
+                // std::cout << "connectedClients size: " << connectedClients.size() << std::endl;
+                auto DeleteClientTcpSocket = std::remove(connectedClients.begin(), connectedClients.end(), connectedClients[clientIndex]);
                 connectedClients.erase(DeleteClientTcpSocket, connectedClients.end());
 
-                auto DeleteClientSSLSocket = std::remove(SSLsocks.begin(), SSLsocks.end(), SSLsocks[ClientIndex]);
+                auto DeleteClientSSLSocket = std::remove(SSLsocks.begin(), SSLsocks.end(), SSLsocks[clientIndex]);
                 SSLsocks.erase(DeleteClientSSLSocket, SSLsocks.end());
             }
 
-            if (ClientIndex < PasswordVerifiedClients.size())
-                PasswordVerifiedClients.erase(PasswordVerifiedClients.begin() + ClientIndex);
+            if ((unsigned)clientIndex < PasswordVerifiedClients.size())
+                PasswordVerifiedClients.erase(PasswordVerifiedClients.begin() + clientIndex);
 
-            if (clientUsernames.size() > ClientIndex)
+            if ((unsigned)clientIndex < clientUsernames.size())
             {
-                auto DeleteClientUsername = std::find(clientUsernames.begin(), clientUsernames.end(), clientUsernames[ClientIndex]);
+                auto DeleteClientUsername = std::find(clientUsernames.begin(), clientUsernames.end(), clientUsernames[clientIndex]);
                 if (DeleteClientUsername != clientUsernames.end())
                     clientUsernames.erase(DeleteClientUsername);
+                Delete::DeletePath(PublicPath(clientUsernames[clientIndex]));
             }
-
-            Delete::DeletePath(PublicPath(clientUsernames[ClientIndex]));
 
             std::cout << "Client clean up finished" << std::endl;
         }

@@ -18,7 +18,7 @@ packages:
 all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(SERVER_SRCS)
-	$(CXX) $(CXXFLAGS) -Wall -Wextra -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
+	$(CXX) $(CXXFLAGS) -Wall -Wextra -DNCURSES_NOMACROS -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
 
 $(CLIENT): $(CLIENT_SRCS)
 	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT)

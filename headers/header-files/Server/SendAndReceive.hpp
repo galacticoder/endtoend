@@ -23,7 +23,7 @@ class Send
 {
 public:
     Send() = default;
-    static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, int &clientIndex)
+    static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int &clientIndex)
     {
         // // Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
         std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
@@ -73,7 +73,7 @@ public:
             }
         }
     }
-    static void BroadcastEncryptedExitMessage(int &ClientIndex, int ClientToSendMsgIndex)
+    static void BroadcastEncryptedExitMessage(unsigned int &ClientIndex, int ClientToSendMsgIndex)
     {
         std::cout << "Broadcasting exit message of user " << clientUsernames[ClientIndex] << "to " << clientUsernames[ClientToSendMsgIndex] << std::endl;
         std::string UserExitMessage = fmt::format("{} has left the chat", clientUsernames[ClientIndex]);

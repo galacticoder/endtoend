@@ -29,6 +29,7 @@ std::vector<std::string> signalsVector = {
     "OKAYSIGNAL",
     "SERVERJOINREQUESTDENIED",
     "SERVERJOINREQUESTACCEPTED",
+    "CONNECTIONSIGNAL",
 };
 
 enum class SignalType
@@ -51,10 +52,11 @@ enum class SignalType
     OKAYSIGNAL,
     SERVERJOINREQUESTDENIED,
     SERVERJOINREQUESTACCEPTED,
+    CONNECTIONSIGNAL,
     UNKNOWN
 };
 
-class signalHandling
+class SignalHandling
 {
 public:
     static void handleSignal(SignalType signal, const std::string &msg, SSL *tlsSock = NULL, EVP_PKEY *receivedPublicKey = NULL)
@@ -90,13 +92,23 @@ public:
     static SignalType getSignalType(const std::string &msg)
     {
         const std::string decodedMessage = Decode::Base64Decode(msg);
-        for (unsigned int i = 0; i < signalsVector.size(); i++)
+        for (unsigned int i = 0; i <= signalsVector.size(); i++)
         {
             if (decodedMessage.find(signalsVector[i]) < decodedMessage.size())
                 return (SignalType)i;
         }
 
         return SignalType::UNKNOWN;
+    }
+
+    static std::string GetSignalAsString(SignalType signalType)
+    {
+        if ((int)signalType <= signalsVector.size())
+            return Encode::Base64Encode(signalsVector[(int)signalType]);
+        else
+            std::cout << "Signal passed to SignalSetType::SetServerMessageBySignal is not a valid signal" << std::endl;
+
+        return "";
     }
 
     static void signalShutdownHandler(int signal) /*this is the shutdown handler*/

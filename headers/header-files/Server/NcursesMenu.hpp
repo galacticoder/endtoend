@@ -1,5 +1,4 @@
-#ifndef SERVERMENUANDENCRYPTION
-#define SERVERMENUANDENCRYPTION
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -14,7 +13,9 @@
 #define eraseLine "\033[2K\r"
 #define clearScreen "\033[2J\r"
 
-int PasswordNeeded;
+bool PasswordNeeded;
+bool RequestNeeded;
+
 void signalHandleMenu(int signum);
 
 class NcursesMenu
@@ -146,27 +147,34 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server" << std::endl;
-            PasswordNeeded = 1;
+            PasswordNeeded = true;
+            RequestNeeded = false;
             return bcrypt::generateHash(password);
         }
         else if (choice == 2)
         {
             std::cout << clearScreen;
             std::cout << "Generating password for server..." << std::endl;
-            PasswordNeeded = 1;
+            PasswordNeeded = true;
+            RequestNeeded = false;
             return generatePassword();
         }
         else if (choice == 3)
         {
             std::cout << clearScreen;
             std::cout << "Server is starting up without password..." << std::endl;
+            PasswordNeeded = false;
+            RequestNeeded = false;
             return "";
         }
         else if (choice == 4) // user requests without pass
         {
             std::cout << clearScreen;
             std::cout << "Server is starting up without password and users need to request to join the server" << std::endl;
-            return "PNINT4";
+            PasswordNeeded = false;
+            RequestNeeded = true;
+
+            return "";
         }
         else if (choice == 5) // user requests with pass
         {
@@ -185,7 +193,8 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server and users need to request to join the server" << std::endl;
-            PasswordNeeded = 1;
+            PasswordNeeded = true;
+            RequestNeeded = true;
             return bcrypt::generateHash(password);
         }
         else if (choice == 6)
@@ -205,5 +214,3 @@ void signalHandleMenu(int signum)
     std::cout << "Server initialization has stopped" << std::endl;
     exit(signum);
 }
-
-#endif
