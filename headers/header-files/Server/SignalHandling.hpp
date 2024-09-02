@@ -4,8 +4,11 @@
 #include <vector>
 #include <algorithm>
 #include "Encryption.hpp"
+#include "SendAndReceive.hpp"
+#include "CleanUp.hpp"
 
 extern short timeLimit;
+extern bool cleanUpInPing;
 
 std::vector<std::string> signalStringsVector = {
     "KEYLOADERROR",
@@ -101,9 +104,9 @@ public:
     static void CaughtERROR(const std::string &clientUsername, unsigned int &clientIndex, SSL *clientSocket, SignalType ERRORTYPE, const std::string &message)
     {
         std::cout << message << std::endl;
-        const std::string ErrorLoadingPublicKeyMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
+        const std::string ErrorMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
 
-        Send::SendMessage(clientSocket, ErrorLoadingPublicKeyMessage);
+        Send::SendMessage(clientSocket, ErrorMessage);
         {
             cleanUpInPing = false;
             CleanUp::CleanUpClient(clientIndex);

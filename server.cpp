@@ -279,9 +279,9 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
       if (!std::filesystem::is_regular_file(UserPublicKeyPath))
         Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::EXISTERR, fmt::format("User [{}] public key file on server does not exist", clientUsername));
 
-      EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(UserPublicKeyPath);
+      EVP_PKEY *testLoadKey = LoadKey::LoadPublicKey(UserPublicKeyPath);
 
-      !LoadedUserPubKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(LoadedUserPubKey);
+      !testLoadKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
       Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
 
@@ -375,8 +375,12 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
               Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % clientUsernames.size());
 
             std::cout << exitMsg << std::endl;
-            CleanUp::CleanUpClient(clientIndex);
+            {
+              cleanUpInPing = false;
+              CleanUp::CleanUpClient(clientIndex);
+            }
             std::cout << "Kicked user for invalid message length" << std::endl;
+            return;
           }
         }
       }

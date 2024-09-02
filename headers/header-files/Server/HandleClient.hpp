@@ -1,5 +1,4 @@
-#ifndef CLIENTHANDLER
-#define CLIENTHANDLER
+#pragma once
 
 #include <iostream>
 #include <queue>
@@ -27,9 +26,6 @@ extern bool cleanUpInPing;
 
 class HandleClient
 {
-    // private:
-    //     // static ;
-
 public:
     static int ClientPasswordVerification(SSL *ClientSSLSocket, unsigned int &clientIndex, const std::string &ServerPrivateKeyPath, const std::string &ClientHashedIp, const std::string &serverHashedPassword)
     {
@@ -211,12 +207,3 @@ public:
         return -1;
     }
 };
-
-#endif
-// else if (pnInt == 2)
-// {
-//     std::cout << fmt::format("Sending hashed ip [{}..] signal okay [2]", ClientHashedIp.substr(0, ClientHashedIp.length() / 4)) << std::endl;
-//     std::string encoded = enc.Base64Encode((std::string)OKSIG);
-//     encoded.append("OK");
-//     SSL_write(clientSSLSocket, encoded.c_str(), encoded.size());
-// }
