@@ -17,6 +17,7 @@
 
 extern std::vector<SSL *> SSLsocks;
 extern std::vector<int> connectedClients;
+extern std::vector<std::string> clientsKeyContents;
 extern std::vector<int> PasswordVerifiedClients;
 extern std::vector<std::string> clientUsernames;
 
@@ -85,10 +86,15 @@ public:
 
             if ((unsigned)clientIndex < clientUsernames.size())
             {
-                auto DeleteClientUsername = std::find(clientUsernames.begin(), clientUsernames.end(), clientUsernames[clientIndex]);
-                if (DeleteClientUsername != clientUsernames.end())
-                    clientUsernames.erase(DeleteClientUsername);
-                Delete::DeletePath(PublicPath(clientUsernames[clientIndex]));
+                auto deleteClientUsername = std::find(clientUsernames.begin(), clientUsernames.end(), clientUsernames[clientIndex]);
+
+                if (deleteClientUsername != clientUsernames.end())
+                    clientUsernames.erase(deleteClientUsername);
+
+                auto deleteClientKeyContents = std::find(clientsKeyContents.begin(), clientsKeyContents.end(), clientsKeyContents[clientIndex]);
+                clientsKeyContents.erase(deleteClientKeyContents);
+
+                Delete::DeletePath(PublicPath(clientUsernames[clientIndex])); // delete client key file
             }
 
             std::cout << "Client clean up finished" << std::endl;

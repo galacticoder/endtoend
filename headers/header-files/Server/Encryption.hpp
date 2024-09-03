@@ -1,5 +1,4 @@
-#ifndef _ENCRYPTION_
-#define _ENCRYPTION_
+#pragma once
 
 #include <iostream>
 #include <sstream>
@@ -114,7 +113,7 @@ public:
         const std::string store = Decode::Base64Decode(message);
         for (int i = 0; (unsigned)i < store.size(); i++)
         {
-            if (char(int(store[i])) > 128 && char(int(store[i])) < 0)
+            if (static_cast<unsigned char>(store[i]) > 128)
             {
                 return -1;
             }
@@ -123,5 +122,3 @@ public:
         return 0;
     }
 };
-
-#endif

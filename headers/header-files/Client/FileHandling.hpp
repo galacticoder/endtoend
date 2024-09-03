@@ -1,5 +1,4 @@
-#ifndef FILEHANDLER
-#define FILEHANDLER
+#pragma once
 
 #include <iostream>
 #include <filesystem>
@@ -12,6 +11,8 @@
 #define KeysReceivedFromServerPath "keys-from-server/"
 #define TxtDirectoryPath "txt-files/"
 #define YourKeysPath "your-keys/"
+
+#define SavePath(username) (std::string) KeysReceivedFromServerPath + username + "-pubkeyfromserver.pem";
 
 struct Create
 {
@@ -82,7 +83,7 @@ struct SaveFile
         }
         if (!std::filesystem::is_regular_file(filePath))
         {
-            std::cout << fmt::format("Could not open file [{}] to write data: [{}]", filePath, contentsToWrite);
+            std::cout << fmt::format("Could not open file [{}] to write data: [{}]", filePath, contentsToWrite) << std::endl;
             raise(SIGINT);
         }
     }
@@ -117,5 +118,3 @@ struct ReadFile
         }
     }
 };
-
-#endif

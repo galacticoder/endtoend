@@ -77,7 +77,7 @@ public:
 
     static int ClientUsernameValidity(SSL *ClientSSLSocket, unsigned int &clientIndex, const std::string &clientUsername)
     {
-        const std::string UnallowedCharacters = "\\/~ ";
+        std::vector<std::string> unallowedCharacters = {"\\", "/", "~", " "};
         // checks if username already exists
         if (std::find(clientUsernames.begin(), clientUsernames.end(), clientUsername) != clientUsernames.end())
         {
@@ -107,11 +107,14 @@ public:
         }
 
         // check if client username contains unallowed characters
-        for (unsigned int i = 0; i < clientUsername.size(); i++)
+        for (char i : clientUsername)
         {
-            if (UnallowedCharacters.find(clientUsername[i]) < clientUsername.size())
+            std::string iToStr(1, i);
+            unsigned int findChar = (std::find(unallowedCharacters.begin(), unallowedCharacters.end(), iToStr)) - unallowedCharacters.begin();
+
+            if (findChar == std::string::npos)
             {
-                std::cout << fmt::format("Client username includes invalid character[s] from UnallowedCharacters variable. Kicking. [CHAR: {}]", clientUsername[i]) << std::endl;
+                std::cout << fmt::format("Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [CHAR: {}]", i) << std::endl;
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
                 Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
                 {
@@ -119,21 +122,9 @@ public:
                     CleanUp::CleanUpClient(clientIndex);
                 }
                 std::cout << "Disconnected user with invalid character[s] in username name" << std::endl;
+
                 return -1;
             }
-        }
-
-        if (Encode::CheckBase64(clientUsername) == -1)
-        {
-            std::cout << "Client username includes invalid character[s] in base 64 decoding attempt. Kicking." << std::endl;
-            const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
-            Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
-            {
-                cleanUpInPing = false; // dont clean up in pingClient function
-                CleanUp::CleanUpClient(clientIndex);
-            }
-            std::cout << "Disconnected user with invalid character[s] in username name" << std::endl;
-            return -1;
         }
 
         return 0;

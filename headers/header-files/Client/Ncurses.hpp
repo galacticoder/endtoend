@@ -1,22 +1,34 @@
-#ifndef _NCURSES
-#define _NCURSES
+#pragma once
 
 #include <ncurses.h>
 #include <thread>
+#include <csignal>
 #include "HandleClient.hpp"
 
 std::mutex ncursesMutex;
 
 class Ncurses
 {
+private:
 public:
     static void threadSafeWrefresh(WINDOW *win)
     {
         std::lock_guard<std::mutex> lock(ncursesMutex);
         wrefresh(win);
     }
-    static void startUserMenu(WINDOW *msg_input_win, WINDOW *subwin, WINDOW *msg_view_win, SSL *tlsSock, const std::string &userStr, EVP_PKEY *receivedPublicKey, EVP_PKEY *privateKey)
+
+    static void tempSignalHandler(int signal)
     {
+        CleanUp::cleanWins(subwin, messageInputWindow, messageViewWindow);
+        shutdownHandler(signal);
+    }
+
+    static void startUserMenu(SSL *tlsSock, const std::string &userStr, EVP_PKEY *receivedPublicKey, EVP_PKEY *privateKey)
+    {
+        WINDOW *messageInputWindow;
+        WINDOW *messageViewWindow;
+        WINDOW *subwin;
+        signal(SIGINT, tempSignalHandler);
         initscr();
         cbreak();
         nonl();
@@ -29,28 +41,26 @@ public:
         int msg_view_h = height - 3;
         int msg_input_h = 3;
 
-        msg_input_win = newwin(msg_input_h, width, msg_view_h, 0);
-        box(msg_input_win, 0, 0);
+        messageInputWindow = newwin(msg_input_h, width, msg_view_h, 0);
+        box(messageInputWindow, 0, 0);
 
-        msg_view_win = newwin(msg_view_h - 1, width - 2, 1, 1);
-        box(msg_view_win, 0, 0);
+        messageViewWindow = newwin(msg_view_h - 1, width - 2, 1, 1);
+        box(messageViewWindow, 0, 0);
 
-        threadSafeWrefresh(msg_view_win);
-        threadSafeWrefresh(msg_input_win);
+        threadSafeWrefresh(messageViewWindow);
+        threadSafeWrefresh(messageInputWindow);
 
-        mvwprintw(msg_view_win, 0, 4, "Chat");
-        threadSafeWrefresh(msg_view_win);
+        mvwprintw(messageViewWindow, 0, 4, "Chat");
+        threadSafeWrefresh(messageViewWindow);
 
-        subwin = derwin(msg_view_win, height - 6, width - 4, 1, 1);
+        subwin = derwin(messageViewWindow, height - 6, width - 4, 1, 1);
 
         scrollok(subwin, TRUE);
         idlok(subwin, TRUE);
 
-        wmove(msg_input_win, 1, 1);
+        wmove(messageInputWindow, 1, 1);
 
         std::thread(HandleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey).detach();
-        std::thread(HandleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, msg_input_win).join();
+        std::thread(HandleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, messageInputWindow).join();
     }
 };
-
-#endif

@@ -5,6 +5,7 @@
 #include <fmt/core.h>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <csignal>
 
 #define ServerKeysPath "server-keys"
@@ -13,6 +14,8 @@
 const std::string ServerPublicKeyPath = (std::string)ServerKeysPath + "/server-pubkey.pem";
 const std::string ServerPrivateKeyPath = (std::string)ServerKeysPath + "/server-privkey.pem";
 const std::string ServerCertPath = (std::string)ServerKeysPath + "/server-cert.pem";
+
+std::mutex fileHandlerMutex;
 
 struct Create
 {
@@ -92,6 +95,7 @@ struct ReadFile
     ReadFile() = default;
     static std::string ReadPemKeyContents(const std::string &pemKeyPath)
     {
+        std::lock_guard<std::mutex> lock(fileHandlerMutex);
         std::ifstream keyFile(pemKeyPath);
         if (keyFile.is_open())
         {
@@ -101,7 +105,7 @@ struct ReadFile
         }
         else
         {
-            std::cout << "Could not open pem file" << std::endl;
+            std::cout << "Could not open pem file: " << pemKeyPath << std::endl;
             return "";
         }
     }

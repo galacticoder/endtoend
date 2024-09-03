@@ -4,8 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include "Encryption.hpp"
-#include "SendAndReceive.hpp"
 #include "CleanUp.hpp"
+#include "SendAndReceive.hpp"
 
 extern short timeLimit;
 extern bool cleanUpInPing;

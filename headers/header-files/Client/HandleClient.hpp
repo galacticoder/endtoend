@@ -18,15 +18,12 @@ extern int clientPort;
 extern short leavePlace;
 extern std::string trimWhitespaces(std::string strIp);
 
-std::mutex HandleClientMutex;
-
-pthread_mutex_t nmutex = PTHREAD_MUTEX_INITIALIZER;
+std::mutex handleClientMutex;
 
 void threadSafeWrefresh(WINDOW *win)
 {
-    pthread_mutex_lock(&nmutex);
+    std::lock_guard<std::mutex> lock(handleClientMutex);
     wrefresh(win);
-    pthread_mutex_unlock(&nmutex);
 }
 
 class HandleClient
@@ -133,6 +130,7 @@ public:
                 threadSafeWrefresh(inputaddr);
             }
         }
+
         return;
     }
 
@@ -211,7 +209,7 @@ public:
 
     static EVP_PKEY *receiveKeysAndConnect(SSL *tlsSock, EVP_PKEY *receivedPublicKey, const std::string &userStr, int &activeUsers)
     {
-        std::lock_guard<std::mutex> lock(HandleClientMutex);
+        std::lock_guard<std::mutex> lock(handleClientMutex);
 
         std::string checkErrSignals = Receive::ReceiveMessageSSL(tlsSock);
 
@@ -236,23 +234,23 @@ public:
             std::cout << "Another user connected, starting chat.." << std::endl;
         }
 
-        std::string userPublicKey = Receive::ReceiveMessageSSL(tlsSock);
+        std::string clientUsernameKey = Receive::ReceiveMessageSSL(tlsSock);
 
-        std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
+        std::string formattedClientUsername = clientUsernameKey.substr(clientUsernameKey.find_first_of("/") + 1, (clientUsernameKey.find_last_of("-") - clientUsernameKey.find_first_of("/")) - 1);
 
-        std::cout << fmt::format("Recieving {}'s public key", userName) << std::endl;
+        std::cout << fmt::format("Recieving {}'s public key", formattedClientUsername) << std::endl;
 
         // receive and save user public key
-        std::string userPubKeyEncodedData = Receive::ReceiveMessageSSL(tlsSock);
-        std::string userPubKeyDecodedData = Decode::Base64Decode(userPubKeyEncodedData);
-        SaveFile::saveFile(userPublicKey, userPubKeyDecodedData, std::ios::binary);
+        const std::string saveKeyPath = SavePath(formattedClientUsername);
+        std::string userPubKey = Receive::ReceiveMessageSSL(tlsSock);
+        SaveFile::saveFile(saveKeyPath, userPubKey, std::ios::binary);
 
-        std::cout << fmt::format("Recieved {}'s pub key", userName) << std::endl;
+        std::cout << fmt::format("Recieved {}'s pub key", formattedClientUsername) << std::endl;
 
-        std::cout << fmt::format("Attempting to load {}'s public key", userName) << std::endl;
+        std::cout << fmt::format("Attempting to load {}'s public key", formattedClientUsername) << std::endl;
 
-        receivedPublicKey = LoadKey::LoadPublicKey(userPublicKey);
-        receivedPublicKey ? std::cout << fmt::format("{}'s public key loaded", userName) << std::endl : std::cout << fmt::format("Could not load {}'s public key", userName) << std::endl;
+        receivedPublicKey = LoadKey::LoadPublicKey(saveKeyPath);
+        receivedPublicKey ? std::cout << fmt::format("{}'s public key loaded", formattedClientUsername) << std::endl : std::cout << fmt::format("Could not load {}'s public key", formattedClientUsername) << std::endl;
 
         if (!receivedPublicKey)
             raise(SIGINT);

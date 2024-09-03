@@ -80,18 +80,11 @@ int main()
 {
     signal(SIGINT, SignalHandling::signalShutdownHandler);
 
-    WINDOW *messageInputWindow = nullptr;
-    WINDOW *messageViewWindow = nullptr;
-    WINDOW *subwin = nullptr;
-
-    std::unique_ptr<EVP_PKEY, EVP_CLEANUP> privateKeyUniquePtr(nullptr);
-
     shutdownHandler = [&](int sig)
     {
         std::lock_guard<std::mutex> lock(mut);
         std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
-        cleanUp::cleanWins(subwin, messageInputWindow, messageViewWindow);
-        cleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
+        CleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
         // Delete::DeletePath(KeysReceivedFromServerPath);
         // Delete::DeletePath(YourKeysPath);
@@ -192,7 +185,7 @@ int main()
 
     receivedPublicKey = HandleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, user, activeUsers);
 
-    Ncurses::startUserMenu(messageInputWindow, subwin, messageViewWindow, tlsSock, user, receivedPublicKey, privateKey);
+    std::thread(Ncurses::startUserMenu, tlsSock, user, receivedPublicKey, privateKey).detach();
 
     raise(SIGINT);
     return 0;

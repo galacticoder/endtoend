@@ -5,7 +5,7 @@
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
 
-class cleanUp
+class CleanUp
 {
 public:
     static void cleanWins(WINDOW *win1, WINDOW *win2, WINDOW *win3)
@@ -58,18 +58,6 @@ public:
             std::cout << "Freeing SSL context" << std::endl;
             SSL_CTX_free(ctx);
             std::cout << "Freed SSL context" << std::endl;
-        }
-    }
-};
-
-struct EVP_CLEANUP
-{
-    void operator()(EVP_PKEY *key)
-    {
-        if (key)
-        {
-            EVP_PKEY_free(key);
-            std::cout << "Deleted key" << std::endl;
         }
     }
 };

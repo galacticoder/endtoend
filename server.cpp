@@ -1,11 +1,11 @@
 // https://github.com/galacticoder
+#include "headers/header-files/Server/SendAndReceive.hpp"
 #include "headers/header-files/Server/Decryption.hpp"
 #include "headers/header-files/Server/Encryption.hpp"
 #include "headers/header-files/Server/HandleClient.hpp"
 #include "headers/header-files/Server/Keys.hpp"
 #include "headers/header-files/Server/NcursesMenu.hpp"
 #include "headers/header-files/Server/Networking.hpp"
-#include "headers/header-files/Server/SendAndReceive.hpp"
 #include "headers/header-files/Server/SignalHandling.hpp"
 #include "headers/header-files/Server/TLS.hpp"
 #include "headers/header-files/Server/hostHttp.h"
@@ -35,6 +35,7 @@ std::mutex clientsMutex;
 
 int serverSock;
 std::vector<int> connectedClients;
+std::vector<std::string> clientsKeyContents;
 std::vector<std::string> clientUsernames;
 std::vector<int> PasswordVerifiedClients;
 std::vector<SSL *> SSLsocks;
@@ -54,7 +55,7 @@ unsigned long pingCount = 0;
 extern bool PasswordNeeded;
 extern bool RequestNeeded;
 
-void skip();
+void skip() {};
 std::function<void(int)> shutdownHandler;
 void signalHandleServer(int signal) { shutdownHandler(signal); }
 
@@ -186,6 +187,23 @@ void GetUsersConnected()
   clientUsernamesString.size() <= 0 ? std::cout << "No connected clients" << std::endl : std::cout << fmt::format("Connected clients: {}", clientUsernamesString) << std::endl;
 };
 
+void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
+{
+  std::cout << "1 client connected. Waiting for another client to connect to continue" << std::endl;
+
+  while (1)
+  {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    if (clientUsernames.size() > 1)
+    {
+      std::cout << "Another user connected, proceeding..." << std::endl;
+      Send::SendKey(clientSocket, 1, clientIndex);
+      break;
+    }
+  }
+  return;
+}
+
 void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded, const std::string &clientHashedIp, const std::string &serverHash)
 {
   try
@@ -271,7 +289,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
       std::string FormattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", clientUsername);
       const std::string UserPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
-      // receive the client public and save it
+      // receive the client public key and save it
       std::string EncodedUserPublicKey = Receive::ReceiveMessageSSL(clientSocket);
       std::string DecodedUserPublicKey = Decode::Base64Decode(EncodedUserPublicKey);
       SaveFile::saveFile(UserPublicKeyPath, DecodedUserPublicKey, std::ios::binary);
@@ -283,28 +301,24 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
 
       !testLoadKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
+      const std::string keyReceived = ReadFile::ReadPemKeyContents(PublicPath(clientUsernames[clientIndex]));
+
+      std::cout << "Received key: " << keyReceived << std::endl; // save to a vector instead and dont save to a file ig
+
+      clientsKeyContents.push_back(keyReceived);
+
       Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
 
-      if (clientUsernames.size() == 2)
+      switch (clientUsernames.size())
       {
+      case 2:
         Send::SendKey(clientSocket, 0, clientIndex);
-      }
-
-      else if (clientUsernames.size() == 1)
-      {
-        std::cout << "1 client connected. Waiting for another client to connect to continue" << std::endl;
-
-        while (1)
-        {
-          std::this_thread::sleep_for(std::chrono::seconds(1));
-
-          if (clientUsernames.size() > 1)
-          {
-            std::cout << "Another user connected, proceeding..." << std::endl;
-            Send::SendKey(clientSocket, 1, clientIndex);
-            break;
-          }
-        }
+        break;
+      case 1:
+        std::thread(waitForAnotherClient, clientSocket, std::ref(clientIndex)).join();
+        break;
+      default:
+        return;
       }
 
       if (totalClientJoins > 2)

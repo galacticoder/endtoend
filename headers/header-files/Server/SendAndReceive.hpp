@@ -10,28 +10,35 @@
 #include <openssl/ssl.h>
 #include "Keys.hpp"
 #include "Encryption.hpp"
-#include "SignalHandling.hpp"
 #include "CleanUp.hpp"
 
 extern std::vector<SSL *> SSLsocks;
+extern std::vector<std::string> clientsKeyContents;
 extern std::vector<int> connectedClients;
 extern std::vector<int> PasswordVerifiedClients;
 extern std::vector<std::string> clientUsernames;
 
+std::mutex mut;
 class Send
 {
 public:
     Send() = default;
     static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int &clientIndex)
     {
-        // // Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal to let them know they are connected
+        std::lock_guard<std::mutex> lock(mut);
+
         std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
         const std::string PublicKeyPath = PublicPath(clientUsernames[clientSendIndex]); // set the path for key to send
-        const std::string SavePath = PublicPath(clientUsernames[clientSendIndex]);      // set the path for client to save as
-        Send::SendMessage(clientSocket, SavePath);                                      // send path for client to save as
-        std::string KeyContents = ReadFile::ReadPemKeyContents(PublicKeyPath);
-        std::string EncodedKeyContents = Encode::Base64Encode(KeyContents);
-        Send::SendMessage(clientSocket, EncodedKeyContents); // send the encoded key
+        std::cout << "PUBLICKEYPATH SENDING: " << PublicKeyPath << std::endl;
+        Send::SendMessage(clientSocket, PublicKeyPath); // send path so client can get username of client
+
+        std::string KeyContents = clientsKeyContents[0];
+
+        if (KeyContents.empty())
+            return;
+
+        std::cout << fmt::format("Key contents sending to client {}: {}", clientUsernames[clientSendIndex], KeyContents) << std::endl;
+        Send::SendMessage(clientSocket, KeyContents); // send the encoded key
     }
 
     static void SendMessage(SSL *socket, const std::string &message)
