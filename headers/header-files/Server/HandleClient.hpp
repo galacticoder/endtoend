@@ -102,7 +102,7 @@ public:
                 cleanUpInPing = false; // dont clean up in pingClient function
                 CleanUp::CleanUpClient(clientIndex);
             }
-            std::cout << "Disconnected user with empty name" << std::endl;
+            std::cout << "Disconnected client with invalid username length" << std::endl;
             return -1;
         }
 

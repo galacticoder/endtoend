@@ -105,7 +105,6 @@ void pingClient(SSL *clientSocketSSL, int &clientTcpSocket, int &clientServerPor
       break;
     }
   }
-
   exitSignal = 1;
 }
 
@@ -194,7 +193,7 @@ void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
   while (1)
   {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    if (clientUsernames.size() > 1)
+    if (clientsKeyContents.size() > 1)
     {
       std::cout << "Another user connected, proceeding..." << std::endl;
       Send::SendKey(clientSocket, 1, clientIndex);
@@ -260,9 +259,9 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
 
       std::cout << "Sending password signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
 
-      const std::string PasswordNeededSignal = PasswordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
+      const std::string passwordNeededSignal = PasswordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
 
-      Send::SendMessage(clientSocket, PasswordNeededSignal);
+      Send::SendMessage(clientSocket, passwordNeededSignal);
 
       if (HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, clientHashedIp, serverHash) != 0)
         return;
@@ -286,18 +285,18 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
       Send::SendMessage(clientSocket, std::to_string(clientUsernames.size())); // send the connected users amount
       std::cout << "Sent usersactive amount: " << clientUsernames.size() << std::endl;
 
-      std::string FormattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", clientUsername);
-      const std::string UserPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
+      std::string formattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", clientUsername);
+      const std::string userPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
       // receive the client public key and save it
-      std::string EncodedUserPublicKey = Receive::ReceiveMessageSSL(clientSocket);
-      std::string DecodedUserPublicKey = Decode::Base64Decode(EncodedUserPublicKey);
-      SaveFile::saveFile(UserPublicKeyPath, DecodedUserPublicKey, std::ios::binary);
+      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL(clientSocket);
+      std::string decodedUserPublicKey = Decode::Base64Decode(encodedUserPublicKey);
+      SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
-      if (!std::filesystem::is_regular_file(UserPublicKeyPath))
+      if (!std::filesystem::is_regular_file(userPublicKeyPath))
         Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::EXISTERR, fmt::format("User [{}] public key file on server does not exist", clientUsername));
 
-      EVP_PKEY *testLoadKey = LoadKey::LoadPublicKey(UserPublicKeyPath);
+      EVP_PKEY *testLoadKey = LoadKey::LoadPublicKey(userPublicKeyPath);
 
       !testLoadKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
@@ -310,10 +309,10 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
 
       switch (clientUsernames.size())
       {
-      case 2:
+      case 2: // if clientusernames vector is 2
         Send::SendKey(clientSocket, 0, clientIndex);
         break;
-      case 1:
+      case 1: // if clientusernames vector is 1
         std::thread(waitForAnotherClient, clientSocket, std::ref(clientIndex)).join();
         break;
       default:

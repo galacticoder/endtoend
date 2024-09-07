@@ -16,13 +16,13 @@ public:
         EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(publicKey, nullptr);
         if (!ctx)
         {
-            ERR_print_errors_fp(stderr);
+            // ERR_print_errors_fp(stderr);
             return "";
         }
 
         if (EVP_PKEY_encrypt_init(ctx) <= 0)
         {
-            ERR_print_errors_fp(stderr);
+            // ERR_print_errors_fp(stderr);
             EVP_PKEY_CTX_free(ctx);
             return "";
         }

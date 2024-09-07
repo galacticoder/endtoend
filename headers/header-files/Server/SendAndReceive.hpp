@@ -27,13 +27,16 @@ public:
     {
         std::lock_guard<std::mutex> lock(mut);
 
+        // std::cout << "client send index: " << clientSendIndex << std::endl;
+        std::cout << "clientKeysContents size: " << clientsKeyContents.size() << std::endl;
+
         std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
-        const std::string publicKeyPath = PublicPath(clientUsernames[clientIndex]); // set the path for key to send
+        const std::string publicKeyPath = PublicPath(clientUsernames[clientSendIndex]); // set the path for key to send
         std::cout << "PUBLICKEYPATH SENDING: " << publicKeyPath << std::endl;
 
         Send::SendMessage(clientSocket, publicKeyPath); // send path so client can get username of client
 
-        std::string KeyContents = clientsKeyContents[clientIndex]; // send key of current user to other user
+        const std::string KeyContents = ReadFile::ReadPemKeyContents(PublicPath(clientUsernames[clientSendIndex]));
 
         if (KeyContents.empty())
             return;

@@ -172,20 +172,14 @@ int main()
     std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);
     std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, user);
 
-    StartTLS::generateKeys(privateKeyPath, publicKeyPath);
+    GenerateKeys makeKeys(privateKeyPath, publicKeyPath);
 
-    EVP_PKEY *privateKey = LoadKey::LoadPrivateKey(privateKeyPath); // load your private key
-    EVP_PKEY *pubkey = LoadKey::LoadPublicKey(publicKeyPath);       // load your public key
-
-    // check if your keys loadedz
-    if (!privateKey || !pubkey)
+    // check if your keys load
+    if (!LoadKey::LoadPrivateKey(privateKeyPath) || !LoadKey::LoadPublicKey(publicKeyPath))
     {
-        std::cout << "Your keys cannot be loaded" << std::endl;
+        std::cout << "Your keys couldnt load" << std::endl;
         raise(SIGINT);
     }
-
-    EVP_PKEY_free(pubkey);
-    EVP_PKEY_free(privateKey);
 
     // receive and save users active file
     std::string usersActiveAmount = Receive::ReceiveMessageSSL(tlsSock);
