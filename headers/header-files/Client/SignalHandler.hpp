@@ -9,6 +9,8 @@
 #include "Decryption.hpp"
 
 std::function<void(int)> shutdownHandler;
+std::function<void(int)> windowCleaning;
+std::function<EVP_PKEY *(int)> valuePasser;
 
 std::vector<std::string> signalsVector = {
     "KEYLOADERROR",
@@ -56,12 +58,30 @@ enum class SignalType
     UNKNOWN
 };
 
+auto CheckBase64 = [](const std::string &message)
+{
+    for (int i = 0; (unsigned)i < message.size(); i++)
+    {
+        if (static_cast<unsigned char>(message[i]) > 128)
+        {
+            return -1;
+        }
+    }
+
+    return 0;
+};
+
 class SignalHandling
 {
 public:
     static void handleSignal(SignalType signal, const std::string &msg, SSL *tlsSock = NULL, EVP_PKEY *receivedPublicKey = NULL)
     {
-        if (signal != SignalType::CLIENTREJOIN && signal != SignalType::OKAYSIGNAL && signal != SignalType::UNKNOWN)
+        if (signal == SignalType::UNKNOWN)
+        {
+            return;
+        }
+
+        if (signal != SignalType::CLIENTREJOIN && signal != SignalType::OKAYSIGNAL)
         {
             const std::string decodedMessage = Decode::Base64Decode(msg);
 
@@ -91,7 +111,13 @@ public:
 
     static SignalType getSignalType(const std::string &msg)
     {
-        const std::string decodedMessage = Decode::Base64Decode(msg);
+        const std::string decodedMessage = Decode::Base64Decode(msg); // encrypted stuff
+
+        if (CheckBase64(decodedMessage) != 0)
+        {
+            return SignalType::UNKNOWN;
+        }
+
         for (unsigned int i = 0; i <= signalsVector.size(); i++)
         {
             if (decodedMessage.find(signalsVector[i]) < decodedMessage.size())
@@ -103,7 +129,7 @@ public:
 
     static std::string GetSignalAsString(SignalType signalType)
     {
-        if ((int)signalType <= signalsVector.size())
+        if ((unsigned int)signalType <= signalsVector.size())
             return Encode::Base64Encode(signalsVector[(int)signalType]);
         else
             std::cout << "Signal passed to SignalSetType::SetServerMessageBySignal is not a valid signal" << std::endl;

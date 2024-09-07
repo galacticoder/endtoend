@@ -28,16 +28,18 @@ public:
         std::lock_guard<std::mutex> lock(mut);
 
         std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
-        const std::string PublicKeyPath = PublicPath(clientUsernames[clientSendIndex]); // set the path for key to send
-        std::cout << "PUBLICKEYPATH SENDING: " << PublicKeyPath << std::endl;
-        Send::SendMessage(clientSocket, PublicKeyPath); // send path so client can get username of client
+        const std::string publicKeyPath = PublicPath(clientUsernames[clientIndex]); // set the path for key to send
+        std::cout << "PUBLICKEYPATH SENDING: " << publicKeyPath << std::endl;
 
-        std::string KeyContents = clientsKeyContents[0];
+        Send::SendMessage(clientSocket, publicKeyPath); // send path so client can get username of client
+
+        std::string KeyContents = clientsKeyContents[clientIndex]; // send key of current user to other user
 
         if (KeyContents.empty())
             return;
 
         std::cout << fmt::format("Key contents sending to client {}: {}", clientUsernames[clientSendIndex], KeyContents) << std::endl;
+
         Send::SendMessage(clientSocket, KeyContents); // send the encoded key
     }
 

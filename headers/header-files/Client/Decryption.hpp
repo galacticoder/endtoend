@@ -30,7 +30,7 @@ public:
         size_t out_len;
         if (EVP_PKEY_decrypt(ctx, nullptr, &out_len, reinterpret_cast<const unsigned char *>(encryptedData.c_str()), encryptedData.size()) <= 0)
         {
-            // ERR_print_errors_fp(stderr);
+            ERR_print_errors_fp(stderr);
             EVP_PKEY_CTX_free(ctx);
             return "";
         }
@@ -38,7 +38,7 @@ public:
         std::string out(out_len, '\0');
         if (EVP_PKEY_decrypt(ctx, reinterpret_cast<unsigned char *>(&out[0]), &out_len, reinterpret_cast<const unsigned char *>(encryptedData.c_str()), encryptedData.size()) <= 0)
         {
-            // ERR_print_errors_fp(stderr);
+            ERR_print_errors_fp(stderr);
             EVP_PKEY_CTX_free(ctx);
             return "";
         }

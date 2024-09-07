@@ -12,7 +12,7 @@
 #define TxtDirectoryPath "txt-files/"
 #define YourKeysPath "your-keys/"
 
-#define SavePath(username) (std::string) KeysReceivedFromServerPath + username + "-pubkeyfromserver.pem";
+#define PublicKeyPathSet(username) (std::string) KeysReceivedFromServerPath + username + "-pubkeyfromserver.pem";
 
 struct Create
 {

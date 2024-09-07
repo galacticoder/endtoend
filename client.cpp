@@ -82,16 +82,39 @@ int main()
 
     shutdownHandler = [&](int sig)
     {
+        windowCleaning(sig);
+        EVP_PKEY *receivedPublicKey = valuePasser(sig);
         std::lock_guard<std::mutex> lock(mut);
         std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
         CleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
-        // Delete::DeletePath(KeysReceivedFromServerPath);
-        // Delete::DeletePath(YourKeysPath);
-        // Delete::DeletePath(TxtDirectoryPath);
-        leavePlace == 0 ? std::cout << "You have disconnected from the empty chat." << std::endl : leavePlace == 1 ? std::cout << "You have left the chat" << std::endl
-                                                                                                                   : std::cout;
+        Delete::DeletePath(KeysReceivedFromServerPath);
+        Delete::DeletePath(YourKeysPath);
+        Delete::DeletePath(TxtDirectoryPath);
+
+        switch (leavePlace)
+        {
+        case 0:
+            std::cout << "You have disconnected from the empty chat." << std::endl;
+            break;
+        case 1:
+            std::cout << "You have left the chat" << std::endl;
+            break;
+        default:
+            std::cout << "You have disconnected" << std::endl;
+        }
+
         exit(sig);
+    };
+
+    windowCleaning = [&](int sig)
+    {
+        std::cout << "No windows to clean" << std::endl;
+    };
+
+    valuePasser = [&](int sig)
+    {
+        return nullptr;
     };
 
     std::string serverIp;
@@ -162,6 +185,7 @@ int main()
     }
 
     EVP_PKEY_free(pubkey);
+    EVP_PKEY_free(privateKey);
 
     // receive and save users active file
     std::string usersActiveAmount = Receive::ReceiveMessageSSL(tlsSock);
@@ -183,10 +207,7 @@ int main()
 
     int activeUsers = ReadFile::readActiveUsers(usersActivePath);
 
-    receivedPublicKey = HandleClient::receiveKeysAndConnect(tlsSock, receivedPublicKey, user, activeUsers);
+    std::thread(Ncurses::startUserMenu, tlsSock, user, privateKeyPath, std::ref(activeUsers)).join();
 
-    std::thread(Ncurses::startUserMenu, tlsSock, user, receivedPublicKey, privateKey).detach();
-
-    raise(SIGINT);
     return 0;
 }

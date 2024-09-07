@@ -16,10 +16,7 @@
 #include "Keys.hpp"
 #include "httpCl.h"
 
-#define conSig "C"
-
 int startSock;
-EVP_PKEY *receivedPublicKey = nullptr;
 SSL_CTX *ctx = nullptr;
 SSL *tlsSock = nullptr;
 

@@ -3,13 +3,13 @@
 #include <ncurses.h>
 #include <thread>
 #include <csignal>
+#include "TlsSetup.hpp"
 #include "HandleClient.hpp"
 
 std::mutex ncursesMutex;
 
 class Ncurses
 {
-private:
 public:
     static void threadSafeWrefresh(WINDOW *win)
     {
@@ -17,18 +17,25 @@ public:
         wrefresh(win);
     }
 
-    static void tempSignalHandler(int signal)
+    static void startUserMenu(SSL *tlsSock, const std::string &userStr, const std::string &privateKeyPath, int &activeUsers)
     {
-        CleanUp::cleanWins(subwin, messageInputWindow, messageViewWindow);
-        shutdownHandler(signal);
-    }
+        // first get keys
+        EVP_PKEY *receivedPublicKey = HandleClient::receiveKeysAndConnect(tlsSock, userStr, activeUsers);
 
-    static void startUserMenu(SSL *tlsSock, const std::string &userStr, EVP_PKEY *receivedPublicKey, EVP_PKEY *privateKey)
-    {
+        valuePasser = [&receivedPublicKey](int sig)
+        {
+            return receivedPublicKey;
+        };
+
         WINDOW *messageInputWindow;
         WINDOW *messageViewWindow;
         WINDOW *subwin;
-        signal(SIGINT, tempSignalHandler);
+
+        windowCleaning = [&](int sig)
+        {
+            CleanUp::cleanWins(subwin, messageInputWindow, messageViewWindow);
+        };
+
         initscr();
         cbreak();
         nonl();
@@ -38,13 +45,13 @@ public:
         int height = LINES;
         int width = COLS;
 
-        int msg_view_h = height - 3;
-        int msg_input_h = 3;
+        int viewWindowHeight = height - 3;
+        int inputWindowHeight = 3;
 
-        messageInputWindow = newwin(msg_input_h, width, msg_view_h, 0);
+        messageInputWindow = newwin(inputWindowHeight, width, viewWindowHeight, 0);
         box(messageInputWindow, 0, 0);
 
-        messageViewWindow = newwin(msg_view_h - 1, width - 2, 1, 1);
+        messageViewWindow = newwin(viewWindowHeight - 1, width - 2, 1, 1);
         box(messageViewWindow, 0, 0);
 
         threadSafeWrefresh(messageViewWindow);
@@ -60,7 +67,13 @@ public:
 
         wmove(messageInputWindow, 1, 1);
 
-        std::thread(HandleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey).detach();
+        EVP_PKEY *privateKey = LoadKey::LoadPrivateKey(privateKeyPath, 0);
+
+        if (!privateKey)
+            raise(SIGINT);
+
+        std::thread(HandleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey, messageInputWindow).detach();
+
         std::thread(HandleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, messageInputWindow).join();
     }
 };

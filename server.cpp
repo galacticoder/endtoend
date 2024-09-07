@@ -303,8 +303,7 @@ void handleClient(SSL *clientSocket, int &ClientTcpSocket, bool &PasswordNeeded,
 
       const std::string keyReceived = ReadFile::ReadPemKeyContents(PublicPath(clientUsernames[clientIndex]));
 
-      std::cout << "Received key: " << keyReceived << std::endl; // save to a vector instead and dont save to a file ig
-
+      std::cout << "Received key: " << keyReceived << std::endl;
       clientsKeyContents.push_back(keyReceived);
 
       Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));

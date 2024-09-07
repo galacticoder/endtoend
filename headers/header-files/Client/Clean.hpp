@@ -44,15 +44,6 @@ public:
             std::cout << "Freed received public key" << std::endl;
         }
 
-        // privateKeyUniquePtr.reset();
-
-        // if (prkey)
-        // {
-        //     std::cout << "Freeing private key" << std::endl;
-        //     EVP_PKEY_free(prkey);
-        //     std::cout << "Freed private key" << std::endl;
-        // }
-
         if (ctx)
         {
             std::cout << "Freeing SSL context" << std::endl;

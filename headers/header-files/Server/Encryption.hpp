@@ -110,10 +110,9 @@ public:
 
     static int CheckBase64(const std::string &message)
     {
-        const std::string store = Decode::Base64Decode(message);
-        for (int i = 0; (unsigned)i < store.size(); i++)
+        for (int i = 0; (unsigned)i < message.size(); i++)
         {
-            if (static_cast<unsigned char>(store[i]) > 128)
+            if (static_cast<unsigned char>(message[i]) > 128)
             {
                 return -1;
             }

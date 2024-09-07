@@ -155,7 +155,7 @@ public:
             return nullptr;
         }
 
-        if (echo == 1)
+        if (echo != 0)
             std::cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << std::endl;
 
         return pkey;

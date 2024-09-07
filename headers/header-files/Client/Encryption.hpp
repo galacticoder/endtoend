@@ -11,9 +11,9 @@
 class Encrypt
 {
 public:
-    static std::string EncryptData(EVP_PKEY *privateKey, const std::string &data)
+    static std::string EncryptData(EVP_PKEY *publicKey, const std::string &data)
     {
-        EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(privateKey, nullptr);
+        EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(publicKey, nullptr);
         if (!ctx)
         {
             ERR_print_errors_fp(stderr);
