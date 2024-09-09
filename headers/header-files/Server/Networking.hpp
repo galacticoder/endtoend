@@ -102,6 +102,58 @@ public:
         clientIp[0] = '\0'; // clear the actual user ip
         return ClientHashedIp;
     }
+
+    static void pingClient(SSL *clientSocketSSL, int &clientTcpSocket, int &clientServerPort, unsigned int &clientIndex)
+    {
+        std::cout << "Started thread for pinging client" << std::endl;
+        while (1)
+        {
+            try
+            {
+                int pingingSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+                sockaddr_in serverAddress;
+                serverAddress.sin_family = AF_INET;
+                serverAddress.sin_port = htons(clientServerPort);
+
+                if (inet_pton(AF_INET, "127.0.0.1" /*replace with user ip*/, &serverAddress.sin_addr) <= 0)
+                    std::cerr << "Pton conversion error in clStat" << std::endl;
+
+                if (connect(pingingSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
+                {
+                    std::cout << fmt::format("Client disconnected [CANNOT CONNECT TO SERVER] [P:{}]", clientServerPort) << std::endl;
+
+                    std::cout << "Kicking client index: " << clientIndex << std::endl;
+
+                    if (ClientResources::cleanUpInPing != false)
+                        ClientResources::clientSocketsTcp.size() > 0 ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, clientSocketSSL, clientTcpSocket);
+                    else
+                    {
+                        std::cout << "cleanUpInPing is false. Clean up occuring somewhere else." << std::endl;
+                        ClientResources::cleanUpInPing = true; // set back to default
+                    }
+
+                    break;
+                }
+
+                const std::string statusCheckMsg = ServerSetMessage::GetMessageBySignal(SignalType::STATUSCHECKSIGNAL);
+                send(pingingSocket, statusCheckMsg.c_str(), statusCheckMsg.length(), 0);
+
+                std::string readStr = Receive::ReceiveMessageTcp(pingingSocket);
+
+                close(pingingSocket);
+            }
+            catch (const std::exception &e)
+            {
+                std::cout << "Exception caught in clStat function: " << e.what() << std::endl;
+                break;
+            }
+        }
+
+        ServerSettings::exitSignal = 1;
+        std::cout << "Set exit signal to 1" << std::endl;
+        return;
+    }
 };
 
 #endif
