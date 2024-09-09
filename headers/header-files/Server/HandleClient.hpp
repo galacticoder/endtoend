@@ -8,6 +8,7 @@
 #include <openssl/ssl.h>
 #include <thread>
 #include "SendAndReceive.hpp"
+#include "ServerSettings.hpp"
 #include "FileHandler.hpp"
 #include "Keys.hpp"
 #include "Decryption.hpp"
@@ -15,27 +16,20 @@
 #include "SignalHandling.hpp"
 #include "bcrypt.h"
 
-extern std::vector<SSL *> SSLsocks;
-extern std::vector<int> connectedClients;
-extern std::vector<int> PasswordVerifiedClients;
-extern std::vector<std::string> clientUsernames;
-extern std::queue<std::string> serverJoinRequests;
-extern std::map<std::string, short> amountOfTriesFromIP;
 extern void waitTimer(const std::string hashedClientIp);
-extern bool cleanUpInPing;
 
 class HandleClient
 {
 public:
-    static int ClientPasswordVerification(SSL *ClientSSLSocket, unsigned int &clientIndex, const std::string &ServerPrivateKeyPath, const std::string &ClientHashedIp, const std::string &serverHashedPassword)
+    static int ClientPasswordVerification(SSL *clientSSLSocket, unsigned int &clientIndex, const std::string &ServerPrivateKeyPath, const std::string &ClientHashedIp, const std::string &serverHashedPassword)
     {
         if (serverHashedPassword.empty())
             return 0;
 
         std::cout << "Waiting to receive password from client.." << std::endl;
 
-        std::string ReceivedPasswordCipher = Receive::ReceiveMessageSSL(ClientSSLSocket);
-        std::cout << "Password cipher recieved from client: " << ReceivedPasswordCipher << std::endl;
+        std::string receivedPasswordCipher = Receive::ReceiveMessageSSL(clientSSLSocket);
+        std::cout << "Password cipher recieved from client: " << receivedPasswordCipher << std::endl;
 
         EVP_PKEY *serverPrivateKey = LoadKey::LoadPrivateKey(ServerPrivateKeyPath);
 
@@ -46,21 +40,21 @@ public:
         }
 
         std::cout << "Decoding pass cipher" << std::endl;
-        std::string decodedPassGet = Decode::Base64Decode(ReceivedPasswordCipher);
+        std::string decodedPassGet = Decode::Base64Decode(receivedPasswordCipher);
 
         std::cout << "Decrypting password cipher" << std::endl;
-        ReceivedPasswordCipher = Decrypt::DecryptData(serverPrivateKey, decodedPassGet);
+        receivedPasswordCipher = Decrypt::DecryptData(serverPrivateKey, decodedPassGet);
         EVP_PKEY_free(serverPrivateKey);
 
         std::cout << "Validating password hash sent by user" << std::endl;
 
-        if (bcrypt::validatePassword(ReceivedPasswordCipher, serverHashedPassword) != 1)
+        if (bcrypt::validatePassword(receivedPasswordCipher, serverHashedPassword) != 1)
         {
             std::cout << "Password not validated" << std::endl;
             const std::string PasswordNotVerifiedMessage = ServerSetMessage::GetMessageBySignal(SignalType::NOTVERIFIED, 1);
-            Send::SendMessage(ClientSSLSocket, PasswordNotVerifiedMessage); // sends them the not VerifiedMessage message
+            Send::SendMessage(clientSSLSocket, PasswordNotVerifiedMessage); // sends them the not VerifiedMessage message
             {
-                cleanUpInPing = false; // dont clean up in pingClient function
+                ClientResources::cleanUpInPing = false; // dont clean up in pingClient function
                 CleanUp::CleanUpClient(clientIndex);
             }
             std::cout << fmt::format("User with hashed ip [{}..] has entered the wrong password and has been kicked", ClientHashedIp) << std::endl;
@@ -68,24 +62,24 @@ public:
         }
 
         const std::string PasswordVerifiedMessage = ServerSetMessage::GetMessageBySignal(SignalType::VERIFIED, 1);
-        Send::SendMessage(ClientSSLSocket, PasswordVerifiedMessage);
-        PasswordVerifiedClients[clientIndex] = 1; // set client as verified
+        Send::SendMessage(clientSSLSocket, PasswordVerifiedMessage);
+        ClientResources::passwordVerifiedClients[clientIndex] = 1; // set client as verified
         std::cout << "User password VerifiedMessage and added to clientHashVerifiedClients vector" << std::endl;
-        std::cout << "Updated vector size: " << PasswordVerifiedClients.size() << std::endl;
+        std::cout << "Updated vector size: " << ClientResources::passwordVerifiedClients.size() << std::endl;
         return 0;
     }
 
-    static int ClientUsernameValidity(SSL *ClientSSLSocket, unsigned int &clientIndex, const std::string &clientUsername)
+    static int ClientUsernameValidity(SSL *clientSSLSocket, unsigned int &clientIndex, const std::string &clientUsername)
     {
         std::vector<std::string> unallowedCharacters = {"\\", "/", "~", " "};
         // checks if username already exists
-        if (std::find(clientUsernames.begin(), clientUsernames.end(), clientUsername) != clientUsernames.end())
+        if (std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), clientUsername) != ClientResources::clientUsernames.end())
         {
             std::cout << "Client with the same username detected has attempted to join. kicking.." << std::endl;
             const std::string NameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
-            Send::SendMessage(ClientSSLSocket, NameAlreadyExistsMessage);
+            Send::SendMessage(clientSSLSocket, NameAlreadyExistsMessage);
             {
-                cleanUpInPing = false; // dont clean up in pingClient function
+                ClientResources::cleanUpInPing = false; // dont clean up in pingClient function
                 CleanUp::CleanUpClient(clientIndex);
             }
             std::cout << "Kicked client with same username" << std::endl;
@@ -97,9 +91,9 @@ public:
         {
             std::cout << "Client with invalid username length has attempted to join. kicking.." << std::endl;
             const std::string InvalidUsernameLengthMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAMELENGTH, 1);
-            Send::SendMessage(ClientSSLSocket, InvalidUsernameLengthMessage);
+            Send::SendMessage(clientSSLSocket, InvalidUsernameLengthMessage);
             {
-                cleanUpInPing = false; // dont clean up in pingClient function
+                ClientResources::cleanUpInPing = false; // dont clean up in pingClient function
                 CleanUp::CleanUpClient(clientIndex);
             }
             std::cout << "Disconnected client with invalid username length" << std::endl;
@@ -116,9 +110,9 @@ public:
             {
                 std::cout << fmt::format("Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [CHAR: {}]", i) << std::endl;
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
-                Send::SendMessage(ClientSSLSocket, InvalidUsernameMessage);
+                Send::SendMessage(clientSSLSocket, InvalidUsernameMessage);
                 {
-                    cleanUpInPing = false; // dont clean up in pingClient function
+                    ClientResources::cleanUpInPing = false; // dont clean up in pingClient function
                     CleanUp::CleanUpClient(clientIndex);
                 }
                 std::cout << "Disconnected user with invalid character[s] in username name" << std::endl;
@@ -130,9 +124,9 @@ public:
         return 0;
     }
 
-    static int CheckUserLimitReached(SSL *userSSLSocket, int &userTcpSocket, unsigned int &limitOfUsers)
+    static int CheckUserLimitReached(SSL *userSSLSocket, int &userTcpSocket, const unsigned int &limitOfUsers)
     {
-        if (clientUsernames.size() == limitOfUsers)
+        if (ClientResources::clientUsernames.size() == limitOfUsers)
         {
             const std::string userLimitReachedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERLIMIT, 1);
             Send::SendMessage(userSSLSocket, userLimitReachedMessage);
@@ -146,9 +140,9 @@ public:
     static int CheckUserRatelimited(SSL *userSSLSocket, int &userTcpSocket, const std::string &ClientHashedIp)
     {
         // check for timeout on ip
-        if (amountOfTriesFromIP[ClientHashedIp] >= 3) // also check the time with the condition later
+        if (ClientResources::amountOfTriesFromIP[ClientHashedIp] >= 3) // also check the time with the condition later
         {
-            if (amountOfTriesFromIP[ClientHashedIp] < 4)
+            if (ClientResources::amountOfTriesFromIP[ClientHashedIp] < 4)
                 std::thread(waitTimer, ClientHashedIp).detach(); // run the timer if not running already
 
             const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
@@ -176,7 +170,7 @@ public:
         const std::string serverRequestMessage = ServerSetMessage::GetMessageBySignal(SignalType::REQUESTNEEDED, 1);
         Send::SendMessage(userSSLsocket, serverRequestMessage);
 
-        serverJoinRequests.push(ClientHashedIp);
+        ClientResources::serverJoinRequests.push(ClientHashedIp);
         std::cout << fmt::format("User from hashed ip [{}..] is requesting to join the server. Accept or not?(y/n): ", ClientHashedIp.substr(0, ClientHashedIp.length() / 4));
 
         const char answer = toupper(getchar());
@@ -185,14 +179,14 @@ public:
         {
             const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTACCEPTED, 1);
             Send::SendMessage(userSSLsocket, userAcceptedMessage);
-            serverJoinRequests.pop();
+            ClientResources::serverJoinRequests.pop();
             std::cout << "\nUser has been allowed in server" << std::endl;
             return 0;
         }
 
         const std::string userNotAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTDENIED, 1);
         Send::SendMessage(userSSLsocket, userNotAcceptedMessage);
-        serverJoinRequests.pop();
+        ClientResources::serverJoinRequests.pop();
         std::cout << "\nUser has been not been allowed in server" << std::endl;
         CleanUp::CleanUpClient(-1, userSSLsocket, userTcpSocket);
         return -1;

@@ -12,7 +12,7 @@ extern bool cleanUpInPing;
 
 std::vector<std::string> signalStringsVector = {
     "KEYLOADERROR",
-    "NAMEEXISTS",
+    "KEYEXISTERR",
     "PASSWORDVERIFIED",
     "PASSWORDNOTVERIFIED",
     "NAMEEXISTSERR",
@@ -31,6 +31,8 @@ std::vector<std::string> signalStringsVector = {
     "SERVERJOINREQUESTACCEPTED",
     "CONNECTIONSIGNAL",
     "STATUSCHECKSIGNAL",
+    "PINGBACK",
+    "PING",
 };
 
 std::vector<std::string> ServerMessages = {
@@ -44,7 +46,7 @@ std::vector<std::string> ServerMessages = {
     "The limit of users has been reached for this chat. Exiting..",
     "You request to join the server has been accepted",
     "You request to join the server has not been accepted",
-    "CLIENTREJOIN",
+    "" /*client rejoin signal has no message*/,
     "This server is password protected enter the password to join: ",
     "You have entered the server", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
@@ -53,12 +55,14 @@ std::vector<std::string> ServerMessages = {
     "Your request to join the server has been accepted",
     "" /*connection signal is never sent appended to a message*/,
     "" /*status check signal is never sent appended to a message*/,
+    "" /*ping back signal is never sent appended to a message*/,
+    "" /*ping signal is never sent appended to a message*/,
 };
 
 enum class SignalType
 {
     LOADERR,
-    EXISTERR,
+    KEYEXISTERR,
     VERIFIED,
     NOTVERIFIED,
     NAMEEXISTSERR,
@@ -77,6 +81,8 @@ enum class SignalType
     SERVERJOINREQUESTACCEPTED,
     CONNECTIONSIGNAL,
     STATUSCHECKSIGNAL,
+    PINGBACK,
+    PING,
     UNKNOWN
 };
 
@@ -108,7 +114,7 @@ public:
 
         Send::SendMessage(clientSocket, ErrorMessage);
         {
-            cleanUpInPing = false;
+            ClientResources::cleanUpInPing = false;
             CleanUp::CleanUpClient(clientIndex);
         }
         std::cout << fmt::format("Kicked user [{}]", clientUsername) << std::endl;

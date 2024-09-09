@@ -9,12 +9,10 @@
 #include <fmt/core.h>
 #include "bcrypt.h"
 #include "Encryption.hpp"
+#include "ServerSettings.hpp"
 
 #define eraseLine "\033[2K\r"
 #define clearScreen "\033[2J\r"
-
-bool PasswordNeeded;
-bool RequestNeeded;
 
 void signalHandleMenu(int signum);
 
@@ -147,32 +145,32 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server" << std::endl;
-            PasswordNeeded = true;
-            RequestNeeded = false;
+            ServerSettings::passwordNeeded = true;
+            ServerSettings::requestNeeded = false;
             return bcrypt::generateHash(password);
         }
         else if (choice == 2)
         {
             std::cout << clearScreen;
             std::cout << "Generating password for server..." << std::endl;
-            PasswordNeeded = true;
-            RequestNeeded = false;
+            ServerSettings::passwordNeeded = true;
+            ServerSettings::requestNeeded = false;
             return generatePassword();
         }
         else if (choice == 3)
         {
             std::cout << clearScreen;
             std::cout << "Server is starting up without password..." << std::endl;
-            PasswordNeeded = false;
-            RequestNeeded = false;
+            ServerSettings::passwordNeeded = false;
+            ServerSettings::requestNeeded = false;
             return "";
         }
         else if (choice == 4) // user requests without pass
         {
             std::cout << clearScreen;
             std::cout << "Server is starting up without password and users need to request to join the server" << std::endl;
-            PasswordNeeded = false;
-            RequestNeeded = true;
+            ServerSettings::passwordNeeded = false;
+            ServerSettings::requestNeeded = true;
 
             return "";
         }
@@ -193,8 +191,8 @@ public:
             std::cout << eraseLine;
             std::cout << "\x1b[A";
             std::cout << "Password has been set for server and users need to request to join the server" << std::endl;
-            PasswordNeeded = true;
-            RequestNeeded = true;
+            ServerSettings::passwordNeeded = true;
+            ServerSettings::requestNeeded = true;
             return bcrypt::generateHash(password);
         }
         else if (choice == 6)

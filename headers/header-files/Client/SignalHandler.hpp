@@ -7,6 +7,7 @@
 #include "SendAndReceive.hpp"
 #include "FileHandling.hpp"
 #include "Decryption.hpp"
+#include "Encryption.hpp"
 
 std::function<void(int)> shutdownHandler;
 std::function<void(int)> windowCleaning;
@@ -14,7 +15,7 @@ std::function<EVP_PKEY *(int)> valuePasser;
 
 std::vector<std::string> signalsVector = {
     "KEYLOADERROR",
-    "NAMEEXISTS",
+    "KEYEXISTERR",
     "PASSWORDVERIFIED",
     "PASSWORDNOTVERIFIED",
     "NAMEEXISTSERR",
@@ -85,7 +86,7 @@ public:
         {
             const std::string decodedMessage = Decode::Base64Decode(msg);
 
-            std::cout << decodedMessage.substr(0, decodedMessage.length() - signalsVector[(int)signal].length()) << std::endl;
+            signal == SignalType::PASSWORDNEEDED ? std::cout << decodedMessage.substr(0, decodedMessage.length() - signalsVector[(int)signal].length()) : std::cout << decodedMessage.substr(0, decodedMessage.length() - signalsVector[(int)signal].length()) << std::endl;
 
             if (signal != SignalType::VERIFIED && signal != SignalType::ACCEPTED && signal != SignalType::OKAYSIGNAL && signal != SignalType::PASSWORDNOTNEEDED && signal != SignalType::PASSWORDNEEDED && signal != SignalType::REQUESTNEEDED && signal != SignalType::SERVERJOINREQUESTACCEPTED)
                 raise(SIGINT);

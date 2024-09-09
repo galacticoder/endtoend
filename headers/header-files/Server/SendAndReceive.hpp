@@ -10,13 +10,8 @@
 #include <openssl/ssl.h>
 #include "Keys.hpp"
 #include "Encryption.hpp"
+#include "ServerSettings.hpp"
 #include "CleanUp.hpp"
-
-extern std::vector<SSL *> SSLsocks;
-extern std::vector<std::string> clientsKeyContents;
-extern std::vector<int> connectedClients;
-extern std::vector<int> PasswordVerifiedClients;
-extern std::vector<std::string> clientUsernames;
 
 std::mutex mut;
 class Send
@@ -27,23 +22,19 @@ public:
     {
         std::lock_guard<std::mutex> lock(mut);
 
-        // std::cout << "client send index: " << clientSendIndex << std::endl;
-        std::cout << "clientKeysContents size: " << clientsKeyContents.size() << std::endl;
-
-        std::cout << fmt::format("Sending Client {}'s key to Client {}", clientUsernames[clientIndex], clientUsernames[clientSendIndex]) << std::endl;
-        const std::string publicKeyPath = PublicPath(clientUsernames[clientSendIndex]); // set the path for key to send
-        std::cout << "PUBLICKEYPATH SENDING: " << publicKeyPath << std::endl;
+        std::cout << fmt::format("Sending Client {}'s key to Client {}", ClientResources::clientUsernames[clientIndex], ClientResources::clientUsernames[clientSendIndex]) << std::endl;
+        const std::string publicKeyPath = PublicPath(ClientResources::clientUsernames[clientSendIndex]); // set the path for key to send
 
         Send::SendMessage(clientSocket, publicKeyPath); // send path so client can get username of client
 
-        const std::string KeyContents = ReadFile::ReadPemKeyContents(PublicPath(clientUsernames[clientSendIndex]));
+        const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
 
-        if (KeyContents.empty())
+        if (keyContents.empty())
             return;
 
-        std::cout << fmt::format("Key contents sending to client {}: {}", clientUsernames[clientSendIndex], KeyContents) << std::endl;
+        std::cout << fmt::format("Key contents sending to client {}: {}", ClientResources::clientUsernames[clientSendIndex], keyContents) << std::endl;
 
-        Send::SendMessage(clientSocket, KeyContents); // send the encoded key
+        Send::SendMessage(clientSocket, keyContents); // send the encoded key
     }
 
     static void SendMessage(SSL *socket, const std::string &message)
@@ -75,7 +66,7 @@ public:
     }
     static void BroadcastMessage(SSL *senderSocket, const std::string &message)
     {
-        for (SSL *socket : SSLsocks)
+        for (SSL *socket : ClientResources::clientSocketsSSL)
         {
             if (socket != senderSocket)
             {
@@ -84,15 +75,15 @@ public:
             }
         }
     }
-    static void BroadcastEncryptedExitMessage(unsigned int &ClientIndex, int ClientToSendMsgIndex)
+    static void BroadcastEncryptedExitMessage(unsigned int &ClientIndex, int clientToSendMsgIndex)
     {
-        std::cout << "Broadcasting exit message of user " << clientUsernames[ClientIndex] << "to " << clientUsernames[ClientToSendMsgIndex] << std::endl;
-        std::string UserExitMessage = fmt::format("{} has left the chat", clientUsernames[ClientIndex]);
-        EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(clientUsernames[ClientToSendMsgIndex])); // load other user public key
+        std::cout << "Broadcasting exit message of user " << ClientResources::clientUsernames[ClientIndex] << "to " << ClientResources::clientUsernames[clientToSendMsgIndex] << std::endl;
+        std::string UserExitMessage = fmt::format("{} has left the chat", ClientResources::clientUsernames[ClientIndex]);
+        EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(ClientResources::clientUsernames[clientToSendMsgIndex])); // load other user public key
         if (!LoadedUserPublicKey)
         {
-            std::cout << fmt::format("User [{}] pub key cannot be loaded for encrypted exit message", clientUsernames[ClientToSendMsgIndex]) << std::endl;
-            CleanUp::CleanUpClient(ClientToSendMsgIndex);
+            std::cout << fmt::format("User [{}] pub key cannot be loaded for encrypted exit message", ClientResources::clientUsernames[clientToSendMsgIndex]) << std::endl;
+            CleanUp::CleanUpClient(clientToSendMsgIndex);
             return;
         }
 
@@ -101,8 +92,8 @@ public:
 
         if (EncryptedExitMessage != "err" && !EncryptedExitMessage.empty())
         {
-            std::cout << fmt::format("Broadcasting user [{}]'s exit message", clientUsernames[ClientIndex]) << std::endl;
-            Send::BroadcastMessage(SSLsocks[ClientToSendMsgIndex], EncryptedExitMessage);
+            std::cout << fmt::format("Broadcasting user [{}]'s exit message", ClientResources::clientUsernames[ClientIndex]) << std::endl;
+            Send::BroadcastMessage(ClientResources::clientSocketsSSL[clientToSendMsgIndex], EncryptedExitMessage);
         }
 
         EVP_PKEY_free(LoadedUserPublicKey);

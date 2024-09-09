@@ -106,11 +106,10 @@ public:
                     wmove(subaddr, lineTrack, 0);
 
                     message = trimWhitespaces(message);
-
                     // encrypt and send message
                     std::string cipherText = Encrypt::EncryptData(receivedPublicKey, message);
-
                     cipherText = Encode::Base64Encode(cipherText);
+
                     Send::SendMessage(tlsSock, cipherText);
 
                     // print message on your screen
@@ -249,7 +248,7 @@ public:
         std::string userPubKey = Receive::ReceiveMessageSSL(tlsSock);
         SaveFile::saveFile(saveKeyPath, userPubKey, std::ios::binary);
 
-        std::cout << fmt::format("Recieved {}'s pub key", formattedClientUsername) << std::endl;
+        std::cout << fmt::format("Received {}'s pub key", formattedClientUsername) << std::endl;
 
         std::cout << fmt::format("Attempting to load {}'s public key", formattedClientUsername) << std::endl;
 

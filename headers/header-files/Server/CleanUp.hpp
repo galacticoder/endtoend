@@ -12,14 +12,9 @@
 #include "Keys.hpp"
 #include "Encryption.hpp"
 #include "SendAndReceive.hpp"
+#include "ServerSettings.hpp"
 
 #define PublicPath(username) fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", username)
-
-extern std::vector<SSL *> SSLsocks;
-extern std::vector<int> connectedClients;
-extern std::vector<std::string> clientsKeyContents;
-extern std::vector<int> PasswordVerifiedClients;
-extern std::vector<std::string> clientUsernames;
 
 std::mutex ClientMutex;
 
@@ -57,44 +52,44 @@ public:
                 SSL_free(ClientSSLsocket);
                 close(ClientTCPsocket);
 
-                auto DeleteClientTcpSocket = std::remove(connectedClients.begin(), connectedClients.end(), ClientTCPsocket);
-                connectedClients.erase(DeleteClientTcpSocket, connectedClients.end());
+                auto DeleteClientTcpSocket = std::remove(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), ClientTCPsocket);
+                ClientResources::clientSocketsTcp.erase(DeleteClientTcpSocket, ClientResources::clientSocketsTcp.end());
 
-                auto DeleteClientSSLSocket = std::remove(SSLsocks.begin(), SSLsocks.end(), ClientSSLsocket);
-                SSLsocks.erase(DeleteClientSSLSocket, SSLsocks.end());
+                auto DeleteClientSSLSocket = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), ClientSSLsocket);
+                ClientResources::clientSocketsSSL.erase(DeleteClientSSLSocket, ClientResources::clientSocketsSSL.end());
 
                 std::cout << "Client clean up finished" << std::endl;
                 return;
             }
 
-            if (SSLsocks.size() > 0)
+            if (ClientResources::clientSocketsSSL.size() > 0)
             {
-                SSL_shutdown(SSLsocks[clientIndex]);
-                SSL_free(SSLsocks[clientIndex]);
-                close(connectedClients[clientIndex]);
+                SSL_shutdown(ClientResources::clientSocketsSSL[clientIndex]);
+                SSL_free(ClientResources::clientSocketsSSL[clientIndex]);
+                close(ClientResources::clientSocketsTcp[clientIndex]);
 
-                // std::cout << "connectedClients size: " << connectedClients.size() << std::endl;
-                auto DeleteClientTcpSocket = std::remove(connectedClients.begin(), connectedClients.end(), connectedClients[clientIndex]);
-                connectedClients.erase(DeleteClientTcpSocket, connectedClients.end());
+                // std::cout << "ClientResources::clientSocketsTcp size: " << ClientResources::clientSocketsTcp.size() << std::endl;
+                auto DeleteClientTcpSocket = std::remove(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), ClientResources::clientSocketsTcp[clientIndex]);
+                ClientResources::clientSocketsTcp.erase(DeleteClientTcpSocket, ClientResources::clientSocketsTcp.end());
 
-                auto DeleteClientSSLSocket = std::remove(SSLsocks.begin(), SSLsocks.end(), SSLsocks[clientIndex]);
-                SSLsocks.erase(DeleteClientSSLSocket, SSLsocks.end());
+                auto DeleteClientSSLSocket = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), ClientResources::clientSocketsSSL[clientIndex]);
+                ClientResources::clientSocketsSSL.erase(DeleteClientSSLSocket, ClientResources::clientSocketsSSL.end());
             }
 
-            if ((unsigned)clientIndex < PasswordVerifiedClients.size())
-                PasswordVerifiedClients.erase(PasswordVerifiedClients.begin() + clientIndex);
+            if ((unsigned)clientIndex < ClientResources::passwordVerifiedClients.size())
+                ClientResources::passwordVerifiedClients.erase(ClientResources::passwordVerifiedClients.begin() + clientIndex);
 
-            if ((unsigned)clientIndex < clientUsernames.size())
+            if ((unsigned)clientIndex < ClientResources::clientUsernames.size())
             {
-                auto deleteClientUsername = std::find(clientUsernames.begin(), clientUsernames.end(), clientUsernames[clientIndex]);
+                auto deleteClientUsername = std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), ClientResources::clientUsernames[clientIndex]);
 
-                if (deleteClientUsername != clientUsernames.end())
-                    clientUsernames.erase(deleteClientUsername);
+                if (deleteClientUsername != ClientResources::clientUsernames.end())
+                    ClientResources::clientUsernames.erase(deleteClientUsername);
 
-                auto deleteClientKeyContents = std::find(clientsKeyContents.begin(), clientsKeyContents.end(), clientsKeyContents[clientIndex]);
-                clientsKeyContents.erase(deleteClientKeyContents);
+                auto deleteClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
+                ClientResources::clientsKeyContents.erase(deleteClientKeyContents);
 
-                Delete::DeletePath(PublicPath(clientUsernames[clientIndex])); // delete client key file
+                Delete::DeletePath(PublicPath(ClientResources::clientUsernames[clientIndex])); // delete client key file
             }
 
             std::cout << "Client clean up finished" << std::endl;
