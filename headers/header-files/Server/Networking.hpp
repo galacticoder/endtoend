@@ -103,7 +103,7 @@ public:
         return ClientHashedIp;
     }
 
-    static void pingClient(SSL *clientSocketSSL, int &clientTcpSocket, int &clientServerPort, unsigned int &clientIndex)
+    static void pingClient(SSL *clientSocketSSL, int &clientServerPort, unsigned int &clientIndex)
     {
         std::cout << "Started thread for pinging client" << std::endl;
         while (1)
@@ -126,7 +126,7 @@ public:
                     std::cout << "Kicking client index: " << clientIndex << std::endl;
 
                     if (ClientResources::cleanUpInPing != false)
-                        ClientResources::clientSocketsTcp.size() > 0 ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, clientSocketSSL, clientTcpSocket);
+                        ClientResources::clientSocketsTcp.size() > 0 ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, clientSocketSSL);
                     else
                     {
                         std::cout << "cleanUpInPing is false. Clean up occuring somewhere else." << std::endl;
@@ -153,6 +153,13 @@ public:
         ServerSettings::exitSignal = 1;
         std::cout << "Set exit signal to 1" << std::endl;
         return;
+    }
+
+    static int acceptClientConnection(int &serverSocket)
+    {
+        sockaddr_in clientAddress;
+        socklen_t clientLen = sizeof(clientAddress);
+        return accept(serverSocket, (struct sockaddr *)&clientAddress, &clientLen);
     }
 };
 

@@ -28,7 +28,7 @@ public:
 
         std::cout << "Waiting to receive password from client.." << std::endl;
 
-        std::string receivedPasswordCipher = Receive::ReceiveMessageSSL(clientSSLSocket);
+        std::string receivedPasswordCipher = Receive::ReceiveMessageSSL<__LINE__>(clientSSLSocket);
         std::cout << "Password cipher recieved from client: " << receivedPasswordCipher << std::endl;
 
         EVP_PKEY *serverPrivateKey = LoadKey::LoadPrivateKey(ServerPrivateKeyPath);
@@ -124,20 +124,20 @@ public:
         return 0;
     }
 
-    static int CheckUserLimitReached(SSL *userSSLSocket, int &userTcpSocket, const unsigned int &limitOfUsers)
+    static int CheckUserLimitReached(SSL *userSSLSocket, const unsigned int &limitOfUsers)
     {
         if (ClientResources::clientUsernames.size() == limitOfUsers)
         {
             const std::string userLimitReachedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERLIMIT, 1);
             Send::SendMessage(userSSLSocket, userLimitReachedMessage);
-            CleanUp::CleanUpClient(-1, userSSLSocket, userTcpSocket);
+            CleanUp::CleanUpClient(-1, userSSLSocket);
             std::cout << "Kicked user that tried to join over users limit" << std::endl;
             return -1;
         }
         return 0;
     }
 
-    static int CheckUserRatelimited(SSL *userSSLSocket, int &userTcpSocket, const std::string &ClientHashedIp)
+    static int CheckUserRatelimited(SSL *userSSLSocket, const std::string &ClientHashedIp)
     {
         // check for timeout on ip
         if (ClientResources::amountOfTriesFromIP[ClientHashedIp] >= 3) // also check the time with the condition later
@@ -147,7 +147,7 @@ public:
 
             const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
             Send::SendMessage(userSSLSocket, userRatelimitedMessage);
-            CleanUp::CleanUpClient(-1, userSSLSocket, userTcpSocket);
+            CleanUp::CleanUpClient(-1, userSSLSocket);
             std::cout << "Client kicked for attempting to join too frequently" << std::endl;
             return -1;
         }
@@ -157,7 +157,7 @@ public:
         return 0;
     }
 
-    static int CheckRequestNeededForServer(SSL *userSSLsocket, int &userTcpSocket, bool &requestNeeded, const std::string &ClientHashedIp)
+    static int CheckRequestNeededForServer(SSL *userSSLsocket, bool &requestNeeded, const std::string &ClientHashedIp)
     { // checks if users need to send a request to the server to join
         if (requestNeeded != true)
         {
@@ -188,7 +188,7 @@ public:
         Send::SendMessage(userSSLsocket, userNotAcceptedMessage);
         ClientResources::serverJoinRequests.pop();
         std::cout << "\nUser has been not been allowed in server" << std::endl;
-        CleanUp::CleanUpClient(-1, userSSLsocket, userTcpSocket);
+        CleanUp::CleanUpClient(-1, userSSLsocket);
         return -1;
     }
 };

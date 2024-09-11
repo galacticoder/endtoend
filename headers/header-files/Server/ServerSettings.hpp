@@ -3,15 +3,18 @@
 #include <iostream>
 #include <vector>
 #include <queue>
+#include <map>
+#include <chrono>
 #include <openssl/ssl.h>
 
 class ServerSettings
 {
 public:
+    static std::string serverHash;
     inline static const unsigned int limitOfUsers = 2;
     inline static thread_local short timeLimit = 90;
+    inline static thread_local bool exitSignal = false;
     inline static long int totalClientJoins;
-    inline static thread_local short exitSignal = 0;
     inline static unsigned long pingCount = 0;
     inline static bool passwordNeeded;
     inline static bool requestNeeded;

@@ -1,4 +1,18 @@
 // https://github.com/galacticoder
+#include <iostream>
+#include <boost/asio.hpp>
+#include <chrono>
+#include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <fmt/core.h>
+#include <mutex>
+#include <netinet/in.h>
+#include <regex>
+#include <sys/socket.h>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 #include "headers/header-files/Server/SendAndReceive.hpp"
 #include "headers/header-files/Server/Decryption.hpp"
 #include "headers/header-files/Server/Encryption.hpp"
@@ -10,31 +24,14 @@
 #include "headers/header-files/Server/TLS.hpp"
 #include "headers/header-files/Server/hostHttp.h"
 #include "headers/header-files/Server/ServerSettings.hpp"
-#include <boost/asio.hpp>
-#include <chrono>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <fmt/core.h>
-#include <iostream>
-#include <mutex>
-#include <netinet/in.h>
-#include <regex>
-#include <sys/socket.h>
-#include <thread>
-#include <unistd.h>
-#include <vector>
 
 std::mutex clientsMutex;
-
-void skip() {};
 
 std::function<void(int)> shutdownHandler;
 void signalHandleServer(int signal) { shutdownHandler(signal); }
 
 void waitTimer(const std::string hashedClientIp)
 {
-  // std::lock_guard<std::mutex> lock(mutex);
   static std::default_random_engine generator(time(0));
   static std::uniform_int_distribution<int> distribution(10, 30);
 
@@ -77,9 +74,9 @@ std::string getTime()
   ss << tHour << ":" << (localTime->tm_min < 10 ? "0" : "") << localTime->tm_min << " " << (isPM ? "PM" : "AM");
   std::string formattedTime = ss.str();
 
-  std::regex time_pattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
+  std::regex timePattern(R"(\b\d{2}:\d{2}:\d{2}\b)");
   std::smatch match;
-  if (regex_search(stringFormatTime, match, time_pattern))
+  if (regex_search(stringFormatTime, match, timePattern))
   {
     std::string str = match.str(0);
     size_t pos = stringFormatTime.find(str);
@@ -121,73 +118,66 @@ void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
   return;
 }
 
-void handleClient(SSL *clientSocket, int &clientTcpSocket, bool &passwordNeeded, const std::string &clientHashedIp, const std::string &serverHash)
+void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &clientHashedIp, const std::string &serverHash)
 {
   try
   {
-    std::string getClientConnectionSignal = Receive::ReceiveMessageSSL(clientSocket);
+    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
 
-    if (getClientConnectionSignal != ServerSetMessage::GetMessageBySignal(SignalType::CONNECTIONSIGNAL))
+    while (ServerSettings::exitSignal != true)
     {
-      CleanUp::CleanUpClient(-1, clientSocket, clientTcpSocket);
-      std::cout << "Kicked user due to not sending connection signal" << std::endl;
-      return;
-    }
+      std::cout << "Client server port: " << clientServerPort << std::endl;
 
-    const std::string clientServerPort = Receive::ReceiveMessageSSL(clientSocket);
+      try
+      {
+        ClientResources::clientServerPorts[clientHashedIp] = atoi(clientServerPort.c_str());
+      }
+      catch (const std::exception &e)
+      {
+        std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
+        std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
+        CleanUp::CleanUpClient(-1, clientSocket);
+        return;
+      }
 
-    std::cout << "Client server port: " << clientServerPort << std::endl;
+      int clientServerPortInt = ClientResources::clientServerPorts[clientHashedIp];
+      std::cout << "clientServerPortInt: " << clientServerPortInt << std::endl;
 
-    try
-    {
-      ClientResources::clientServerPorts[clientHashedIp] = atoi(clientServerPort.c_str());
-    }
-    catch (const std::exception &e)
-    {
-      std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
-      std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
-      CleanUp::CleanUpClient(-1, clientSocket, clientTcpSocket);
-      return;
-    }
+      {
+        std::lock_guard<std::mutex> lock(clientsMutex);
+        ClientResources::clientSocketsTcp.push_back(clientTcpSocket);
+        ClientResources::clientSocketsSSL.push_back(clientSocket);
+      }
 
-    int clientServerPortInt = ClientResources::clientServerPorts[clientHashedIp];
-    std::cout << "clientServerPortInt: " << clientServerPortInt << std::endl;
+      // find Client index to use for deleting and managing client
+      unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
 
-    {
-      std::lock_guard<std::mutex> lock(clientsMutex);
-      ClientResources::clientSocketsTcp.push_back(clientTcpSocket);
-      ClientResources::clientSocketsSSL.push_back(clientSocket);
-    }
+      std::thread(Networking::pingClient, clientSocket, std::ref(clientServerPortInt), std::ref(clientIndex)).detach();
 
-    unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin(); // find Client index to use for deleting and managing client
-
-    std::thread(Networking::pingClient, clientSocket, std::ref(clientTcpSocket), std::ref(clientServerPortInt), std::ref(clientIndex)).detach();
-
-    while (ServerSettings::exitSignal != 1)
-    {
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
         ClientResources::passwordVerifiedClients.push_back(0);
       }
 
       std::cout << "Size of clientHashVerifiedClients vector: " << ClientResources::passwordVerifiedClients.size() << std::endl;
-      std::cout << "Password needed: " << passwordNeeded << std::endl;
+      std::cout << "Password needed: " << ServerSettings::passwordNeeded << std::endl;
 
       std::cout << "Sending password signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
 
-      const std::string passwordNeededSignal = passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
+      const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
 
       Send::SendMessage(clientSocket, passwordNeededSignal);
 
       if (HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, clientHashedIp, serverHash) != 0)
         return;
 
-      std::string clientUsername = Receive::ReceiveMessageSSL(clientSocket);
+      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
 
       if (HandleClient::ClientUsernameValidity(clientSocket, clientIndex, clientUsername) != 0)
         return;
 
-      Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)); // send the user an okay signal if their username is validated
+      // send the user an okay signal if their username is validated
+      Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
@@ -205,7 +195,7 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, bool &passwordNeeded,
       const std::string userPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
       // receive the client public key and save it
-      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL(clientSocket);
+      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
       std::string decodedUserPublicKey = Decode::Base64Decode(encodedUserPublicKey);
       SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
@@ -248,7 +238,7 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, bool &passwordNeeded,
 
       EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
 
-      !LoadedUserPubKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, "Cannot load user key for sending join message") : skip();
+      !LoadedUserPubKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, "Cannot load user key for sending join message") : (void)0;
 
       std::string encryptedJoinMessage = Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage);
       EVP_PKEY_free(LoadedUserPubKey);
@@ -313,7 +303,6 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, bool &passwordNeeded,
         }
       }
 
-      // GetUsersConnected();
       if (ClientResources::clientUsernames.size() < 1)
       {
         std::cout << "Shutting down server due to no users." << std::endl;
@@ -335,7 +324,7 @@ int main()
   SSL_CTX *serverCtx;
   int serverSocket;
 
-  const std::string serverHash = NcursesMenu::StartMenu();
+  ServerSettings::serverHash = NcursesMenu::StartMenu();
   signal(SIGINT, signalHandleServer);
 
   // setup signal handler
@@ -347,8 +336,7 @@ int main()
     exit(signal);
   };
 
-  // find available port to use and setup the server to start listening for
-  // connections
+  // find available port to use and setup the server to start listening for connections
   int port = Networking::findAvailablePort();
   serverSocket = Networking::startServerSocket(port);
 
@@ -386,30 +374,29 @@ int main()
   std::thread(startHost).detach();
   std::cout << "Started hosting server cert key" << std::endl;
 
-  // sigignore(SIGPIPE);
   signal(SIGPIPE, SIG_IGN);
 
   while (true)
   {
-    // check if its a ping or user
-    sockaddr_in clientAddress;
-    socklen_t clientLen = sizeof(clientAddress);
-    int clientSocketTCP = accept(serverSocket, (struct sockaddr *)&clientAddress, &clientLen);
+    // check if its a ping or user connection request
+    int clientSocketTCP = Networking::acceptClientConnection(serverSocket);
+    SSL *clientSocketSSL = nullptr;
 
     std::string getClientConnectionSignal = Receive::ReceiveMessageTcp(clientSocketTCP);
 
     if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::CONNECTIONSIGNAL))
     {
+      std::cout << "User sent the connection signal. Continuing with connection" << std::endl;
       const std::string okaySignalMessage = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
       send(clientSocketTCP, okaySignalMessage.c_str(), okaySignalMessage.length(), 0);
 
-      SSL *clientSocketSSL = SSL_new(serverCtx);
+      clientSocketSSL = SSL_new(serverCtx);
       SSL_set_fd(clientSocketSSL, clientSocketTCP);
 
       if (SSL_accept(clientSocketSSL) <= 0)
       {
         ERR_print_errors_fp(stderr);
-        CleanUp::CleanUpClient(-1, clientSocketSSL, clientSocketTCP);
+        CleanUp::CleanUpClient(-1, clientSocketSSL);
         std::cout << "Closed user that failed at SSL/TLS handshake" << std::endl;
         continue;
       }
@@ -424,22 +411,10 @@ int main()
 
       std::cout << "Client hashed ip amount of tries: " << ClientResources::amountOfTriesFromIP[clientHashedIp] << std::endl;
 
-      int userLimitReachedCheck = HandleClient::CheckUserLimitReached(clientSocketSSL, clientSocketTCP, ServerSettings::limitOfUsers);
-
-      if (userLimitReachedCheck == -1)
+      if (HandleClient::CheckUserRatelimited(clientSocketSSL, clientHashedIp) == -1 || HandleClient::CheckUserLimitReached(clientSocketSSL, ServerSettings::limitOfUsers) == -1 || HandleClient::CheckRequestNeededForServer(clientSocketSSL, ServerSettings::requestNeeded, clientHashedIp) == -1)
         continue;
 
-      int userRateLimitedCheck = HandleClient::CheckUserRatelimited(clientSocketSSL, clientSocketTCP, clientHashedIp);
-
-      if (userRateLimitedCheck == -1)
-        continue;
-
-      int requestNeededForServerCheck = HandleClient::CheckRequestNeededForServer(clientSocketSSL, clientSocketTCP, ServerSettings::requestNeeded, clientHashedIp);
-
-      if (requestNeededForServerCheck == -1)
-        continue;
-
-      std::thread(handleClient, clientSocketSSL, std::ref(clientSocketTCP), std::ref(ServerSettings::passwordNeeded), std::ref(clientHashedIp), std::ref(serverHash)).detach();
+      std::thread(handleClient, clientSocketSSL, std::ref(clientSocketTCP), std::ref(clientHashedIp)).detach();
     }
 
     else if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::PING))

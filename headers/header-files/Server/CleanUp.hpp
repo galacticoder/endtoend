@@ -40,40 +40,32 @@ public:
         CleanUpOpenSSL();
     }
 
-    static void CleanUpClient(int clientIndex, SSL *ClientSSLsocket = NULL, int ClientTCPsocket = -1)
+    static void CleanUpClient(int clientIndex, SSL *clientSocketSSL = NULL)
     {
         try
         {
             std::lock_guard<std::mutex> lock(ClientMutex);
 
-            if (ClientTCPsocket != -1 && clientIndex == -1 && ClientSSLsocket != NULL)
-            {
-                SSL_shutdown(ClientSSLsocket);
-                SSL_free(ClientSSLsocket);
-                close(ClientTCPsocket);
-
-                auto DeleteClientTcpSocket = std::remove(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), ClientTCPsocket);
-                ClientResources::clientSocketsTcp.erase(DeleteClientTcpSocket, ClientResources::clientSocketsTcp.end());
-
-                auto DeleteClientSSLSocket = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), ClientSSLsocket);
-                ClientResources::clientSocketsSSL.erase(DeleteClientSSLSocket, ClientResources::clientSocketsSSL.end());
-
-                std::cout << "Client clean up finished" << std::endl;
-                return;
-            }
-
             if (ClientResources::clientSocketsSSL.size() > 0)
             {
-                SSL_shutdown(ClientResources::clientSocketsSSL[clientIndex]);
-                SSL_free(ClientResources::clientSocketsSSL[clientIndex]);
-                close(ClientResources::clientSocketsTcp[clientIndex]);
+                SSL_shutdown(clientSocketSSL);
+                SSL_free(clientSocketSSL);
 
-                // std::cout << "ClientResources::clientSocketsTcp size: " << ClientResources::clientSocketsTcp.size() << std::endl;
-                auto DeleteClientTcpSocket = std::remove(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), ClientResources::clientSocketsTcp[clientIndex]);
-                ClientResources::clientSocketsTcp.erase(DeleteClientTcpSocket, ClientResources::clientSocketsTcp.end());
+                auto sslSocketIndex = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), clientSocketSSL);
 
-                auto DeleteClientSSLSocket = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), ClientResources::clientSocketsSSL[clientIndex]);
-                ClientResources::clientSocketsSSL.erase(DeleteClientSSLSocket, ClientResources::clientSocketsSSL.end());
+                close(ClientResources::clientSocketsTcp[(sslSocketIndex)-ClientResources::clientSocketsSSL.begin()]);
+
+                auto tcpSocketIndex = std::remove(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), ClientResources::clientSocketsTcp[(sslSocketIndex)-ClientResources::clientSocketsSSL.begin()]);
+
+                ClientResources::clientSocketsSSL.erase(sslSocketIndex, ClientResources::clientSocketsSSL.end());
+
+                ClientResources::clientSocketsTcp.erase(tcpSocketIndex, ClientResources::clientSocketsTcp.end());
+
+                if (clientIndex == -1)
+                {
+                    std::cout << "Client clean up finished" << std::endl;
+                    return;
+                }
             }
 
             if ((unsigned)clientIndex < ClientResources::passwordVerifiedClients.size())

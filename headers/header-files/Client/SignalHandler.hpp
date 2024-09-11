@@ -74,6 +74,48 @@ auto CheckBase64 = [](const std::string &message)
 
 class SignalHandling
 {
+private:
+    static std::string hashSignals(const std::string &data)
+    {
+        unsigned char hash[EVP_MAX_MD_SIZE];
+        unsigned int lenHash = 0;
+        EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+        if (mdctx == nullptr)
+        {
+            std::cout << "Error creating ctx" << std::endl;
+            return "err";
+        }
+
+        if (EVP_DigestInit_ex(mdctx, EVP_sha512(), nullptr) != 1)
+        {
+            std::cout << "Error initializing digest" << std::endl;
+            EVP_MD_CTX_free(mdctx);
+            return "err";
+        }
+
+        if (EVP_DigestUpdate(mdctx, data.c_str(), data.size()) != 1)
+        {
+            std::cout << "Error updating digest" << std::endl;
+            EVP_MD_CTX_free(mdctx);
+            return "err";
+        }
+        if (EVP_DigestFinal_ex(mdctx, hash, &lenHash) != 1)
+        {
+            std::cout << "Error finalizing digest" << std::endl;
+            EVP_MD_CTX_free(mdctx);
+            return "err";
+        }
+
+        EVP_MD_CTX_free(mdctx);
+
+        std::stringstream ss;
+        for (unsigned int i = 0; i < lenHash; ++i)
+        {
+            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+        }
+        return ss.str(); // returning hash
+    }
+
 public:
     static void handleSignal(SignalType signal, const std::string &msg, SSL *tlsSock = NULL, EVP_PKEY *receivedPublicKey = NULL)
     {

@@ -143,6 +143,7 @@ int main()
 
     // start connection to server using tls
     StartTLS(serverIp, certPath, serverPubKeyPath, port);
+
     // start client server and pinging to the server
     std::thread(http::serverMake).detach();
     std::thread(http::pingServer, serverIp.c_str(), port).detach();

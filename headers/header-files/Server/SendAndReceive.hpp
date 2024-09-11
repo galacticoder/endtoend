@@ -37,14 +37,14 @@ public:
         Send::SendMessage(clientSocket, keyContents); // send the encoded key
     }
 
-    static void SendMessage(SSL *socket, const std::string &message)
+    static void SendMessage(SSL *clientSocketSSL, const std::string &message)
     { // send the full message without missing bytes
         try
         {
             unsigned long int totalBytesWritten = 0;
             while (totalBytesWritten < message.length())
             {
-                int bytesWritten = SSL_write(socket, message.c_str() + totalBytesWritten, message.length() - totalBytesWritten);
+                int bytesWritten = SSL_write(clientSocketSSL, message.c_str() + totalBytesWritten, message.length() - totalBytesWritten);
 
                 if (bytesWritten > 0)
                 {
@@ -52,7 +52,7 @@ public:
                 }
                 else
                 {
-                    int errorCode = SSL_get_error(socket, bytesWritten);
+                    int errorCode = SSL_get_error(clientSocketSSL, bytesWritten);
                     std::cout << "Error occured during sending in SendMessage. SSL error: " << errorCode << std::endl;
                     break;
                 }
@@ -64,21 +64,23 @@ public:
             std::cout << "Exception caught in SendMessage: " << e.what() << std::endl;
         }
     }
+
     static void BroadcastMessage(SSL *senderSocket, const std::string &message)
     {
-        for (SSL *socket : ClientResources::clientSocketsSSL)
+        for (SSL *clientSocketSSL : ClientResources::clientSocketsSSL)
         {
-            if (socket != senderSocket)
+            if (clientSocketSSL != senderSocket)
             {
-                std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
-                SendMessage(socket, message);
+                std::cout << "Sending message to tls sock [" << clientSocketSSL << "]" << std::endl;
+                SendMessage(clientSocketSSL, message);
             }
         }
     }
-    static void BroadcastEncryptedExitMessage(unsigned int &ClientIndex, int clientToSendMsgIndex)
+
+    static void BroadcastEncryptedExitMessage(unsigned int &clientIndex, int clientToSendMsgIndex)
     {
-        std::cout << "Broadcasting exit message of user " << ClientResources::clientUsernames[ClientIndex] << "to " << ClientResources::clientUsernames[clientToSendMsgIndex] << std::endl;
-        std::string UserExitMessage = fmt::format("{} has left the chat", ClientResources::clientUsernames[ClientIndex]);
+        std::cout << "Broadcasting exit message of user " << ClientResources::clientUsernames[clientIndex] << "to " << ClientResources::clientUsernames[clientToSendMsgIndex] << std::endl;
+        std::string UserExitMessage = fmt::format("{} has left the chat", ClientResources::clientUsernames[clientIndex]);
         EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(ClientResources::clientUsernames[clientToSendMsgIndex])); // load other user public key
         if (!LoadedUserPublicKey)
         {
@@ -92,7 +94,7 @@ public:
 
         if (EncryptedExitMessage != "err" && !EncryptedExitMessage.empty())
         {
-            std::cout << fmt::format("Broadcasting user [{}]'s exit message", ClientResources::clientUsernames[ClientIndex]) << std::endl;
+            std::cout << fmt::format("Broadcasting user [{}]'s exit message", ClientResources::clientUsernames[clientIndex]) << std::endl;
             Send::BroadcastMessage(ClientResources::clientSocketsSSL[clientToSendMsgIndex], EncryptedExitMessage);
         }
 
@@ -100,15 +102,18 @@ public:
     }
 };
 
-struct Receive
+class Receive
 {
+public:
     Receive() = default;
-    static std::string ReceiveMessageSSL(SSL *socket)
+
+    template <auto lineNumberCalled>
+    static std::string ReceiveMessageSSL(SSL *clientSocketSSL)
     {
         try
         {
             char buffer[2048] = {0};
-            ssize_t bytes = SSL_read(socket, buffer, sizeof(buffer) - 1);
+            ssize_t bytes = SSL_read(clientSocketSSL, buffer, sizeof(buffer) - 1);
             buffer[bytes] = '\0';
             std::string msg(buffer);
 
@@ -118,16 +123,20 @@ struct Receive
             }
             else
             {
-                int error = SSL_get_error(socket, bytes);
-                std::cout << "Error occured during reading in receiveMessage. SSL error: " << error << std::endl;
+                int error = SSL_get_error(clientSocketSSL, bytes);
+                std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: {}", "x" /*replacethis with __FILE__*/, lineNumberCalled, error) << std::endl;
             }
         }
         catch (const std::exception &e)
         {
             std::cout << "Exception caught in receiveMessage: " << e.what() << std::endl;
         }
+
+        CleanUp::CleanUpClient(-1, clientSocketSSL);
+        ServerSettings::exitSignal = true;
         return "";
     }
+
     static std::string ReceiveMessageTcp(int &clientTcpsocket)
     {
         try
