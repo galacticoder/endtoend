@@ -30,34 +30,36 @@ std::mutex clientsMutex;
 std::function<void(int)> shutdownHandler;
 void signalHandleServer(int signal) { shutdownHandler(signal); }
 
-void waitTimer(const std::string hashedClientIp)
+void RateLimitTimer(const std::string hashedClientIp)
 {
   static std::default_random_engine generator(time(0));
   static std::uniform_int_distribution<int> distribution(10, 30);
 
   int additionalDelay = distribution(generator);
-  ServerSettings::timeLimit += additionalDelay;
 
-  std::cout << "Starting timer timeout for user with hash ip: " << hashedClientIp << std::endl;
+  ClientResources::clientTimeLimits[hashedClientIp] = ServerSettings::defaultTimeLimit + additionalDelay;
 
-  while (ServerSettings::timeLimit != 0)
+  std::cout << "Starting timer timeout for user for hashed ip: " << hashedClientIp << std::endl;
+
+  while (ClientResources::clientTimeLimits[hashedClientIp] != 0)
   {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    ServerSettings::timeLimit--;
-    std::cout << fmt::format("Timer user [{}..]: ", hashedClientIp.substr(0, hashedClientIp.length() / 4)) << ServerSettings::timeLimit << std::endl;
+    ClientResources::clientTimeLimits[hashedClientIp]--;
+    std::cout << fmt::format("Hashed ip [{}] time remaining: {}", TrimmedHashedIp(hashedClientIp), ClientResources::clientTimeLimits[hashedClientIp]) << std::endl;
     std::cout << "\x1b[A";
     std::cout << eraseLine;
   }
 
   ClientResources::amountOfTriesFromIP[hashedClientIp] = 0;
   ClientResources::timeMap[hashedClientIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-  ServerSettings::timeLimit = 90;
-  std::cout << fmt::format("Tries for IP hash ({}) has been resetted and can now join", hashedClientIp) << std::endl;
+  ClientResources::clientTimeLimits[hashedClientIp] = ServerSettings::defaultTimeLimit;
+
+  std::cout << fmt::format("Tries for hashed ip [{}] has been resetted and can now join", TrimmedHashedIp(hashedClientIp)) << std::endl;
 
   return;
 }
 
-std::string getTime()
+std::string GetTime()
 {
   auto now = std::chrono::system_clock::now();
   std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
@@ -101,7 +103,7 @@ void GetUsersConnected()
   clientUsernamesString.size() <= 0 ? std::cout << "No connected clients" << std::endl : std::cout << fmt::format("Connected clients: {}", clientUsernamesString) << std::endl;
 };
 
-void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
+void WaitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
 {
   std::cout << "1 client connected. Waiting for another client to connect to continue" << std::endl;
 
@@ -119,11 +121,12 @@ void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
   return;
 }
 
-void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &clientHashedIp)
+void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string &clientHashedIp)
 {
   try
   {
-    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
+    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+    unsigned int clientIndex = -1;
 
     while (ServerSettings::exitSignal != true)
     {
@@ -137,23 +140,20 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
       {
         std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
         std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
-        CleanUp::CleanUpClient(-1, clientSocket);
+        CleanUp::CleanUpClient(clientIndex, clientSocketSSL);
         return;
       }
-
-      int clientServerPortInt = ClientResources::clientServerPorts[clientHashedIp];
-      std::cout << "clientServerPortInt: " << clientServerPortInt << std::endl;
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
         ClientResources::clientSocketsTcp.push_back(clientTcpSocket);
-        ClientResources::clientSocketsSSL.push_back(clientSocket);
+        ClientResources::clientSocketsSSL.push_back(clientSocketSSL);
       }
 
       // find Client index to use for deleting and managing client
-      unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
+      clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
 
-      std::thread(Networking::pingClient, clientSocket, std::ref(clientServerPortInt), std::ref(clientIndex)).detach();
+      std::thread(Networking::pingClient, clientSocketSSL, std::ref(clientIndex), clientHashedIp).detach();
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
@@ -167,18 +167,18 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
 
       const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
 
-      Send::SendMessage(clientSocket, passwordNeededSignal);
+      Send::SendMessage(clientSocketSSL, passwordNeededSignal);
 
-      if (HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, clientHashedIp, ServerSettings::serverHash) != 0)
+      if (HandleClient::ClientPasswordVerification(clientSocketSSL, clientIndex, ServerPrivateKeyPath, clientHashedIp, ServerSettings::serverHash) != 0)
         return;
 
-      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
+      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
 
-      if (HandleClient::ClientUsernameValidity(clientSocket, clientIndex, clientUsername) != 0)
+      if (HandleClient::ClientUsernameValidity(clientSocketSSL, clientIndex, clientUsername) != 0)
         return;
 
       // send the user an okay signal if their username is validated
-      Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
+      Send::SendMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
@@ -189,71 +189,56 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
       std::cout << "Sending usersactive amount" << std::endl;
-      Send::SendMessage(clientSocket, std::to_string(ClientResources::clientUsernames.size())); // send the connected users amount
+      Send::SendMessage(clientSocketSSL, std::to_string(ClientResources::clientUsernames.size())); // send the connected users amount
       std::cout << "Sent usersactive amount: " << ClientResources::clientUsernames.size() << std::endl;
 
       const std::string userPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
       // receive the client public key and save it
-      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
+      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
       std::string decodedUserPublicKey = Decode::Base64Decode(encodedUserPublicKey);
       SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
       if (!std::filesystem::is_regular_file(userPublicKeyPath))
-        Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::KEYEXISTERR, fmt::format("User [{}] public key file on server does not exist", clientUsername));
+        Error::CaughtERROR(SignalType::KEYEXISTERR, clientIndex, fmt::format("User [{}] public key file on server does not exist", clientUsername));
 
       EVP_PKEY *testLoadKey = LoadKey::LoadPublicKey(userPublicKeyPath);
 
-      !testLoadKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
+      !testLoadKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
-      const std::string keyReceived = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex]));
+      ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex])));
 
-      std::cout << "Received key: " << keyReceived << std::endl;
-      ClientResources::clientsKeyContents.push_back(keyReceived);
+      Send::SendMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
 
-      Send::SendMessage(clientSocket, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
+      if (ClientResources::clientUsernames.size() == 2 || ServerSettings::totalClientJoins > 2)
+        Send::SendKey(clientSocketSSL, 0, clientIndex);
+      else
+        std::thread(WaitForAnotherClient, clientSocketSSL, std::ref(clientIndex)).join();
 
-      switch (ClientResources::clientUsernames.size())
-      {
-      case 2: // if clientusernames vector is 2
-        Send::SendKey(clientSocket, 0, clientIndex);
-        break;
-      case 1: // if clientusernames vector is 1
-        std::thread(waitForAnotherClient, clientSocket, std::ref(clientIndex)).join();
-        break;
-      default:
-        return;
-      }
+      auto NameJoinFormat = [](const std::string name)
+      { return fmt::format("{} has joined the chat", name); };
 
-      if (ServerSettings::totalClientJoins > 2)
-        Send::SendKey(clientSocket, 0, clientIndex);
-
-      const std::string serverJoinMessage = fmt::format("{} has joined the chat", clientUsername);
-
-      std::string userJoinMessage;
-
-      bool isConnected = true;
-
-      clientIndex < 1 ? userJoinMessage = fmt::format("{} has joined the chat", ClientResources::clientUsernames[clientIndex + 1]) : userJoinMessage = fmt::format("{} has joined the chat", ClientResources::clientUsernames[clientIndex - 1]);
+      std::string userJoinMessage = clientIndex < 1 ? userJoinMessage = NameJoinFormat(ClientResources::clientUsernames[clientIndex + 1]) : userJoinMessage = NameJoinFormat(ClientResources::clientUsernames[clientIndex - 1]);
 
       EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
 
-      !LoadedUserPubKey ? Error::CaughtERROR(clientUsername, clientIndex, clientSocket, SignalType::LOADERR, "Cannot load user key for sending join message") : (void)0;
+      !LoadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
 
-      std::string encryptedJoinMessage = Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage);
+      Send::SendMessage(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage))); // send base 64 encoded and encrypted user join message
+
       EVP_PKEY_free(LoadedUserPubKey);
-      encryptedJoinMessage = Encode::Base64Encode(encryptedJoinMessage);
-      Send::SendMessage(clientSocket, encryptedJoinMessage);
-      std::cout << serverJoinMessage << std::endl;
 
+      std::cout << NameJoinFormat(clientUsername) << std::endl;
       GetUsersConnected();
+
+      bool isConnected = true;
 
       while (isConnected)
       {
         std::string exitMsg = fmt::format("{} has left the chat", clientUsername);
-        char buffer[4096] = {0};
-        ssize_t bytesReceived = SSL_read(clientSocket, buffer, sizeof(buffer));
-        if (bytesReceived == 0)
+        std::string receivedData = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+
+        if (receivedData.empty())
         {
           std::cout << exitMsg << std::endl;
           ClientResources::cleanUpInPing = false;
@@ -265,41 +250,36 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
           }
 
-          CleanUp::CleanUpClient(clientIndex);
-
           GetUsersConnected();
+          return;
         }
 
-        buffer[bytesReceived] = '\0';
-        std::string receivedData(buffer);
         std::cout << "Received data: " << receivedData << std::endl;
         std::cout << "Ciphertext message length: " << receivedData.length() << std::endl;
-        std::string cipherText = receivedData;
 
-        if (cipherText.length() < 4096)
-        {
-          const std::string CurrentTime = getTime();
-          const std::string formattedCipher = clientUsername + "|" + CurrentTime + "|" + cipherText;
-
-          if (Encode::CheckBase64(cipherText) != -1)
-            Send::BroadcastMessage(clientSocket, formattedCipher);
-          else
-            std::cout << "Ciphertext base 64 received invalid. Not sending" << std::endl;
-        }
-        else
+        if (receivedData.length() > 4096)
         {
           std::cout << exitMsg << std::endl;
 
           if (ClientResources::clientUsernames.size() > 1)
             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
 
-          {
-            ClientResources::cleanUpInPing = false;
-            CleanUp::CleanUpClient(clientIndex);
-          }
+          ClientResources::cleanUpInPing = false;
+          CleanUp::CleanUpClient(clientIndex);
 
           std::cout << "Kicked user for invalid message length" << std::endl;
           return;
+        }
+
+        const std::string formattedCipher = clientUsername + "|" + GetTime() + "|" + receivedData;
+
+        switch (Encode::CheckBase64(receivedData))
+        {
+        case -1:
+          std::cout << "Ciphertext base 64 received invalid. Not sending" << std::endl;
+          break;
+        default:
+          Send::BroadcastMessage(clientSocketSSL, formattedCipher);
         }
       }
 
@@ -384,8 +364,15 @@ int main()
     if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::CONNECTIONSIGNAL))
     {
       std::cout << "User sent the connection signal. Continuing with connection" << std::endl;
-      const std::string okaySignalMessage = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
-      send(clientSocketTCP, okaySignalMessage.c_str(), okaySignalMessage.length(), 0);
+      send(clientSocketTCP, (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).c_str(), (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).length(), 0); // send the user an okay signal when connecting
+      // get the hashed client ip
+      const std::string clientHashedIp = Networking::GetClientIpHash(clientSocketTCP);
+      if (HandleClient::isBlackListed(clientHashedIp) == true)
+      {
+        close(clientSocketTCP);
+        // send black listed thing;
+        continue;
+      }
 
       SSL *clientSocketSSL = SSL_new(serverCtx);
       SSL_set_fd(clientSocketSSL, clientSocketTCP);
@@ -393,16 +380,21 @@ int main()
       if (SSL_accept(clientSocketSSL) <= 0)
       {
         ERR_print_errors_fp(stderr);
-        CleanUp::CleanUpClient(-1, clientSocketSSL);
+        SSL_shutdown(clientSocketSSL);
+        SSL_free(clientSocketSSL);
+        close(clientSocketTCP);
         std::cout << "Closed user that failed at SSL/TLS handshake" << std::endl;
         continue;
       }
 
-      // get the hashed client ip
-      const std::string clientHashedIp = Networking::GetClientIpHash(clientSocketTCP);
-
-      // increment amount of tries on the users hashed ip (if new user then set to 1)
-      HandleClient::IncrementUserTries(clientHashedIp);
+      if (HandleClient::IncrementUserTries(clientHashedIp) != 0)
+      { // client is blacklisted
+        // Send blacklisted signal
+        SSL_shutdown(clientSocketSSL);
+        SSL_free(clientSocketSSL);
+        close(clientSocketTCP);
+        continue;
+      }
 
       std::cout << "Client hashed ip amount of tries: " << ClientResources::amountOfTriesFromIP[clientHashedIp] << std::endl;
 

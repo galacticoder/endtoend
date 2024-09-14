@@ -54,7 +54,6 @@ public:
                 {
                     unsigned long sslError = ERR_get_error();
                     std::string errorMessage = ERR_error_string(sslError, nullptr);
-                    std::cout << "Error occured during sending in SendMessage. SSL error: " << errorMessage << std::endl;
                     break;
                 }
             }
@@ -128,9 +127,15 @@ public:
                 std::string errorMessage = ERR_error_string(sslError, nullptr);
 
                 if (bytes == 0)
+                {
                     std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: User has disconnected", fileCalledFrom, lineNumberCalled) << std::endl;
+                }
                 else
+                {
                     std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: {}", fileCalledFrom, lineNumberCalled, errorMessage) << std::endl;
+                }
+
+                return "";
             }
         }
         catch (const std::exception &e)

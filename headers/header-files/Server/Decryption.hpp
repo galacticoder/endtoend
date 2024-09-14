@@ -52,10 +52,10 @@ public:
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in Decrypt::DecryptData: " << e.what() << std::endl;
-            return "err";
+            std::cout << fmt::format("Exception caught in {}: {}", __func__, e.what()) << std::endl;
+            return "";
         }
-        return "err";
+        return "";
     }
 };
 

@@ -40,7 +40,7 @@ public:
         CleanUpOpenSSL();
     }
 
-    static void CleanUpClient(int clientIndex, SSL *clientSocketSSL = NULL)
+    static void CleanUpClient(int clientIndex, SSL *clientSocketSSL = nullptr)
     {
         try
         {
@@ -48,8 +48,16 @@ public:
 
             if (ClientResources::clientSocketsSSL.size() > 0)
             {
-                SSL_shutdown(clientSocketSSL);
-                SSL_free(clientSocketSSL);
+                if (clientSocketSSL != nullptr)
+                {
+                    SSL_shutdown(clientSocketSSL);
+                    SSL_free(clientSocketSSL);
+                }
+                else
+                {
+                    SSL_shutdown(ClientResources::clientSocketsSSL[clientIndex]);
+                    SSL_free(ClientResources::clientSocketsSSL[clientIndex]);
+                }
 
                 auto sslSocketIndex = std::remove(ClientResources::clientSocketsSSL.begin(), ClientResources::clientSocketsSSL.end(), clientSocketSSL);
 

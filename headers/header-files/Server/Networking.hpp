@@ -7,6 +7,7 @@
 #include <fmt/core.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include "ServerSettings.hpp"
 #include "Encryption.hpp"
 
 class Networking
@@ -103,9 +104,10 @@ public:
         return ClientHashedIp;
     }
 
-    static void pingClient(SSL *clientSocketSSL, int &clientServerPort, unsigned int &clientIndex)
+    static void pingClient(SSL *clientSocketSSL, unsigned int &clientIndex, const std::string clientHashedIp)
     {
         std::cout << "Started thread for pinging client" << std::endl;
+        int clientServerPort = ClientResources::clientServerPorts[clientHashedIp];
         while (1)
         {
             try
@@ -121,7 +123,7 @@ public:
 
                 if (connect(pingingSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
                 {
-                    std::cout << fmt::format("Client disconnected [CANNOT CONNECT TO SERVER] [P:{}]", clientServerPort) << std::endl;
+                    std::cout << "Client disconnected. Cannot reach client server" << std::endl;
 
                     std::cout << "Kicking client index: " << clientIndex << std::endl;
 
@@ -130,6 +132,7 @@ public:
                     else
                     {
                         std::cout << "cleanUpInPing is false. Clean up occuring somewhere else." << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
                         ClientResources::cleanUpInPing = true; // set back to default
                     }
 

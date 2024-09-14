@@ -42,21 +42,21 @@ std::vector<std::string> ServerMessages = {
     "Wrong password. You have been kicked.",
     "Username already exists on server",
     "Server needs to accept your join request. Waiting for server to accept..",
-    "Rate limit reached. Try again in x seconds",
+    "",
     "The limit of users has been reached for this chat. Exiting..",
     "You request to join the server has been accepted",
     "You request to join the server has not been accepted",
-    "" /*client rejoin signal has no message*/,
+    "N/A" /*client rejoin signal has no message*/,
     "This server is password protected enter the password to join: ",
     "You have entered the server", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
-    "", /*Okay signal has no message*/
+    "N/A", /*Okay signal has no message*/
     "Your request to join the server has been denied",
     "Your request to join the server has been accepted",
-    "" /*connection signal is never sent appended to a message*/,
-    "" /*status check signal is never sent appended to a message*/,
-    "" /*ping back signal is never sent appended to a message*/,
-    "" /*ping signal is never sent appended to a message*/,
+    "N/A" /*connection signal is never sent appended to a message*/,
+    "N/A" /*status check signal is never sent appended to a message*/,
+    "N/A" /*ping back signal is never sent appended to a message*/,
+    "N/A" /*ping signal is never sent appended to a message*/,
 };
 
 enum class SignalType
@@ -89,16 +89,19 @@ enum class SignalType
 class ServerSetMessage
 {
 public:
-    static std::string GetMessageBySignal(SignalType signalType, int AppendSignal = 0 /*Get the message with the signal appended (for sending signal to client)*/)
+    static std::string GetMessageBySignal(SignalType signalType, int appendSignal = 0, const std::string &hashedIp = "N/A")
     {
-        if ((unsigned int)signalType <= ServerMessages.size() && AppendSignal == 0)
+        if (signalType == SignalType::RATELIMITED)
+            ServerMessages[(int)SignalType::RATELIMITED] = fmt::format("Rate limit reached. Try again in {} seconds", ClientResources::clientTimeLimits[hashedIp]); // add the rate limited message to vector every time function called since cant format string in vector
+
+        if ((unsigned int)signalType <= ServerMessages.size() && appendSignal == 0)
             return Encode::Base64Encode(signalStringsVector[(int)signalType]);
 
-        else if ((unsigned int)signalType <= ServerMessages.size() && AppendSignal == 1)
+        else if ((unsigned int)signalType <= ServerMessages.size() && appendSignal == 1)
             return Encode::Base64Encode(ServerMessages[(int)signalType].append(signalStringsVector[(int)signalType]));
 
         else
-            std::cout << "Signal passed to SignalSetType::SetServerMessageBySignal is not a valid signal" << std::endl;
+            std::cout << fmt::format("Signal passed to {} is not a valid signal", __func__) << std::endl;
 
         return "";
     }
@@ -107,17 +110,17 @@ public:
 class Error
 {
 public:
-    static void CaughtERROR(const std::string &clientUsername, unsigned int &clientIndex, SSL *clientSocket, SignalType ERRORTYPE, const std::string &message)
+    static void CaughtERROR(SignalType ERRORTYPE, unsigned int &clientIndex, const std::string &message)
     {
         std::cout << message << std::endl;
         const std::string ErrorMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
 
-        Send::SendMessage(clientSocket, ErrorMessage);
+        Send::SendMessage(ClientResources::clientSocketsSSL[clientIndex], ErrorMessage);
         {
             ClientResources::cleanUpInPing = false;
             CleanUp::CleanUpClient(clientIndex);
         }
-        std::cout << fmt::format("Kicked user [{}]", clientUsername) << std::endl;
+        std::cout << fmt::format("Kicked user [{}]", ClientResources::clientUsernames[clientIndex]) << std::endl;
         return;
     }
 };

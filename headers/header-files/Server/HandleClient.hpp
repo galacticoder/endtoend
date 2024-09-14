@@ -16,7 +16,9 @@
 #include "SignalHandling.hpp"
 #include "bcrypt.h"
 
-extern void waitTimer(const std::string hashedClientIp);
+#define TrimmedHashedIp(hashedIp) (hashedIp.substr(0, hashedIp.length() / 4)).append("..")
+
+extern void RateLimitTimer(const std::string hashedClientIp);
 
 class HandleClient
 {
@@ -46,6 +48,9 @@ public:
         receivedPasswordCipher = Decrypt::DecryptData(serverPrivateKey, decodedPassGet);
         EVP_PKEY_free(serverPrivateKey);
 
+        if (receivedPasswordCipher.empty())
+            return -1;
+
         std::cout << "Validating password hash sent by user" << std::endl;
 
         if (bcrypt::validatePassword(receivedPasswordCipher, serverHashedPassword) != 1)
@@ -53,11 +58,10 @@ public:
             std::cout << "Password not validated" << std::endl;
             const std::string PasswordNotVerifiedMessage = ServerSetMessage::GetMessageBySignal(SignalType::NOTVERIFIED, 1);
             Send::SendMessage(clientSSLSocket, PasswordNotVerifiedMessage); // sends them the not VerifiedMessage message
-            {
-                ClientResources::cleanUpInPing = false; // dont clean up in pingClient function
-                CleanUp::CleanUpClient(clientIndex);
-            }
-            std::cout << fmt::format("User with hashed ip [{}..] has entered the wrong password and has been kicked", clientHashedIp) << std::endl;
+            ClientResources::cleanUpInPing = false;                         // dont clean up in pingClient function
+            CleanUp::CleanUpClient(clientIndex);
+            std::cout << fmt::format("User with hashed ip [{}] has entered the wrong password and has been kicked", TrimmedHashedIp(clientHashedIp)) << std::endl;
+
             return -1;
         }
 
@@ -124,13 +128,28 @@ public:
         return 0;
     }
 
-    static void IncrementUserTries(const std::string &clientHashedIp)
+    static int IncrementUserTries(const std::string &clientHashedIp)
     {
         auto clientIpExistenceCheck = ClientResources::amountOfTriesFromIP.find(clientHashedIp);
 
         clientIpExistenceCheck == ClientResources::amountOfTriesFromIP.end() ? ClientResources::amountOfTriesFromIP[clientHashedIp] = 1 : ClientResources::amountOfTriesFromIP[clientHashedIp]++;
 
-        return;
+        if (ClientResources::amountOfTriesFromIP[clientHashedIp] > 8)
+        {
+            ClientResources::blackListedClients.push_back(clientHashedIp);
+            std::cout << fmt::format("Hashed ip [{}] has attempting connecting {} times. Client has been black listed", TrimmedHashedIp(clientHashedIp), ClientResources::amountOfTriesFromIP[clientHashedIp]) << std::endl;
+            return -1;
+        }
+
+        return 0;
+    }
+
+    static bool isBlackListed(const std::string &clientHashedIp)
+    {
+        // if (ClientResources::blackListedClients.find(ClientResources::blackListedClients.begin(), ClientResources::blackListedClients.end(), clientHashedIp) != ClientResources::blackListedClients.end())
+        // return true;
+
+        return false;
     }
 };
 
@@ -156,8 +175,9 @@ private:
         // check for timeout on ip
         if (ClientResources::amountOfTriesFromIP[clientHashedIp] >= 3) // also check the time with the condition later
         {
+            std::cout << fmt::format("Client [{}] is rate limited", TrimmedHashedIp(clientHashedIp)) << std::endl;
             if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
-                std::thread(waitTimer, clientHashedIp).detach(); // run the timer if not running already
+                std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
 
             const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
             Send::SendMessage(clientSocketSSL, userRatelimitedMessage);
@@ -185,7 +205,7 @@ private:
         Send::SendMessage(userSSLsocket, serverRequestMessage);
 
         ClientResources::serverJoinRequests.push(clientHashedIp);
-        std::cout << fmt::format("User from hashed ip [{}..] is requesting to join the server. Accept or not?(y/n): ", clientHashedIp.substr(0, clientHashedIp.length() / 4));
+        std::cout << fmt::format("User from hashed ip [{}] is requesting to join the server. Accept or not?(y/n): ", TrimmedHashedIp(clientHashedIp));
 
         const char answer = toupper(getchar());
 

@@ -12,7 +12,7 @@ class ServerSettings
 public:
     inline static std::string serverHash;
     inline static const unsigned int limitOfUsers = 2;
-    inline static thread_local short timeLimit = 90;
+    inline static short defaultTimeLimit = 90;
     inline static thread_local bool exitSignal = false;
     inline static long int totalClientJoins;
     inline static unsigned long pingCount = 0;
@@ -29,11 +29,13 @@ public:
     inline static std::vector<std::string> clientUsernames;
     inline static std::vector<int> passwordVerifiedClients;
     inline static std::vector<int> clientSocketsTcp;
+    inline static std::vector<std::string> blackListedClients;
     inline static std::vector<SSL *> clientSocketsSSL;
     // maps
     inline static std::map<std::string, short> amountOfTriesFromIP;
     inline static std::map<std::string, std::chrono::seconds::rep> timeMap;
     inline static std::map<std::string, short> clientServerPorts;
+    inline static std::map<std::string, unsigned long int> clientTimeLimits;
     // queues
     inline static std::queue<std::string> serverJoinRequests;
 };

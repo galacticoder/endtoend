@@ -48,7 +48,7 @@ std::string trimWhitespaces(std::string strIp) // trim whitespaces
     return strIp;
 }
 
-std::string getTime()
+std::string GetTime()
 {
     auto now = std::chrono::system_clock::now();
     time_t currentTime = std::chrono::system_clock::to_time_t(now);
