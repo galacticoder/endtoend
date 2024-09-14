@@ -85,7 +85,7 @@ int main()
         windowCleaning(sig);
         EVP_PKEY *receivedPublicKey = valuePasser(sig);
         std::lock_guard<std::mutex> lock(mut);
-        std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
+        // std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
         CleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
         Delete::DeletePath(KeysReceivedFromServerPath);

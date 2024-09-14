@@ -10,7 +10,7 @@
 class ServerSettings
 {
 public:
-    static std::string serverHash;
+    inline static std::string serverHash;
     inline static const unsigned int limitOfUsers = 2;
     inline static thread_local short timeLimit = 90;
     inline static thread_local bool exitSignal = false;

@@ -115,14 +115,15 @@ void waitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
       break;
     }
   }
+
   return;
 }
 
-void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &clientHashedIp, const std::string &serverHash)
+void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &clientHashedIp)
 {
   try
   {
-    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
+    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
 
     while (ServerSettings::exitSignal != true)
     {
@@ -168,10 +169,10 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
 
       Send::SendMessage(clientSocket, passwordNeededSignal);
 
-      if (HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, clientHashedIp, serverHash) != 0)
+      if (HandleClient::ClientPasswordVerification(clientSocket, clientIndex, ServerPrivateKeyPath, clientHashedIp, ServerSettings::serverHash) != 0)
         return;
 
-      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
+      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
 
       if (HandleClient::ClientUsernameValidity(clientSocket, clientIndex, clientUsername) != 0)
         return;
@@ -191,11 +192,10 @@ void handleClient(SSL *clientSocket, int &clientTcpSocket, const std::string &cl
       Send::SendMessage(clientSocket, std::to_string(ClientResources::clientUsernames.size())); // send the connected users amount
       std::cout << "Sent usersactive amount: " << ClientResources::clientUsernames.size() << std::endl;
 
-      std::string formattedPublicKeyPath = fmt::format("keys-server/{}-pubkeyserver.pem", clientUsername);
       const std::string userPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
 
       // receive the client public key and save it
-      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocket);
+      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocket, __FILE__);
       std::string decodedUserPublicKey = Decode::Base64Decode(encodedUserPublicKey);
       SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
@@ -351,18 +351,16 @@ int main()
 
   EVP_PKEY *serverPrivateKey = LoadKey::LoadPrivateKey(ServerPrivateKeyPath);
 
-  if (serverPrivateKey)
-  {
-    std::cout << "Server's private key has been loaded" << std::endl;
-    EVP_PKEY_free(serverPrivateKey);
-  }
-  else
+  if (!serverPrivateKey)
   {
     std::cout << "Cannot load server's private key. Killing server." << std::endl;
     raise(SIGINT);
   }
 
-  TlsSetup InitOpenSSL;
+  EVP_PKEY_free(serverPrivateKey);
+  std::cout << "Server's private key has been loaded" << std::endl;
+
+  TlsSetup::LoadSSLAlgs();
   serverCtx = TlsSetup::CreateCtx();
 
   std::cout << "Configuring server ctx" << std::endl;
@@ -380,7 +378,6 @@ int main()
   {
     // check if its a ping or user connection request
     int clientSocketTCP = Networking::acceptClientConnection(serverSocket);
-    SSL *clientSocketSSL = nullptr;
 
     std::string getClientConnectionSignal = Receive::ReceiveMessageTcp(clientSocketTCP);
 
@@ -390,7 +387,7 @@ int main()
       const std::string okaySignalMessage = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
       send(clientSocketTCP, okaySignalMessage.c_str(), okaySignalMessage.length(), 0);
 
-      clientSocketSSL = SSL_new(serverCtx);
+      SSL *clientSocketSSL = SSL_new(serverCtx);
       SSL_set_fd(clientSocketSSL, clientSocketTCP);
 
       if (SSL_accept(clientSocketSSL) <= 0)
@@ -405,13 +402,11 @@ int main()
       const std::string clientHashedIp = Networking::GetClientIpHash(clientSocketTCP);
 
       // increment amount of tries on the users hashed ip (if new user then set to 1)
-      auto clientIpExistenceCheck = ClientResources::amountOfTriesFromIP.find(clientHashedIp);
-
-      clientIpExistenceCheck == ClientResources::amountOfTriesFromIP.end() ? ClientResources::amountOfTriesFromIP[clientHashedIp] = 1 : ClientResources::amountOfTriesFromIP[clientHashedIp]++;
+      HandleClient::IncrementUserTries(clientHashedIp);
 
       std::cout << "Client hashed ip amount of tries: " << ClientResources::amountOfTriesFromIP[clientHashedIp] << std::endl;
 
-      if (HandleClient::CheckUserRatelimited(clientSocketSSL, clientHashedIp) == -1 || HandleClient::CheckUserLimitReached(clientSocketSSL, ServerSettings::limitOfUsers) == -1 || HandleClient::CheckRequestNeededForServer(clientSocketSSL, ServerSettings::requestNeeded, clientHashedIp) == -1)
+      if (CheckClientConnectValidity::CheckUserValidity(clientSocketSSL, clientHashedIp) != 0)
         continue;
 
       std::thread(handleClient, clientSocketSSL, std::ref(clientSocketTCP), std::ref(clientHashedIp)).detach();
@@ -426,11 +421,6 @@ int main()
 
       std::cout << fmt::format("Server has been pinged [{}]", ServerSettings::pingCount) << std::endl;
       std::cout << "\x1b[A" << eraseLine;
-    }
-
-    else
-    {
-      close(clientSocketTCP);
     }
   }
 

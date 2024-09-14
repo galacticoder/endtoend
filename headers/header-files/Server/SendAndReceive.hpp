@@ -52,8 +52,9 @@ public:
                 }
                 else
                 {
-                    int errorCode = SSL_get_error(clientSocketSSL, bytesWritten);
-                    std::cout << "Error occured during sending in SendMessage. SSL error: " << errorCode << std::endl;
+                    unsigned long sslError = ERR_get_error();
+                    std::string errorMessage = ERR_error_string(sslError, nullptr);
+                    std::cout << "Error occured during sending in SendMessage. SSL error: " << errorMessage << std::endl;
                     break;
                 }
             }
@@ -108,28 +109,33 @@ public:
     Receive() = default;
 
     template <auto lineNumberCalled>
-    static std::string ReceiveMessageSSL(SSL *clientSocketSSL)
+    static std::string ReceiveMessageSSL(SSL *clientSocketSSL, const char *fileCalledFrom)
     {
         try
         {
             char buffer[2048] = {0};
             ssize_t bytes = SSL_read(clientSocketSSL, buffer, sizeof(buffer) - 1);
             buffer[bytes] = '\0';
-            std::string msg(buffer);
+            std::string message(buffer);
 
             if (bytes > 0)
             {
-                return msg;
+                return message;
             }
             else
             {
-                int error = SSL_get_error(clientSocketSSL, bytes);
-                std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: {}", "x" /*replacethis with __FILE__*/, lineNumberCalled, error) << std::endl;
+                unsigned long sslError = ERR_get_error();
+                std::string errorMessage = ERR_error_string(sslError, nullptr);
+
+                if (bytes == 0)
+                    std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: User has disconnected", fileCalledFrom, lineNumberCalled) << std::endl;
+                else
+                    std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: {}", fileCalledFrom, lineNumberCalled, errorMessage) << std::endl;
             }
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in receiveMessage: " << e.what() << std::endl;
+            std::cout << fmt::format("[{}:{} -> {}:{}] Exception caught in function [{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, e.what()) << std::endl;
         }
 
         CleanUp::CleanUpClient(-1, clientSocketSSL);
@@ -144,10 +150,10 @@ public:
             char buffer[2048] = {0};
             ssize_t bytes = recv(clientTcpsocket, buffer, sizeof(buffer) - 1, 0);
             buffer[bytes] = '\0';
-            std::string msg(buffer);
+            std::string message(buffer);
 
             if (bytes > 0)
-                return msg;
+                return message;
         }
         catch (const std::exception &e)
         {

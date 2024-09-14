@@ -141,24 +141,18 @@ public:
     {
         try
         {
-            std::cout << "1" << std::endl;
             std::string initMsg = Receive::ReceiveMessageSSL(tlsSock); // get message to see if you are rate limited or the server is full
 
-            std::cout << "2" << std::endl;
             SignalType signal = SignalHandling::getSignalType(initMsg);
             SignalHandling::handleSignal(signal, initMsg);
-            std::cout << "3" << std::endl;
 
             // send connection signal and port your ping server is running on
             Send::SendMessage(tlsSock, std::to_string(clientPort));
-            std::cout << "4" << std::endl;
 
             std::string requestNeeded = Receive::ReceiveMessageSSL(tlsSock);
-            std::cout << "5" << std::endl;
 
             SignalType requestSignal = SignalHandling::getSignalType(requestNeeded);
             SignalHandling::handleSignal(requestSignal, requestNeeded);
-            std::cout << "6" << std::endl;
 
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
@@ -169,8 +163,6 @@ public:
                 SignalType acceptedSignal = SignalHandling::getSignalType(acceptMessage);
                 SignalHandling::handleSignal(acceptedSignal, acceptMessage);
             }
-
-            std::cout << "initCheck done" << std::endl;
 
             return;
         }
