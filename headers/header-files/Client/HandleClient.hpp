@@ -47,12 +47,12 @@ public:
                     int firstPipe = receivedMessage.find_first_of("|");
                     int secondPipe = receivedMessage.find_last_of("|");
 
-                    std::string cipher = receivedMessage.substr(secondPipe + 1);
+                    std::string ciphertext = receivedMessage.substr(secondPipe + 1);
                     std::string time = receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-                    std::string user = receivedMessage.substr(0, firstPipe);
-                    decodedMessage = Decode::Base64Decode(cipher);
+                    std::string username = receivedMessage.substr(0, firstPipe);
+                    decodedMessage = Decode::Base64Decode(ciphertext);
 
-                    std::string messageFromUser = fmt::format("{}: {}", user, Decrypt::DecryptData(privateKey, decodedMessage));
+                    std::string messageFromUser = fmt::format("{}: {}", username, Decrypt::DecryptData(privateKey, decodedMessage));
 
                     curs_set(0);
                     wmove(subwin, lineTrack, 0);

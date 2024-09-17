@@ -241,17 +241,17 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       auto NameJoinFormat = [](const std::string name)
       { return fmt::format("{} has joined the chat", name); };
 
-      std::string userJoinMessage = clientIndex < 1 ? userJoinMessage = NameJoinFormat(ClientResources::clientUsernames[clientIndex + 1]) : userJoinMessage = NameJoinFormat(ClientResources::clientUsernames[clientIndex - 1]);
+      std::string userJoinMessage = NameJoinFormat(ClientResources::clientUsernames[(clientIndex + 1) % ClientResources::clientUsernames.size()]);
 
-      EVP_PKEY *LoadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
+      EVP_PKEY *loadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
 
-      !LoadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
+      !loadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
 
       // send base 64 encoded and encrypted user join message
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage)), __FILE__) != 0)
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(loadedUserPubKey, userJoinMessage)), __FILE__) != 0)
         return;
 
-      EVP_PKEY_free(LoadedUserPubKey);
+      EVP_PKEY_free(loadedUserPubKey);
 
       std::cout << NameJoinFormat(clientUsername) << std::endl;
       GetUsersConnected();
