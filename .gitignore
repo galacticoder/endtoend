@@ -7,3 +7,4 @@ keys-from-server/
 server-recieved-client-keys/
 server-keys/
 your-keys/
+clientdummy.cpp
