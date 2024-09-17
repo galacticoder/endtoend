@@ -34,9 +34,6 @@ short leavePlace;
 
 std::mutex mut;
 
-extern int serverSd;
-extern int clientPort;
-
 std::string trimWhitespaces(std::string strIp) // trim whitespaces
 {
     strIp.erase(strIp.begin(), find_if(strIp.begin(), strIp.end(), [](unsigned char ch)

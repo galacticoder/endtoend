@@ -43,7 +43,7 @@ public:
         {
             ERR_print_errors_fp(stderr);
             EVP_PKEY_CTX_free(ctx);
-            return "err";
+            return "";
         }
 
         EVP_PKEY_CTX_free(ctx);

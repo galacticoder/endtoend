@@ -20,7 +20,7 @@ namespace asio = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
-int serverSd = 0;
+int clientServerSocket = 0;
 int clientPort = 8080;
 
 bool isPortAvailable(int port)
@@ -173,14 +173,14 @@ void http::serverMake()
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servAddr.sin_port = htons(clientPort);
 
-    serverSd = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSd < 0)
+    clientServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientServerSocket < 0)
     {
         std::cout << "Error establishing the server socket [CLSERVER] [httpCl.cpp]" << std::endl;
         raise(SIGINT);
     }
 
-    int bindStatus = bind(serverSd, (struct sockaddr *)&servAddr, sizeof(servAddr));
+    int bindStatus = bind(clientServerSocket, (struct sockaddr *)&servAddr, sizeof(servAddr));
 
     if (bindStatus < 0)
     {
@@ -189,14 +189,14 @@ void http::serverMake()
     }
     std::cout << fmt::format("Client server has started on port [{}]", clientPort) << std::endl;
 
-    listen(serverSd, 2);
+    listen(clientServerSocket, 2);
 
     while (1)
     {
         sockaddr_in newSockAddr;
         socklen_t newSockAddrSize = sizeof(newSockAddr);
 
-        int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
+        int newSd = accept(clientServerSocket, (sockaddr *)&newSockAddr, &newSockAddrSize);
         if (newSd < 0)
         {
             std::cerr << "Error accepting request from client! [CLSERVER] [httpCl.cpp]" << std::endl;

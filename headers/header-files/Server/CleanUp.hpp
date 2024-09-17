@@ -62,8 +62,6 @@ public:
                 std::cout << "ClientResources::clientSocketsSSL size before: " << ClientResources::clientSocketsSSL.size() << std::endl;
                 if (sslSocketIndex != ClientResources::clientSocketsSSL.end())
                 {
-                    std::cout << "Freeing client SSL socket" << std::endl;
-
                     ClientResources::clientSocketsSSL.erase(sslSocketIndex, ClientResources::clientSocketsSSL.end());
                 }
                 std::cout << "ClientResources::clientSocketsSSL size after: " << ClientResources::clientSocketsSSL.size() << std::endl;
@@ -101,7 +99,6 @@ public:
                     auto deleteClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
                     ClientResources::clientsKeyContents.erase(deleteClientKeyContents);
                 }
-
                 // delete client key file if exists
                 if (std::filesystem::is_regular_file(PublicPath(ClientResources::clientUsernames[clientIndex])))
                     Delete::DeletePath(PublicPath(ClientResources::clientUsernames[clientIndex]));

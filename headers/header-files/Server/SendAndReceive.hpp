@@ -25,7 +25,9 @@ public:
         std::cout << fmt::format("Sending Client {}'s key to Client {}", ClientResources::clientUsernames[clientIndex], ClientResources::clientUsernames[clientSendIndex]) << std::endl;
         const std::string publicKeyPath = PublicPath(ClientResources::clientUsernames[clientSendIndex]); // set the path for key to send
 
-        Send::SendMessage<__LINE__>(clientSocket, publicKeyPath, __FILE__); // send path so client can get username of client
+        // send path so client can get username of client
+        if (Send::SendMessage<__LINE__>(clientSocket, publicKeyPath, __FILE__) != 0)
+            return;
 
         const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
 
@@ -33,8 +35,9 @@ public:
             return;
 
         std::cout << fmt::format("Key contents sending to client {}: {}", ClientResources::clientUsernames[clientSendIndex], keyContents) << std::endl;
-
-        Send::SendMessage<__LINE__>(clientSocket, keyContents, __FILE__); // send the encoded key
+        // send the encoded key
+        if (Send::SendMessage<__LINE__>(clientSocket, keyContents, __FILE__) != 0)
+            return;
     }
 
     template <auto lineNumberCalled>
@@ -79,14 +82,19 @@ public:
         return -1;
     }
 
-    static void BroadcastMessage(SSL *senderSocket, const std::string &message)
+    static void BroadcastMessage(SSL *senderSocket, const std::string &message, bool reverse = false)
     {
-        for (SSL *clientSocketSSL : ClientResources::clientSocketsSSL)
+        for (SSL *socket : ClientResources::clientSocketsSSL)
         {
-            if (clientSocketSSL != senderSocket)
+            if (socket != senderSocket && reverse != true)
             {
-                std::cout << "Sending message to tls sock [" << clientSocketSSL << "]" << std::endl;
-                SendMessage<__LINE__>(clientSocketSSL, message, __FILE__);
+                std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
+                SendMessage<__LINE__>(socket, message, __FILE__);
+            }
+            else if (socket == senderSocket && reverse == true)
+            {
+                std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
+                SendMessage<__LINE__>(socket, message, __FILE__);
             }
         }
     }
@@ -103,13 +111,13 @@ public:
             return;
         }
 
-        std::string EncryptedExitMessage = Encrypt::EncryptData(LoadedUserPublicKey, UserExitMessage);
-        EncryptedExitMessage = Encode::Base64Encode(EncryptedExitMessage);
+        std::string encryptedExitMessage = Encrypt::EncryptData(LoadedUserPublicKey, UserExitMessage);
+        encryptedExitMessage = Encode::Base64Encode(encryptedExitMessage);
 
-        if (EncryptedExitMessage != "err" && !EncryptedExitMessage.empty())
+        if (!encryptedExitMessage.empty())
         {
             std::cout << fmt::format("Broadcasting user [{}]'s exit message", ClientResources::clientUsernames[clientIndex]) << std::endl;
-            Send::BroadcastMessage(ClientResources::clientSocketsSSL[clientToSendMsgIndex], EncryptedExitMessage);
+            Send::BroadcastMessage(ClientResources::clientSocketsSSL[clientToSendMsgIndex], encryptedExitMessage, true);
         }
 
         EVP_PKEY_free(LoadedUserPublicKey);
