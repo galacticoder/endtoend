@@ -272,13 +272,10 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
           if (ClientResources::clientUsernames.size() > 1)
           {
             std::cout << fmt::format("Sending exit message to [{}]", ClientResources::clientUsernames[(clientIndex + 1) % ClientResources::clientUsernames.size()]) << std::endl;
-            std::cout << "Sending INDEX TO : " << (clientIndex + 1) % ClientResources::clientUsernames.size() << std::endl;
-            std::cout << "MYINE: " << clientIndex << std::endl;
             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
           }
 
           CleanUp::CleanUpClient(clientIndex);
-          std::cout << "Client usernames vector size: " << ClientResources::clientUsernames.size() << std::endl;
           GetUsersConnected();
           return;
         }
