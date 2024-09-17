@@ -25,6 +25,11 @@
 #include "headers/header-files/Server/hostHttp.h"
 #include "headers/header-files/Server/ServerSettings.hpp"
 
+#define LINE __LINE__
+#define FILE __FILE__
+#define LOGERROR(message, file, line) std::cout << fmt::format("[{}:{}] Error caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
+#define LOGEXCEPTION(message, file, line) std::cout << fmt::format("[{}:{}] Exception caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
+
 std::mutex clientsMutex;
 
 std::function<void(int)> shutdownHandler;
@@ -125,7 +130,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 {
   try
   {
-    const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+    const std::string clientServerPort = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
     unsigned int clientIndex = -1;
 
     if (clientServerPort.empty())
@@ -176,13 +181,13 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
 
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, passwordNeededSignal, __FILE__) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, passwordNeededSignal, FILE) != 0)
         return;
 
       if (HandleClient::ClientPasswordVerification(clientSocketSSL, clientIndex, ServerPrivateKeyPath, clientHashedIp, ServerSettings::serverHash) != 0)
         return;
 
-      std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+      std::string clientUsername = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
       if (clientUsername.size() <= 0)
         return;
@@ -191,7 +196,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         return;
 
       // send the user an okay signal if their username is validated
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), __FILE__) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), FILE) != 0)
         return;
 
       {
@@ -204,7 +209,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       std::cout << "Sending usersactive amount" << std::endl;
       // send the connected users amount
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, std::to_string(ClientResources::clientUsernames.size()), __FILE__) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, std::to_string(ClientResources::clientUsernames.size()), FILE) != 0)
         return;
 
       std::cout << "Sent usersactive amount: " << ClientResources::clientUsernames.size() << std::endl;
@@ -212,9 +217,9 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       const std::string userPublicKeyPath = PublicPath(clientUsername);
 
       // receive the client public key and save it
-      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+      std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
-      if (encodedUserPublicKey.empty()) // fails at clean up
+      if (encodedUserPublicKey.empty())
         return;
 
       // check base 64 here maybe
@@ -230,7 +235,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex])));
 
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), __FILE__) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), FILE) != 0)
         return;
 
       if (ClientResources::clientUsernames.size() == 2 || ServerSettings::totalClientJoins > 2)
@@ -248,7 +253,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       !loadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
 
       // send base 64 encoded and encrypted user join message
-      if (Send::SendMessage<__LINE__>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(loadedUserPubKey, userJoinMessage)), __FILE__) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(loadedUserPubKey, userJoinMessage)), FILE) != 0)
         return;
 
       EVP_PKEY_free(loadedUserPubKey);
@@ -261,21 +266,22 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       while (isConnected)
       {
         std::string exitMsg = fmt::format("{} has left the chat", clientUsername);
-        std::string receivedData = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+        std::string receivedData = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
-        if (receivedData.empty())
+        if (receivedData.empty() || receivedData.length() > 4096)
         {
           std::cout << exitMsg << std::endl;
           ClientResources::cleanUpInPing = false;
           isConnected = false;
 
           if (ClientResources::clientUsernames.size() > 1)
-          {
-            std::cout << fmt::format("Sending exit message to [{}]", ClientResources::clientUsernames[(clientIndex + 1) % ClientResources::clientUsernames.size()]) << std::endl;
             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
-          }
 
           CleanUp::CleanUpClient(clientIndex);
+
+          if (receivedData.length() > 4096)
+            std::cout << "User kicked for invalid message length" << std::endl;
+
           GetUsersConnected();
           return;
         }
@@ -283,44 +289,21 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         std::cout << "Received data: " << receivedData << std::endl;
         std::cout << "Ciphertext message length: " << receivedData.length() << std::endl;
 
-        if (receivedData.length() > 4096)
-        {
-          std::cout << exitMsg << std::endl;
+        const std::string formattedCiphertext = clientUsername + "|" + GetTime() + "|" + receivedData;
 
-          if (ClientResources::clientUsernames.size() > 1)
-            Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
-
-          ClientResources::cleanUpInPing = false;
-          CleanUp::CleanUpClient(clientIndex, clientTcpSocket, clientSocketSSL);
-
-          std::cout << "Kicked user for invalid message length" << std::endl;
-          return;
-        }
-
-        const std::string formattedCipher = clientUsername + "|" + GetTime() + "|" + receivedData;
-
-        switch (Encode::CheckBase64(receivedData))
-        {
-        case -1:
+        if (Encode::CheckBase64(receivedData) != 0)
           std::cout << "Ciphertext base 64 received invalid. Not sending" << std::endl;
-          break;
-        default:
-          Send::BroadcastMessage(clientSocketSSL, formattedCipher);
-        }
+        else
+          Send::BroadcastMessage(clientSocketSSL, formattedCiphertext);
       }
 
-      // if (ClientResources::clientUsernames.size() < 1)
-      // {
-      //   std::cout << "Shutting down server due to no users." << std::endl;
-      //   raise(SIGINT);
-      // }
       std::cout << "Exiting handle client for user thread" << std::endl;
       return;
     }
   }
   catch (const std::exception &e)
   {
-    std::cout << "Server has been killed due to error (2): " << e.what() << std::endl;
+    LOGEXCEPTION(e.what(), FILE, LINE);
     raise(SIGINT);
   }
 }
