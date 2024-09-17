@@ -113,13 +113,13 @@ public:
     static void CaughtERROR(SignalType ERRORTYPE, unsigned int &clientIndex, const std::string &message)
     {
         std::cout << message << std::endl;
-        const std::string ErrorMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
+        const std::string errorMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
 
-        Send::SendMessage(ClientResources::clientSocketsSSL[clientIndex], ErrorMessage);
-        {
-            ClientResources::cleanUpInPing = false;
-            CleanUp::CleanUpClient(clientIndex);
-        }
+        Send::SendMessage<__LINE__>(ClientResources::clientSocketsSSL[clientIndex], errorMessage, __FILE__);
+
+        ClientResources::cleanUpInPing = false;
+        CleanUp::CleanUpClient(clientIndex);
+
         std::cout << fmt::format("Kicked user [{}]", ClientResources::clientUsernames[clientIndex]) << std::endl;
         return;
     }

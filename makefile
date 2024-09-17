@@ -3,25 +3,34 @@ CXXFLAGS=-std=c++20
 
 SERVER=server
 CLIENT=client
-SERVER_SRCS=server.cpp
-F_LINK=headers/cpp-files/Server/bcrypt.cpp headers/cpp-files/Server/blowfish.cpp headers/cpp-files/Server/hostHttp.cpp 
-F_LINK_CLIENT=headers/cpp-files/Client/httpCl.cpp
-CLIENT_SRCS=client.cpp
+CLIENTDUMMY=clientdummy
+
+SERVER_SRC=server.cpp
+CLIENT_SRC=client.cpp
+CLIENTDUMMY_SRC=clientdummy.cpp
+
+FILE_LINKING_SERVER=headers/cpp-files/Server/bcrypt.cpp headers/cpp-files/Server/blowfish.cpp headers/cpp-files/Server/hostHttp.cpp 
+FILE_LINKING_CLIENT=headers/cpp-files/Client/httpCl.cpp
+
 LIBS=-lcryptopp -lfmt -lncurses -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl
 LIBS_CLIENT=-lcryptopp -lfmt -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl -lncurses
+
 PACKAGES=libboost-all-dev libcrypto++-dev libfmt-dev g++ libncurses5-dev libncursesw5-dev libboost-all-dev libcurl4-openssl-dev libssl-dev
 
 packages:
 	sudo apt update
 	sudo apt install $(PACKAGES) -y
 
-all: $(SERVER) $(CLIENT)
+all: $(SERVER) $(CLIENT) $(CLIENTDUMMY)
 
-$(SERVER): $(SERVER_SRCS)
-	$(CXX) $(CXXFLAGS) -Wall -Wextra -DNCURSES_NOMACROS -o $(SERVER) $(SERVER_SRCS) $(F_LINK) $(LIBS)
+$(SERVER): $(SERVER_SRC)
+	$(CXX) $(CXXFLAGS) -Wall -Wextra -DNCURSES_NOMACROS -o $(SERVER) $(SERVER_SRC) $(FILE_LINKING_SERVER) $(LIBS)
 
-$(CLIENT): $(CLIENT_SRCS)
-	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRCS) $(F_LINK_CLIENT) $(LIBS_CLIENT)
+$(CLIENT): $(CLIENT_SRC)
+	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRC) $(FILE_LINKING_CLIENT) $(LIBS_CLIENT)
+
+$(CLIENTDUMMY): $(CLIENTDUMMY_SRC)
+	$(CXX) -Wall -o $(CLIENT) $(CLIENTDUMMY_SRC) $(FILE_LINKING_CLIENT) $(LIBS_CLIENT)
 
 clean:
 	rm -f $(CLIENT) $(SERVER)

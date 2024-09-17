@@ -19,6 +19,7 @@ class GenerateKeys
 public:
     GenerateKeys(const std::string &privateKeyFile, const std::string &publicKeyFile, int bits = KEYSIZE)
     {
+        std::cout << "Generating keys.." << std::endl;
         EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
         if (!ctx)
         {

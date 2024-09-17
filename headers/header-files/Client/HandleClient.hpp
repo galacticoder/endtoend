@@ -156,7 +156,6 @@ public:
 
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
-                std::cout << "7" << std::endl;
                 // check if you were accepted into the server or not (if request needed to join the server)
                 std::string acceptMessage = Receive::ReceiveMessageSSL(tlsSock);
 
@@ -164,6 +163,7 @@ public:
                 SignalHandling::handleSignal(acceptedSignal, acceptMessage);
             }
 
+            // when exit here sometimes in server you get a seg fault
             return;
         }
 

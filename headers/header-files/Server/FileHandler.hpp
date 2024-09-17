@@ -10,6 +10,7 @@
 
 #define ServerKeysPath "server-keys"
 #define ServerReceivedKeysPath "server-recieved-client-keys"
+#define PublicPath(username) fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", username)
 
 const std::string ServerPublicKeyPath = (std::string)ServerKeysPath + "/server-pubkey.pem";
 const std::string ServerPrivateKeyPath = (std::string)ServerKeysPath + "/server-privkey.pem";

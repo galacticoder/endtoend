@@ -25,7 +25,7 @@ public:
         std::cout << fmt::format("Sending Client {}'s key to Client {}", ClientResources::clientUsernames[clientIndex], ClientResources::clientUsernames[clientSendIndex]) << std::endl;
         const std::string publicKeyPath = PublicPath(ClientResources::clientUsernames[clientSendIndex]); // set the path for key to send
 
-        Send::SendMessage(clientSocket, publicKeyPath); // send path so client can get username of client
+        Send::SendMessage<__LINE__>(clientSocket, publicKeyPath, __FILE__); // send path so client can get username of client
 
         const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
 
@@ -34,10 +34,11 @@ public:
 
         std::cout << fmt::format("Key contents sending to client {}: {}", ClientResources::clientUsernames[clientSendIndex], keyContents) << std::endl;
 
-        Send::SendMessage(clientSocket, keyContents); // send the encoded key
+        Send::SendMessage<__LINE__>(clientSocket, keyContents, __FILE__); // send the encoded key
     }
 
-    static void SendMessage(SSL *clientSocketSSL, const std::string &message)
+    template <auto lineNumberCalled>
+    static int SendMessage(SSL *clientSocketSSL, const std::string &message, const char *fileCalledFrom)
     { // send the full message without missing bytes
         try
         {
@@ -49,20 +50,33 @@ public:
                 if (bytesWritten > 0)
                 {
                     totalBytesWritten += bytesWritten;
+                    return 0;
                 }
                 else
                 {
                     unsigned long sslError = ERR_get_error();
                     std::string errorMessage = ERR_error_string(sslError, nullptr);
+
+                    if (sslError == 0)
+                    {
+                        std::cout << fmt::format("[{}:{} -> {}:{}] Error [{}:{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, __LINE__, errorMessage) << std::endl;
+                        return -2;
+                    }
+                    else
+                    {
+                        std::cout << fmt::format("[{}:{} -> {}:{}] Error [{}:{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, __LINE__, errorMessage) << std::endl;
+                        return -1;
+                    }
+
                     break;
                 }
             }
-            return;
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in SendMessage: " << e.what() << std::endl;
+            std::cout << fmt::format("[{}:{} -> {}:{}] Exception caught [{}:{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, __LINE__, e.what()) << std::endl;
         }
+        return -1;
     }
 
     static void BroadcastMessage(SSL *senderSocket, const std::string &message)
@@ -72,7 +86,7 @@ public:
             if (clientSocketSSL != senderSocket)
             {
                 std::cout << "Sending message to tls sock [" << clientSocketSSL << "]" << std::endl;
-                SendMessage(clientSocketSSL, message);
+                SendMessage<__LINE__>(clientSocketSSL, message, __FILE__);
             }
         }
     }
@@ -128,11 +142,11 @@ public:
 
                 if (bytes == 0)
                 {
-                    std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: User has disconnected", fileCalledFrom, lineNumberCalled) << std::endl;
+                    std::cout << fmt::format("[{}:{} -> {}:{}] Error [{}:{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, __LINE__, errorMessage) << std::endl;
                 }
                 else
                 {
-                    std::cout << fmt::format("[{}:{}]: Error occured during reading in receiveMessage. SSL error: {}", fileCalledFrom, lineNumberCalled, errorMessage) << std::endl;
+                    std::cout << fmt::format("[{}:{} -> {}:{}] Error [{}:{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, __LINE__, errorMessage) << std::endl;
                 }
 
                 return "";
@@ -143,8 +157,6 @@ public:
             std::cout << fmt::format("[{}:{} -> {}:{}] Exception caught in function [{}]: {}", __FILE__, __LINE__, fileCalledFrom, lineNumberCalled, __func__, e.what()) << std::endl;
         }
 
-        CleanUp::CleanUpClient(-1, clientSocketSSL);
-        ServerSettings::exitSignal = true;
         return "";
     }
 

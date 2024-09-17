@@ -128,6 +128,15 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
     const std::string clientServerPort = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
     unsigned int clientIndex = -1;
 
+    if (clientServerPort.empty())
+    {
+      SSL_shutdown(clientSocketSSL);
+      SSL_free(clientSocketSSL);
+      close(clientTcpSocket);
+      std::cout << "Client port received empty. Kicked client." << std::endl;
+      return;
+    }
+
     while (ServerSettings::exitSignal != true)
     {
       std::cout << "Client server port: " << clientServerPort << std::endl;
@@ -140,7 +149,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       {
         std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
         std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
-        CleanUp::CleanUpClient(clientIndex, clientSocketSSL);
+        CleanUp::CleanUpClient(clientIndex, clientTcpSocket, clientSocketSSL);
         return;
       }
 
@@ -167,18 +176,23 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
 
-      Send::SendMessage(clientSocketSSL, passwordNeededSignal);
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, passwordNeededSignal, __FILE__) != 0)
+        return;
 
       if (HandleClient::ClientPasswordVerification(clientSocketSSL, clientIndex, ServerPrivateKeyPath, clientHashedIp, ServerSettings::serverHash) != 0)
         return;
 
       std::string clientUsername = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
 
+      if (clientUsername.size() <= 0)
+        return;
+
       if (HandleClient::ClientUsernameValidity(clientSocketSSL, clientIndex, clientUsername) != 0)
         return;
 
       // send the user an okay signal if their username is validated
-      Send::SendMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), __FILE__) != 0)
+        return;
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
@@ -189,13 +203,21 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
       std::cout << "Sending usersactive amount" << std::endl;
-      Send::SendMessage(clientSocketSSL, std::to_string(ClientResources::clientUsernames.size())); // send the connected users amount
+      // send the connected users amount
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, std::to_string(ClientResources::clientUsernames.size()), __FILE__) != 0)
+        return;
+
       std::cout << "Sent usersactive amount: " << ClientResources::clientUsernames.size() << std::endl;
 
-      const std::string userPublicKeyPath = fmt::format("server-recieved-client-keys/{}-pubkeyfromclient.pem", clientUsername);
+      const std::string userPublicKeyPath = PublicPath(clientUsername);
 
       // receive the client public key and save it
       std::string encodedUserPublicKey = Receive::ReceiveMessageSSL<__LINE__>(clientSocketSSL, __FILE__);
+
+      if (encodedUserPublicKey.empty()) // fails at clean up
+        return;
+
+      // check base 64 here maybe
       std::string decodedUserPublicKey = Decode::Base64Decode(encodedUserPublicKey);
       SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
@@ -208,7 +230,8 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex])));
 
-      Send::SendMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL));
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), __FILE__) != 0)
+        return;
 
       if (ClientResources::clientUsernames.size() == 2 || ServerSettings::totalClientJoins > 2)
         Send::SendKey(clientSocketSSL, 0, clientIndex);
@@ -224,7 +247,9 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       !LoadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
 
-      Send::SendMessage(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage))); // send base 64 encoded and encrypted user join message
+      // send base 64 encoded and encrypted user join message
+      if (Send::SendMessage<__LINE__>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(LoadedUserPubKey, userJoinMessage)), __FILE__) != 0)
+        return;
 
       EVP_PKEY_free(LoadedUserPubKey);
 
@@ -265,7 +290,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
 
           ClientResources::cleanUpInPing = false;
-          CleanUp::CleanUpClient(clientIndex);
+          CleanUp::CleanUpClient(clientIndex, clientTcpSocket, clientSocketSSL);
 
           std::cout << "Kicked user for invalid message length" << std::endl;
           return;
@@ -283,11 +308,12 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         }
       }
 
-      if (ClientResources::clientUsernames.size() < 1)
-      {
-        std::cout << "Shutting down server due to no users." << std::endl;
-        raise(SIGINT);
-      }
+      // if (ClientResources::clientUsernames.size() < 1)
+      // {
+      //   std::cout << "Shutting down server due to no users." << std::endl;
+      //   raise(SIGINT);
+      // }
+      std::cout << "Exiting handle client for user thread" << std::endl;
       return;
     }
   }

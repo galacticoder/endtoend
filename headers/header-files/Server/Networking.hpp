@@ -123,12 +123,12 @@ public:
 
                 if (connect(pingingSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0)
                 {
+                    ServerSettings::exitSignal = 1;
+
                     std::cout << "Client disconnected. Cannot reach client server" << std::endl;
 
-                    std::cout << "Kicking client index: " << clientIndex << std::endl;
-
                     if (ClientResources::cleanUpInPing != false)
-                        ClientResources::clientSocketsTcp.size() > 0 ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, clientSocketSSL);
+                        ClientResources::clientSocketsTcp.size() > (unsigned)clientIndex ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
                     else
                     {
                         std::cout << "cleanUpInPing is false. Clean up occuring somewhere else." << std::endl;
@@ -153,8 +153,6 @@ public:
             }
         }
 
-        ServerSettings::exitSignal = 1;
-        std::cout << "Set exit signal to 1" << std::endl;
         return;
     }
 
