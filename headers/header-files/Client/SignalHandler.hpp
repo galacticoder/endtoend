@@ -33,6 +33,7 @@ std::vector<std::string> signalsVector = {
     "SERVERJOINREQUESTDENIED",
     "SERVERJOINREQUESTACCEPTED",
     "CONNECTIONSIGNAL",
+    "BLACKLISTED",
 };
 
 enum class SignalType
@@ -56,6 +57,7 @@ enum class SignalType
     SERVERJOINREQUESTDENIED,
     SERVERJOINREQUESTACCEPTED,
     CONNECTIONSIGNAL,
+    BLACKLISTED,
     UNKNOWN
 };
 

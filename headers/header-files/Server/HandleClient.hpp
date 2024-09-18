@@ -184,8 +184,10 @@ public:
 
     static bool isBlackListed(const std::string &clientHashedIp)
     {
-        // if (ClientResources::blackListedClients.find(ClientResources::blackListedClients.begin(), ClientResources::blackListedClients.end(), clientHashedIp) != ClientResources::blackListedClients.end())
-        // return true;
+        auto findUser = std::find(ClientResources::blackListedClients.begin(), ClientResources::blackListedClients.end(), clientHashedIp);
+
+        if (findUser != ClientResources::blackListedClients.end())
+            return true;
 
         return false;
     }

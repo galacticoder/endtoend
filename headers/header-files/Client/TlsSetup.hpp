@@ -98,9 +98,13 @@ private:
         const std::string connectionSignal = SignalHandling::GetSignalAsString(SignalType::CONNECTIONSIGNAL);
         send(startSock, connectionSignal.c_str(), connectionSignal.length(), 0);
 
-        // recieve okay signal from server
-        char signalOkay[1024] = {0};
-        read(startSock, signalOkay, sizeof(signalOkay) - 1);
+        // recieve signal from server to see if your blacklisted or its an okay signal
+        char signalBuffer[2048] = {0};
+        ssize_t bytes = read(startSock, signalBuffer, sizeof(signalBuffer) - 1);
+        signalBuffer[bytes] = '\0';
+        std::string signalMessage(signalBuffer);
+
+        SignalHandling::handleSignal(SignalHandling::getSignalType(signalMessage), signalMessage);
     }
 
     void connectUsingTlsSocket(SSL *tlsSock) // connect to server and establish tls connection with server

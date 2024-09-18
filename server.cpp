@@ -375,35 +375,42 @@ int main()
     if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::CONNECTIONSIGNAL))
     {
       std::cout << "User sent the connection signal. Continuing with connection" << std::endl;
-      send(clientSocketTCP, (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).c_str(), (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).length(), 0); // send the user an okay signal when connecting
       // get the hashed client ip
       const std::string clientHashedIp = Networking::GetClientIpHash(clientSocketTCP);
-      if (HandleClient::isBlackListed(clientHashedIp) == true)
+
+      if (HandleClient::isBlackListed(clientHashedIp))
       {
+        const std::string blackListedMessage = ServerSetMessage::GetMessageBySignal(SignalType::BLACKLISTED, 1);
+        send(clientSocketTCP, blackListedMessage.c_str(), blackListedMessage.length(), 0);
         close(clientSocketTCP);
-        // send black listed thing;
         continue;
       }
+
+      send(clientSocketTCP, (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).c_str(), (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).length(), 0); // send the user an okay signal when connecting and not blacklisted
 
       SSL *clientSocketSSL = SSL_new(serverCtx);
       SSL_set_fd(clientSocketSSL, clientSocketTCP);
 
-      if (SSL_accept(clientSocketSSL) <= 0)
+      auto CleanUpUserSocks = [&]()
       {
-        ERR_print_errors_fp(stderr);
         SSL_shutdown(clientSocketSSL);
         SSL_free(clientSocketSSL);
         close(clientSocketTCP);
+      };
+
+      if (SSL_accept(clientSocketSSL) <= 0)
+      {
+        ERR_print_errors_fp(stderr);
+        CleanUpUserSocks();
         std::cout << "Closed user that failed at SSL/TLS handshake" << std::endl;
         continue;
       }
 
-      if (HandleClient::IncrementUserTries(clientHashedIp) != 0)
-      { // client is blacklisted
-        // Send blacklisted signal
-        SSL_shutdown(clientSocketSSL);
-        SSL_free(clientSocketSSL);
-        close(clientSocketTCP);
+      if (HandleClient::IncrementUserTries(clientHashedIp) != 0) // client is blacklisted
+      {
+        const std::string blackListedMessage = ServerSetMessage::GetMessageBySignal(SignalType::BLACKLISTED, 1);
+        Send::SendMessage<LINE>(clientSocketSSL, blackListedMessage, FILE);
+        CleanUpUserSocks();
         continue;
       }
 

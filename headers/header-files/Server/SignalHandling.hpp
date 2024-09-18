@@ -33,6 +33,7 @@ std::vector<std::string> signalStringsVector = {
     "STATUSCHECKSIGNAL",
     "PINGBACK",
     "PING",
+    "BLACKLISTED",
 };
 
 std::vector<std::string> ServerMessages = {
@@ -58,6 +59,7 @@ std::vector<std::string> ServerMessages = {
     "N/A" /*status check signal is never sent appended to a message*/,
     "N/A" /*ping back signal is never sent appended to a message*/,
     "N/A" /*ping signal is never sent appended to a message*/,
+    "You have been blacklisted and cannot join the server again" /*ping signal is never sent appended to a message*/,
 };
 
 enum class SignalType
@@ -84,6 +86,7 @@ enum class SignalType
     STATUSCHECKSIGNAL,
     PINGBACK,
     PING,
+    BLACKLISTED,
     UNKNOWN
 };
 
