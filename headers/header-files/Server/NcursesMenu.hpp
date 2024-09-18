@@ -5,7 +5,6 @@
 #include <cryptopp/osrng.h>
 #include <ncurses.h>
 #include <csignal>
-#include <unistd.h>
 #include <fmt/core.h>
 #include "bcrypt.h"
 #include "Encryption.hpp"
@@ -16,55 +15,85 @@
 
 void signalHandleMenu(int signum);
 
-class NcursesMenu
-{
+class NcursesMenu {
 private:
-    static std::string generatePassword(int &&length = 8)
-    {
+    inline static const std::string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
+    
+    static std::string generatePassword(int length = 8) {
         CryptoPP::AutoSeededRandomPool random;
-        const std::string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
-
         std::string pass;
-        for (ssize_t i = 0; i < length; ++i)
-        {
+        
+        for (int i = 0; i < length; ++i) {
             pass += charSet[random.GenerateByte() % charSet.size()];
         }
-
+        
         std::cout << "Password: " << pass << std::endl;
-        // sleep(2);
-        // std::cout << eraseLine;
-        // std::cout << "\x1b[A";
         return Hash::hashData(pass);
     }
 
-public:
-    static void printMenu(WINDOW *menu_win, int highlight)
-    {
-        signal(SIGINT, signalHandleMenu);
-        int x, y, i;
-        x = 2;
-        y = 2;
-        box(menu_win, 0, 0);
-        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Make user request to join | without pass", "Make user request to join | with pass", "Exit"};
-        int n_choices = sizeof(choices) / sizeof(char *);
+    static std::string passwordSet(const char* choice){
+        switch (choice){
+            case 2:
+                std::cout << "Generating password for server..." << std::endl;
+                ServerSettings::passwordNeeded = false;
+                ServerSettings::requestNeeded = false;
+                return generatePassword();
+            case 3:
+            case 4:
+                std::cout << clearScreen;
+                std::cout << "Server is starting up without a password..." << std::endl;
+                ServerSettings::passwordNeeded = false;
+                ServerSettings::requestNeeded = (choice == 4);
+                return "";
+            case 6:
+                raise(SIGINT);
+        }
 
-        for (i = 0; i < n_choices; ++i)
-        {
-            if (highlight == i + 1)
-            {
+        std::cout << "Enter a password: ";
+        std::getline(std::cin, password);
+        if (password.length() < minLim) {
+            std::cout << fmt::format("\nServer password must be at least {} characters long.", minLim) << std::endl;
+            exit(1);
+        }
+        (choice == 1) ? std::cout << "Password has been set for server." << std::endl : std::cout << "Password has been set for server. Users need to request to join." << std::endl;
+
+        ServerSettings::passwordNeeded = true;
+        ServerSettings::requestNeeded = (choice == 5);
+
+        return bcrypt::generateHash(password);
+    }
+
+public:
+    static void printMenu(WINDOW* menu_win, int highlight) {
+        int x = 2, y = 2;
+        box(menu_win, 0, 0);
+        
+        const char* choices[] = {
+            "Set password for server", 
+            "Generate password", 
+            "Don't set password", 
+            "Make user request to join | without pass", 
+            "Make user request to join | with pass", 
+            "Exit"
+        };
+        
+        int n_choices = sizeof(choices) / sizeof(choices[0]);
+        
+        for (int i = 0; i < n_choices; ++i) {
+            if (highlight == i + 1) {
                 wattron(menu_win, A_REVERSE);
                 mvwprintw(menu_win, y, x, "%s", choices[i]);
                 wattroff(menu_win, A_REVERSE);
-            }
-            else
+            } else {
                 mvwprintw(menu_win, y, x, "%s", choices[i]);
+            }
             ++y;
         }
+        
         wrefresh(menu_win);
     }
 
-    static std::string StartMenu()
-    {
+    static std::string StartMenu() {
         unsigned int minLim = 6;
         signal(SIGINT, signalHandleMenu);
         initscr();
@@ -76,139 +105,50 @@ public:
 
         int cols = COLS;
         int lines = LINES;
-
         int width = 50;
         int height = 18;
         int starty = lines / 2 - height / 2;
         int startx = cols / 2 - width / 2;
 
-        WINDOW *menu_win = newwin(height, width, starty, startx);
+        WINDOW* menu_win = newwin(height, width, starty, startx);
         keypad(menu_win, TRUE);
 
-        const char *choices[] = {"Set password for server", "Generate password", "Dont set password", "Make user request to join | without pass", "Make user request to join | with pass", "Exit"}; // 1==set//2==gen//3==nopass//4==exit
-        int n_choices = sizeof(choices) / sizeof(char *);
-        int highlight = 1;
-        int choice = 0;
-        int c;
+        int highlight = 1, choice = 0, c;
 
         printMenu(menu_win, highlight);
-        while (choice == 0)
-        {
+        while (choice == 0) {
             c = wgetch(menu_win);
-            switch (c)
-            {
-            case KEY_UP:
-                if (highlight == 1)
-                    highlight = n_choices;
-                else
-                    --highlight;
-                break;
-            case KEY_DOWN:
-                if (highlight == n_choices)
-                    highlight = 1;
-                else
-                    ++highlight;
-                break;
-            case 10:
-                choice = highlight;
-                break;
-            default:
-                break;
+            switch (c) {
+                case KEY_UP:
+                    highlight = (highlight == 1) ? n_choices : highlight - 1;
+                    break;
+                case KEY_DOWN:
+                    highlight = (highlight == n_choices) ? 1 : highlight + 1;
+                    break;
+                case 10: // Enter key
+                    choice = highlight;
+                    break;
+                default:
+                    break;
             }
             printMenu(menu_win, highlight);
-            if (choice != 0)
-            {
-                break;
-            }
         }
 
         std::string password;
-
         curs_set(1);
         clrtoeol();
         refresh();
         endwin();
 
-        if (choice == 1)
-        {
-            std::cout << "Enter a password: ";
-            std::getline(std::cin, password);
-            if (password.length() < minLim)
-            {
-                std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
-                exit(1);
-            }
-
-            std::cout << std::endl;
-            std::cout << eraseLine;
-            std::cout << "\x1b[A";
-            std::cout << eraseLine;
-            std::cout << "\x1b[A";
-            std::cout << "Password has been set for server" << std::endl;
-            ServerSettings::passwordNeeded = true;
-            ServerSettings::requestNeeded = false;
-            return bcrypt::generateHash(password);
-        }
-        else if (choice == 2)
-        {
-            std::cout << clearScreen;
-            std::cout << "Generating password for server..." << std::endl;
-            ServerSettings::passwordNeeded = true;
-            ServerSettings::requestNeeded = false;
-            return generatePassword();
-        }
-        else if (choice == 3)
-        {
-            std::cout << clearScreen;
-            std::cout << "Server is starting up without password..." << std::endl;
-            ServerSettings::passwordNeeded = false;
-            ServerSettings::requestNeeded = false;
-            return "";
-        }
-        else if (choice == 4) // user requests without pass
-        {
-            std::cout << clearScreen;
-            std::cout << "Server is starting up without password and users need to request to join the server" << std::endl;
-            ServerSettings::passwordNeeded = false;
-            ServerSettings::requestNeeded = true;
-
-            return "";
-        }
-        else if (choice == 5) // user requests with pass
-        {
-            std::cout << "Enter a password: ";
-            std::getline(std::cin, password);
-
-            if (password.length() < minLim)
-            {
-                std::cout << fmt::format("\nServer password must be greater than or equal to {} characters", minLim) << std::endl;
-                exit(1);
-            }
-
-            std::cout << std::endl;
-            std::cout << eraseLine;
-            std::cout << "\x1b[A";
-            std::cout << eraseLine;
-            std::cout << "\x1b[A";
-            std::cout << "Password has been set for server and users need to request to join the server" << std::endl;
-            ServerSettings::passwordNeeded = true;
-            ServerSettings::requestNeeded = true;
-            return bcrypt::generateHash(password);
-        }
-        else if (choice == 6)
-        {
-            raise(SIGINT);
-        }
-        return "";
+        return passwordSet(choice);
     }
 };
 
-void signalHandleMenu(int signum)
-{
+void signalHandleMenu(int signum) {
     curs_set(1);
     clrtoeol();
     refresh();
     endwin();
-    std::cout << "Server initialization has stopped" << std::endl;
+    std::cout << "Server initialization has stopped." << std::endl;
     exit(signum);
 }

@@ -316,9 +316,9 @@ int main()
   int serverSocket;
 
   ServerSettings::serverHash = NcursesMenu::StartMenu();
-  signal(SIGINT, signalHandleServer);
 
   // setup signal handler
+  signal(SIGINT, signalHandleServer);
   shutdownHandler = [&](int signal)
   {
     std::cout << "\b\b\b\b"; // backspace to remove ^C when pressing ctrl+c
@@ -338,7 +338,7 @@ int main()
   std::cout << "Generating server keys.." << std::endl;
   GenerateServerCert serverKeyGeneration(ServerPrivateKeyPath, ServerCertPath);
 
-  std::cout << fmt::format("Saved server keys in path '{}'", ServerKeysPath) << std::endl;
+  (std::filesystem::is_regular_file(ServerPrivateKeyPath) && std::filesystem::is_regular_file(ServerCertPath)) ? std::cout << fmt::format("Saved server keys in path '{}'", ServerKeysPath) << std::endl : std::cout << "Server keys have not been saved to path they are supposed to be. Exiting." << std::endl;
 
   EVP_PKEY *serverPrivateKey = LoadKey::LoadPrivateKey(ServerPrivateKeyPath);
 
