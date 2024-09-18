@@ -42,7 +42,7 @@ std::vector<std::string> ServerMessages = {
     "Wrong password. You have been kicked.",
     "Username already exists on server",
     "Server needs to accept your join request. Waiting for server to accept..",
-    "",
+    "", // rate limiting gets replaced
     "The limit of users has been reached for this chat. Exiting..",
     "You request to join the server has been accepted",
     "You request to join the server has not been accepted",

@@ -35,7 +35,6 @@ public:
     inline static std::vector<SSL *> clientSocketsSSL;
     // maps
     inline static std::map<std::string, short> amountOfTriesFromIP;
-    inline static std::map<std::string, std::chrono::seconds::rep> timeMap;
     inline static std::map<std::string, short> clientServerPorts;
     inline static std::map<std::string, unsigned long int> clientTimeLimits;
     // queues

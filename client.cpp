@@ -155,10 +155,12 @@ int main()
 
     std::cout << "Enter your username: ";
     std::string user;
-    // std::getline(std::cin, user); // username length limit 4-12
-    std::cin >> user;
+    std::getline(std::cin, user); // username length limit 4-12
 
     // send username to server
+    if (user.empty())
+        raise(SIGINT);
+
     Send::SendMessage(tlsSock, user);
 
     std::string checkErrorsWithUsername = Receive::ReceiveMessageSSL(tlsSock);

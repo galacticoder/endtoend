@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <ctype.h>
 #include <queue>
 #include <fmt/core.h>
 #include <openssl/evp.h>
@@ -23,6 +24,9 @@ extern void RateLimitTimer(const std::string hashedClientIp);
 
 class HandleClient
 {
+private:
+    inline static std::string unallowedCharacters = "\\/~ ";
+
 public:
     static int ClientPasswordVerification(SSL *clientSSLSocket, unsigned int &clientIndex, const std::string &ServerPrivateKeyPath, const std::string &clientHashedIp, const std::string &serverHashedPassword)
     {
@@ -117,13 +121,12 @@ public:
             return -1;
         }
 
-        std::vector<std::string> unallowedCharacters = {"\\", "/", "~", " "};
         // checks if username already exists
         if (std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), clientUsername) != ClientResources::clientUsernames.end())
         {
             std::cout << "Client with the same username detected has attempted to join. kicking.." << std::endl;
-            const std::string NameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
-            if (Send::SendMessage<__LINE__>(clientSSLSocket, NameAlreadyExistsMessage, __FILE__) != 0)
+            const std::string nameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
+            if (Send::SendMessage<__LINE__>(clientSSLSocket, nameAlreadyExistsMessage, __FILE__) != 0)
                 return -1;
 
             if (ServerSettings::exitSignal != true)
@@ -139,14 +142,14 @@ public:
         // check if client username contains unallowed characters
         for (char i : clientUsername)
         {
-            std::string iToStr(1, i);
-            unsigned int findChar = (std::find(unallowedCharacters.begin(), unallowedCharacters.end(), iToStr)) - unallowedCharacters.begin();
-
-            if (findChar == std::string::npos)
+            if (unallowedCharacters.find(i) != std::string::npos)
             {
-                std::cout << fmt::format("Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [CHAR: {}]", i) << std::endl;
+                (std::isspace(i)) ? std::cout << "Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [Character was: <space>]" << std::endl : std::cout << fmt::format("Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [Character was: {}]", i) << std::endl;
+
                 const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
-                Send::SendMessage<__LINE__>(clientSSLSocket, InvalidUsernameMessage, __FILE__);
+
+                if (Send::SendMessage<__LINE__>(clientSSLSocket, InvalidUsernameMessage, __FILE__) != 0)
+                    return -1;
 
                 if (ServerSettings::exitSignal != true)
                 {
@@ -222,7 +225,9 @@ private:
         }
 
         const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
-        Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__); // if they are not rate limited send them an okay signal
+        if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)
+            return -1;
+
         return 0;
     }
 

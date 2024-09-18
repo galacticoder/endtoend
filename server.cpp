@@ -28,7 +28,7 @@
 #define LINE __LINE__
 #define FILE __FILE__
 #define LOGERROR(message, file, line) std::cout << fmt::format("[{}:{}] Error caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
-#define LOGEXCEPTION(message, file, line) std::cout << fmt::format("[{}:{}] Exception caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
+#define LOGEXCEPTION(message, file, line) std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, __func__, message) << std::endl
 
 std::mutex clientsMutex;
 
@@ -56,7 +56,6 @@ void RateLimitTimer(const std::string hashedClientIp)
   }
 
   ClientResources::amountOfTriesFromIP[hashedClientIp] = 0;
-  ClientResources::timeMap[hashedClientIp] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
   ClientResources::clientTimeLimits[hashedClientIp] = ServerSettings::defaultTimeLimit;
 
   std::cout << fmt::format("Tries for hashed ip [{}] has been resetted and can now join", TrimmedHashedIp(hashedClientIp)) << std::endl;
@@ -189,8 +188,10 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       std::string clientUsername = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
-      if (clientUsername.size() <= 0)
+      if (clientUsername.empty())
+      { // first check if their cleaned up and clean if not
         return;
+      }
 
       if (HandleClient::ClientUsernameValidity(clientSocketSSL, clientIndex, clientUsername) != 0)
         return;
