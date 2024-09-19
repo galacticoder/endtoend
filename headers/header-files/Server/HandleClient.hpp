@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <ctype.h>
-#include <queue>
 #include <fmt/core.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -186,10 +185,7 @@ public:
     {
         auto findUser = std::find(ClientResources::blackListedClients.begin(), ClientResources::blackListedClients.end(), clientHashedIp);
 
-        if (findUser != ClientResources::blackListedClients.end())
-            return true;
-
-        return false;
+        return (findUser != ClientResources::blackListedClients.end()) ? true : false;
     }
 };
 
@@ -220,6 +216,7 @@ private:
                 std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
 
             const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
+
             Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
             CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
             std::cout << "Client kicked for attempting to join too frequently" << std::endl;
@@ -238,13 +235,15 @@ private:
         if (ServerSettings::requestNeeded != true)
         {
             const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
-            Send::SendMessage<__LINE__>(userSSLsocket, userOkaySignal, __FILE__); // send an okay signal if they dont need to request to join the server
+            if (Send::SendMessage<__LINE__>(userSSLsocket, userOkaySignal, __FILE__) != 0)
+                return -1;
             return 0;
         }
 
         // send user needs to request message
         const std::string serverRequestMessage = ServerSetMessage::GetMessageBySignal(SignalType::REQUESTNEEDED, 1);
-        Send::SendMessage<__LINE__>(userSSLsocket, serverRequestMessage, __FILE__);
+        if (Send::SendMessage<__LINE__>(userSSLsocket, serverRequestMessage, __FILE__) != 0)
+            return -1;
 
         ClientResources::serverJoinRequests.push(clientHashedIp);
         std::cout << fmt::format("User from hashed ip [{}] is requesting to join the server. Accept or not?(y/n): ", TrimmedHashedIp(clientHashedIp));
@@ -254,7 +253,8 @@ private:
         if (answer == 'Y')
         {
             const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTACCEPTED, 1);
-            Send::SendMessage<__LINE__>(userSSLsocket, userAcceptedMessage, __FILE__);
+            if (Send::SendMessage<__LINE__>(userSSLsocket, userAcceptedMessage, __FILE__) != 0)
+                return -1;
             ClientResources::serverJoinRequests.pop();
             std::cout << "\nUser has been allowed in server" << std::endl;
             return 0;

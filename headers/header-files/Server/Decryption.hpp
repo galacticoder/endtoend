@@ -1,5 +1,4 @@
-#ifndef _DECRYPTION_
-#define _DECRYPTION_
+#pragma once
 
 #include <iostream>
 #include <fmt/core.h>
@@ -69,5 +68,3 @@ public:
         return decoded;
     }
 };
-
-#endif

@@ -27,8 +27,6 @@
 
 #define LINE __LINE__
 #define FILE __FILE__
-#define LOGERROR(message, file, line) std::cout << fmt::format("[{}:{}] Error caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
-#define LOGEXCEPTION(message, file, line) std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, __func__, message) << std::endl
 
 std::mutex clientsMutex;
 

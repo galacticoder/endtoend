@@ -1,5 +1,4 @@
-#ifndef HTTPHOST
-#define HTTPHOST
+#pragma once
 
 #include <iostream>
 #include <boost/asio.hpp>
@@ -10,5 +9,3 @@ namespace beast = boost::beast;
 namespace http = boost::beast::http;
 
 void startHost();
-
-#endif

@@ -13,11 +13,18 @@
 #define eraseLine "\033[2K\r"
 #define clearScreen "\033[2J\r"
 
-void signalHandleMenu(int signum);
-
 class NcursesMenu {
 private:
     inline static const std::string charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()_-+=<>?";
+    
+    static void signalHandleMenu(int signum) {
+        curs_set(1);
+        clrtoeol();
+        refresh();
+        endwin();
+        std::cout << "Server initialization has stopped." << std::endl;
+        exit(signum);
+    }
     
     static std::string generatePassword(int length = 8) {
         CryptoPP::AutoSeededRandomPool random;
@@ -40,8 +47,7 @@ private:
                 return generatePassword();
             case 3:
             case 4:
-                std::cout << clearScreen;
-                std::cout << "Server is starting up without a password..." << std::endl;
+                std::cout << clearScreen <<"Server is starting up without a password..." << std::endl;
                 ServerSettings::passwordNeeded = false;
                 ServerSettings::requestNeeded = (choice == 4);
                 return "";
@@ -49,12 +55,15 @@ private:
                 raise(SIGINT);
         }
 
+        std::string password;
         std::cout << "Enter a password: ";
         std::getline(std::cin, password);
+
         if (password.length() < minLim) {
             std::cout << fmt::format("\nServer password must be at least {} characters long.", minLim) << std::endl;
-            exit(1);
+            raise(SIGINT);
         }
+
         (choice == 1) ? std::cout << "Password has been set for server." << std::endl : std::cout << "Password has been set for server. Users need to request to join." << std::endl;
 
         ServerSettings::passwordNeeded = true;
@@ -125,7 +134,7 @@ public:
                 case KEY_DOWN:
                     highlight = (highlight == n_choices) ? 1 : highlight + 1;
                     break;
-                case 10: // Enter key
+                case 10:
                     choice = highlight;
                     break;
                 default:
@@ -134,7 +143,6 @@ public:
             printMenu(menu_win, highlight);
         }
 
-        std::string password;
         curs_set(1);
         clrtoeol();
         refresh();
@@ -143,12 +151,4 @@ public:
         return passwordSet(choice);
     }
 };
-
-void signalHandleMenu(int signum) {
-    curs_set(1);
-    clrtoeol();
-    refresh();
-    endwin();
-    std::cout << "Server initialization has stopped." << std::endl;
-    exit(signum);
-}
+ 

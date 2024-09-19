@@ -148,7 +148,7 @@ public:
             }
             catch (const std::exception &e)
             {
-                std::cout << "Exception caught in clStat function: " << e.what() << std::endl;
+                std::cout << "Exception caught in clStat function: " << e.what() << std::endl; //replace
                 break;
             }
         }

@@ -1,5 +1,4 @@
-#ifndef TLSSETUP
-#define TLSSETUP
+#pragma once
 
 #include <iostream>
 #include <csignal>
@@ -56,5 +55,3 @@ public:
         }
     }
 };
-
-#endif

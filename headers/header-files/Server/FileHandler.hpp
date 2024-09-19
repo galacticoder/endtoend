@@ -1,5 +1,4 @@
-#ifndef FILEHANDLER
-#define FILEHANDLER
+#pragma once
 
 #include <iostream>
 #include <fmt/core.h>
@@ -111,5 +110,3 @@ struct ReadFile
         }
     }
 };
-
-#endif
