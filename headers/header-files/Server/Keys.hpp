@@ -155,4 +155,49 @@ public:
 
         return pkey;
     }
+
+    static void extractPubKey(const std::string certFilePath, const std::string &pubKeySavePath)
+    {
+        FILE *certFileOpen = fopen(certFilePath.c_str(), "r");
+        if (!certFileOpen)
+        {
+            std::cerr << "Error opening cert file: " << certFilePath << std::endl;
+            return;
+        }
+
+        X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
+        fclose(certFileOpen);
+        if (!cert)
+        {
+            std::cerr << "Error reading certificate" << std::endl;
+            return;
+        }
+
+        EVP_PKEY *pubkey = X509_get_pubkey(cert);
+        if (!pubkey)
+        {
+            std::cerr << "Error extracting pubkey from cert" << std::endl;
+            X509_free(cert);
+            return;
+        }
+
+        FILE *pubkeyfile = fopen(pubKeySavePath.c_str(), "w");
+        if (!pubkeyfile)
+        {
+            std::cerr << "Error opening pub key file: " << pubKeySavePath << std::endl;
+            EVP_PKEY_free(pubkey);
+            X509_free(cert);
+            return;
+        }
+
+        if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
+        {
+            std::cerr << "Error writing public key to file" << std::endl;
+        }
+
+        fclose(pubkeyfile);
+        EVP_PKEY_free(pubkey);
+        X509_free(cert);
+        ERR_free_strings();
+    }
 };

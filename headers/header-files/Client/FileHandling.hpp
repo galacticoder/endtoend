@@ -7,12 +7,13 @@
 #include <fmt/core.h>
 
 #define ServerKeysPath "server-keys/"
-#define UsersActivePath "txt-files/usersActive.txt"
 #define KeysReceivedFromServerPath "keys-from-server/"
-#define TxtDirectoryPath "txt-files/"
 #define YourKeysPath "your-keys/"
 
 #define PublicKeyPathSet(username) (std::string) KeysReceivedFromServerPath + username + "-pubkeyfromserver.pem";
+
+std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", KeysReceivedFromServerPath, "server");
+std::string certPath = fmt::format("{}server-cert.pem", KeysReceivedFromServerPath);
 
 struct Create
 {

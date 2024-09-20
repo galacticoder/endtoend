@@ -11,145 +11,181 @@
 #include "SignalHandler.hpp"
 #include "FileHandling.hpp"
 
-#define usersActivePath "txt-files/usersActive.txt"
+#define FILE __FILE__
+#define LINE __LINE__
+#define FUNC __func__
 
 extern long int lineTrack;
 extern int clientPort;
-extern short leavePlace;
-extern std::string trimWhitespaces(std::string strIp);
+extern short usersConnected;
+extern std::string TrimWhitespaces(std::string strIp);
 
 std::mutex handleClientMutex;
 
-void threadSafeWrefresh(WINDOW *win)
-{
-    std::lock_guard<std::mutex> lock(handleClientMutex);
-    wrefresh(win);
-}
-
 class HandleClient
 {
+private:
+    inline static std::vector<std::string> clientInfo;
+
+    static void threadSafeWrefresh(WINDOW *win)
+    {
+        std::lock_guard<std::mutex> lock(handleClientMutex);
+        wrefresh(win);
+    }
+
+    static void printAndRefreshWindow(WINDOW *subwindow, WINDOW *inputWindow, std::string message)
+    {
+        curs_set(0);
+        wmove(subwindow, lineTrack, 0);
+        message += "\n";
+        wprintw(subwindow, message.c_str(), lineTrack);
+        threadSafeWrefresh(subwindow);
+        wmove(inputWindow, 1, 1);
+        curs_set(1);
+    }
+
+    static void redrawWindow(WINDOW *window)
+    {
+        wclear(window);
+        box(window, 0, 0);
+        threadSafeWrefresh(window);
+        wmove(window, 1, 1);
+    }
+
+    static void ClientMessageExtract(std::string &receivedMessage)
+    {
+        int firstPipe = receivedMessage.find_first_of("|");
+        int secondPipe = receivedMessage.find_last_of("|");
+
+        clientInfo.push_back(receivedMessage.substr(secondPipe + 1));                              // cipherText
+        clientInfo.push_back(receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1)); // time
+        clientInfo.push_back(receivedMessage.substr(0, firstPipe));                                // username
+    }
+
+    static std::string GetFormattedMessage(const std::string &decryptedMessage, const std::string username /*, const std::string time*/, bool clientMessage = true)
+    {
+        return (clientMessage == false) ? fmt::format("{}(You): {}", username, decryptedMessage /*, time*/) : fmt::format("{}: {}", username, decryptedMessage /*, time*/);
+    }
+
 public:
-    static void receiveMessages(SSL *tlsSock, WINDOW *subwin, EVP_PKEY *privateKey, EVP_PKEY *receivedPublicKey, WINDOW *inputWindow)
+    static void ReceiveMessages(SSL *clientSocketSSL, WINDOW *subwin, EVP_PKEY *privateKey, EVP_PKEY *receivedPublicKey, WINDOW *inputWindow)
     {
         try
         {
             while (true)
             {
-                lineTrack++;
-                std::string receivedMessage = Receive::ReceiveMessageSSL(tlsSock);
-                std::string decodedMessage;
+                std::string receivedMessage = Receive::ReceiveMessageSSL(clientSocketSSL);
+                char messageType;
 
                 SignalType anySignalReceive = SignalHandling::getSignalType(receivedMessage);
-                SignalHandling::handleSignal(anySignalReceive, receivedMessage);
+                SignalHandling::handleSignal(anySignalReceive, receivedMessage, clientSocketSSL, receivedPublicKey);
 
-                if (receivedMessage.find('|') != std::string::npos) // for messages from client
+                lineTrack++;
+
+                if (receivedMessage.find('|') != std::string::npos)
                 {
-                    int firstPipe = receivedMessage.find_first_of("|");
-                    int secondPipe = receivedMessage.find_last_of("|");
-
-                    std::string ciphertext = receivedMessage.substr(secondPipe + 1);
-                    std::string time = receivedMessage.substr(firstPipe + 1, (secondPipe - firstPipe) - 1);
-                    std::string username = receivedMessage.substr(0, firstPipe);
-                    decodedMessage = Decode::Base64Decode(ciphertext);
-
-                    std::string messageFromUser = fmt::format("{}: {}", username, Decrypt::DecryptData(privateKey, decodedMessage));
-
-                    curs_set(0);
-                    wmove(subwin, lineTrack, 0);
-                    messageFromUser += "\n";
-                    wprintw(subwin, messageFromUser.c_str(), lineTrack);
-                    threadSafeWrefresh(subwin);
-                    wmove(inputWindow, 1, 1);
-                    curs_set(1);
+                    messageType = 'C';
+                    ClientMessageExtract(receivedMessage);
+                    receivedMessage = clientInfo[0]; // set to the extracted cipher text in vector
                 }
-                else
-                {
-                    decodedMessage = Decode::Base64Decode(receivedMessage);
-                    std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
-                    decryptedMessage += "\n";
 
-                    curs_set(0);
-                    wmove(subwin, lineTrack, 0);
-                    wprintw(subwin, decryptedMessage.c_str(), lineTrack);
-                    threadSafeWrefresh(subwin);
-                    wmove(subwin, lineTrack, 0);
-                    wmove(inputWindow, 1, 1);
-                    curs_set(1);
-                }
+                std::string decodedMessage = Decode::Base64Decode(receivedMessage);
+                std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
+
+                const std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "Server");
+
+                clientInfo.clear();
+                printAndRefreshWindow(subwin, inputWindow, message);
             }
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in receiveMessages function: " << e.what() << std::endl;
+            ErrorHandling::LOGERROR<LINE>(ErrorTypes::EXCEPTION, e.what(), FILE, FUNC);
         }
     }
 
-    static void handleInput(const std::string &userStr, EVP_PKEY *receivedPublicKey, SSL *tlsSock, WINDOW *subaddr, WINDOW *inputaddr)
+    static void HandleInput(const std::string &username, EVP_PKEY *receivedPublicKey, SSL *clientSocketSSL, WINDOW *subwindow, WINDOW *inputWindow)
     {
         std::string message;
-        int ch;
+        int character;
 
         while (true)
         {
-            ch = wgetch(inputaddr);
-            if (ch == 13)
+            character = wgetch(inputWindow);
+            if (character == 13) // enter button
             {
-                if (trimWhitespaces(message) == "/quit")
-                {
-                    break;
-                }
-                else if (!message.empty() && trimWhitespaces(message) != "/quit")
+                if (!message.empty() && TrimWhitespaces(message) != SignalHandling::GetSignalAsString(SignalType::QUIT))
                 {
                     lineTrack++;
+
                     curs_set(0);
-
-                    wmove(subaddr, lineTrack, 0);
-
-                    message = trimWhitespaces(message);
-                    // encrypt and send message
-                    std::string cipherText = Encrypt::EncryptData(receivedPublicKey, message);
-                    cipherText = Encode::Base64Encode(cipherText);
-
-                    Send::SendMessage(tlsSock, cipherText);
-
-                    // print message on your screen
-                    std::string messageFormat = fmt::format("{}(You): {}", userStr, message);
-                    messageFormat += '\n';
-                    wprintw(subaddr, messageFormat.c_str(), lineTrack);
-                    threadSafeWrefresh(subaddr);
-
-                    wclear(inputaddr);
-                    box(inputaddr, 0, 0);
-                    threadSafeWrefresh(inputaddr);
-                    message.clear();
-                    wmove(inputaddr, 1, 1);
+                    wmove(subwindow, lineTrack, 0);
                     curs_set(1);
+
+                    message = TrimWhitespaces(message);
+
+                    std::string encryptedMessage = Encrypt::EncryptData(receivedPublicKey, message);
+                    Send::SendMessage(clientSocketSSL, Encode::Base64Encode(encryptedMessage));
+
+                    std::string formattedMessage = GetFormattedMessage(message, username, false);
+                    printAndRefreshWindow(subwindow, inputWindow, formattedMessage);
+                    redrawWindow(inputWindow);
+
+                    message.clear();
+                }
+                else if (TrimWhitespaces(message) != SignalHandling::GetSignalAsString(SignalType::QUIT))
+                {
+                    break;
                 }
             }
             else
             {
-                message += ch;
-                wprintw(inputaddr, "%c", ch);
-                threadSafeWrefresh(inputaddr);
+                message += character;
+                wprintw(inputWindow, "%c", character);
+                threadSafeWrefresh(inputWindow);
             }
         }
-
-        return;
     }
 
-    static void initCheck(SSL *tlsSock)
+    static std::string GetServerIp()
+    {
+        std::string serverIp;
+        std::cout << "Enter the server ip to connect to (Leave empty for local ip): ";
+        std::getline(std::cin, serverIp);
+
+        if (serverIp.empty())
+            serverIp = "127.0.0.1";
+
+        return TrimWhitespaces(serverIp);
+    }
+
+    static int GetPort()
+    {
+        std::cout << "Enter the port to connect to: ";
+
+        std::string port;
+        std::getline(std::cin, port);
+
+        return atoi(port.c_str());
+    }
+};
+
+class Authentication
+{
+public:
+    static void ServerValidation(SSL *clientSocketSSL)
     {
         try
         {
-            std::string initMsg = Receive::ReceiveMessageSSL(tlsSock); // get message to see if you are rate limited or the server is full
+            // get message to see if you are rate limited or the server is full or other signals
+            std::string initMsg = Receive::ReceiveMessageSSL(clientSocketSSL);
 
             SignalType signal = SignalHandling::getSignalType(initMsg);
             SignalHandling::handleSignal(signal, initMsg);
 
-            // send connection signal and port your ping server is running on
-            Send::SendMessage(tlsSock, std::to_string(clientPort));
+            Send::SendMessage(clientSocketSSL, std::to_string(clientPort));
 
-            std::string requestNeeded = Receive::ReceiveMessageSSL(tlsSock);
+            std::string requestNeeded = Receive::ReceiveMessageSSL(clientSocketSSL);
 
             SignalType requestSignal = SignalHandling::getSignalType(requestNeeded);
             SignalHandling::handleSignal(requestSignal, requestNeeded);
@@ -157,24 +193,21 @@ public:
             if (requestSignal == SignalType::REQUESTNEEDED)
             {
                 // check if you were accepted into the server or not (if request needed to join the server)
-                std::string acceptMessage = Receive::ReceiveMessageSSL(tlsSock);
+                std::string acceptMessage = Receive::ReceiveMessageSSL(clientSocketSSL);
 
                 SignalType acceptedSignal = SignalHandling::getSignalType(acceptMessage);
                 SignalHandling::handleSignal(acceptedSignal, acceptMessage);
             }
-
-            // when exit here sometimes in server you get a seg fault
-            return;
         }
 
         catch (const std::exception &e)
         {
-            std::cerr << "Exception in initCheck: " << e.what() << std::endl;
+            ErrorHandling::LOGERROR<LINE>(ErrorTypes::EXCEPTION, e.what(), FILE, FUNC);
             raise(SIGINT);
         }
     }
 
-    static void handlePassword(const std::string &serverPubKeyPath, SSL *tlsSock, std::string message)
+    static void HandlePassword(const std::string &serverPubKeyPath, SSL *clientSocketSSL, std::string message)
     {
         SignalType passwordNeededSignal = SignalHandling::getSignalType(message);
 
@@ -199,67 +232,60 @@ public:
         encryptedPassword = Encode::Base64Encode(encryptedPassword);
 
         EVP_PKEY_free(serverPublicKey);
-        Send::SendMessage(tlsSock, encryptedPassword);
+        Send::SendMessage(clientSocketSSL, encryptedPassword);
 
         std::cout << "Verifying password.." << std::endl;
 
-        std::string passwordVerification = Receive::ReceiveMessageSSL(tlsSock);
+        std::string passwordVerification = Receive::ReceiveMessageSSL(clientSocketSSL);
 
         SignalType handlePasswordVerification = SignalHandling::getSignalType(passwordVerification);
         SignalHandling::handleSignal(handlePasswordVerification, passwordVerification);
     }
 
-    static EVP_PKEY *receiveKeysAndConnect(SSL *tlsSock, const std::string &userStr, int &activeUsers)
+    static EVP_PKEY *receiveKeysAndConnect(SSL *clientSocketSSL, const std::string &username)
     {
         std::lock_guard<std::mutex> lock(handleClientMutex);
 
-        std::string checkErrSignals = Receive::ReceiveMessageSSL(tlsSock);
+        std::string checkErrSignals = Receive::ReceiveMessageSSL(clientSocketSSL);
 
         SignalType checkingErrSignals = SignalHandling::getSignalType(checkErrSignals);
         SignalHandling::handleSignal(checkingErrSignals, checkErrSignals);
 
-        if (activeUsers < 2)
+        if (usersConnected < 2)
         {
             std::cout << "You have connected to an empty chat. Waiting for another user to connect to start the chat" << std::endl;
-            leavePlace = 0;
-
-            while (true)
+            while (usersConnected < 2)
             {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                activeUsers = ReadFile::readActiveUsers(usersActivePath);
-                if (activeUsers > 1)
-                {
-                    break;
-                }
+                std::istringstream(Receive::ReceiveMessageSSL(clientSocketSSL)) >> usersConnected;
             }
-
             std::cout << "Another user connected, starting chat.." << std::endl;
         }
 
-        std::string clientUsernameKey = Receive::ReceiveMessageSSL(tlsSock);
+        std::string clientUsernameKey = Receive::ReceiveMessageSSL(clientSocketSSL);
 
         std::string formattedClientUsername = clientUsernameKey.substr(clientUsernameKey.find_first_of("/") + 1, (clientUsernameKey.find_last_of("-") - clientUsernameKey.find_first_of("/")) - 1);
 
-        std::cout << fmt::format("Recieving {}'s public key", formattedClientUsername) << std::endl;
+        std::cout << fmt::format("Receiving {}'s public key", formattedClientUsername) << std::endl;
 
         // receive and save user public key
         const std::string saveKeyPath = PublicKeyPathSet(formattedClientUsername);
-        std::string userPubKey = Receive::ReceiveMessageSSL(tlsSock);
+        std::string userPubKey = Receive::ReceiveMessageSSL(clientSocketSSL);
         SaveFile::saveFile(saveKeyPath, userPubKey, std::ios::binary);
 
         std::cout << fmt::format("Received {}'s pub key", formattedClientUsername) << std::endl;
 
         std::cout << fmt::format("Attempting to load {}'s public key", formattedClientUsername) << std::endl;
 
-        EVP_PKEY *receivedPublicKey;
-
-        receivedPublicKey = LoadKey::LoadPublicKey(saveKeyPath);
-        receivedPublicKey ? std::cout << fmt::format("{}'s public key loaded", formattedClientUsername) << std::endl : std::cout << fmt::format("Could not load {}'s public key", formattedClientUsername) << std::endl;
+        EVP_PKEY *receivedPublicKey = LoadKey::LoadPublicKey(saveKeyPath);
 
         if (!receivedPublicKey)
+        {
+            std::cout << fmt::format("Could not load {}'s public key", formattedClientUsername) << std::endl;
             raise(SIGINT);
+        }
 
-        leavePlace = 1;
+        std::cout << fmt::format("{}'s public key loaded", formattedClientUsername) << std::endl;
+
         return receivedPublicKey;
     }
 };

@@ -3,11 +3,9 @@ CXXFLAGS=-std=c++20
 
 SERVER=server
 CLIENT=client
-CLIENTDUMMY=clientdummy
 
 SERVER_SRC=server.cpp
 CLIENT_SRC=client.cpp
-CLIENTDUMMY_SRC=clientdummy.cpp
 
 FILE_LINKING_SERVER=headers/cpp-files/Server/bcrypt.cpp headers/cpp-files/Server/blowfish.cpp headers/cpp-files/Server/hostHttp.cpp 
 FILE_LINKING_CLIENT=headers/cpp-files/Client/httpCl.cpp
@@ -21,16 +19,13 @@ packages:
 	sudo apt update
 	sudo apt install $(PACKAGES) -y
 
-all: $(SERVER) $(CLIENT) $(CLIENTDUMMY)
+all: $(SERVER) $(CLIENT)
 
 $(SERVER): $(SERVER_SRC)
 	$(CXX) $(CXXFLAGS) -Wall -Wextra -DNCURSES_NOMACROS -o $(SERVER) $(SERVER_SRC) $(FILE_LINKING_SERVER) $(LIBS)
 
 $(CLIENT): $(CLIENT_SRC)
-	$(CXX) -Wall -o $(CLIENT) $(CLIENT_SRC) $(FILE_LINKING_CLIENT) $(LIBS_CLIENT)
-
-$(CLIENTDUMMY): $(CLIENTDUMMY_SRC)
-	$(CXX) -Wall -o $(CLIENT) $(CLIENTDUMMY_SRC) $(FILE_LINKING_CLIENT) $(LIBS_CLIENT)
+	$(CXX) $(CXXFLAGS) -Wall -o $(CLIENT) $(CLIENT_SRC) $(FILE_LINKING_CLIENT) $(LIBS_CLIENT)
 
 clean:
 	rm -f $(CLIENT) $(SERVER)

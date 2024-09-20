@@ -18,7 +18,7 @@
 
 int startSock;
 SSL_CTX *ctx = nullptr;
-SSL *tlsSock = nullptr;
+SSL *clientSocketSSL = nullptr;
 
 class initOpenSSL
 {
@@ -107,17 +107,17 @@ private:
         SignalHandling::handleSignal(SignalHandling::getSignalType(signalMessage), signalMessage);
     }
 
-    void connectUsingTlsSocket(SSL *tlsSock) // connect to server and establish tls connection with server
+    void connectUsingTlsSocket(SSL *clientSocketSSL) // connect to server and establish tls connection with server
     {
-        if (tlsSock == nullptr)
+        if (clientSocketSSL == nullptr)
         {
-            std::cerr << "Failed to create tlsSock object" << std::endl;
+            std::cerr << "Failed to create clientSocketSSL object" << std::endl;
             raise(SIGINT);
         }
 
-        SSL_set_fd(tlsSock, startSock);
+        SSL_set_fd(clientSocketSSL, startSock);
 
-        if (SSL_connect(tlsSock) <= 0)
+        if (SSL_connect(clientSocketSSL) <= 0)
         {
             ERR_print_errors_fp(stderr);
             raise(SIGINT);
@@ -134,7 +134,7 @@ public:
 
     StartTLS(std::string &serverIp, const std::string &certPath, const std::string &serverPubKeyPath, unsigned int &port)
     {
-        // initialize open tlsSock and create ctx
+        // initialize open clientSocketSSL and create ctx
         initOpenSSL::InitOpenssl();
         ctx = SSL_CTX_new(TLS_client_method());
 
@@ -145,9 +145,9 @@ public:
 
         connectUsingTcpSocket(serverIp.c_str(), port);
 
-        tlsSock = SSL_new(ctx);
+        clientSocketSSL = SSL_new(ctx);
 
-        connectUsingTlsSocket(tlsSock);
+        connectUsingTlsSocket(clientSocketSSL);
     }
 };
 

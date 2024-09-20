@@ -21,13 +21,13 @@ public:
         endwin();
     }
 
-    static void cleanUpOpenssl(SSL *tlsSock, int startSock, EVP_PKEY *receivedPublicKey, SSL_CTX *ctx)
+    static void cleanUpOpenssl(SSL *clientSocketSSL, int startSock, EVP_PKEY *receivedPublicKey, SSL_CTX *ctx)
     {
-        if (tlsSock)
+        if (clientSocketSSL)
         {
             std::cout << "Closing tlssock " << std::endl;
-            SSL_shutdown(tlsSock);
-            SSL_free(tlsSock);
+            SSL_shutdown(clientSocketSSL);
+            SSL_free(clientSocketSSL);
             std::cout << "Closed tlssock" << std::endl;
         }
         if (startSock)

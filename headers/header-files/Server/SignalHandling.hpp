@@ -48,8 +48,8 @@ std::vector<std::string> ServerMessages = {
     "This server is password protected enter the password to join: ",
     "You have entered the server", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
-    "Your username is over the allowed user length by the server [4-12]", // find a way to format the string
-    "N/A",                                                                /*Okay signal has no message*/
+    fmt::format("Your username is over the allowed user length by the server [{}-{}]", ServerSettings::minimumNameLength, ServerSettings::maximumNameLength),
+    "N/A", /*Okay signal has no message*/
     "Your request to join the server has been denied",
     "Your request to join the server has been accepted",
     "N/A" /*connection signal is never sent appended to a message*/,

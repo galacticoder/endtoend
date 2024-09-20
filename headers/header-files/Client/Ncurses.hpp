@@ -17,10 +17,10 @@ public:
         wrefresh(win);
     }
 
-    static void startUserMenu(SSL *tlsSock, const std::string &userStr, const std::string &privateKeyPath, int &activeUsers)
+    static void startUserMenu(SSL *clientSocketSSL, const std::string &username, const std::string &privateKeyPath)
     {
         // first get keys
-        EVP_PKEY *receivedPublicKey = HandleClient::receiveKeysAndConnect(tlsSock, userStr, activeUsers);
+        EVP_PKEY *receivedPublicKey = Authentication::receiveKeysAndConnect(clientSocketSSL, username);
 
         valuePasser = [&receivedPublicKey](int sig)
         {
@@ -72,8 +72,8 @@ public:
         if (!privateKey)
             raise(SIGINT);
 
-        std::thread(HandleClient::receiveMessages, tlsSock, subwin, privateKey, receivedPublicKey, messageInputWindow).detach();
+        std::thread(HandleClient::ReceiveMessages, clientSocketSSL, subwin, privateKey, receivedPublicKey, messageInputWindow).detach();
 
-        std::thread(HandleClient::handleInput, std::ref(userStr), receivedPublicKey, tlsSock, subwin, messageInputWindow).join();
+        std::thread(HandleClient::HandleInput, std::ref(username), receivedPublicKey, clientSocketSSL, subwin, messageInputWindow).join();
     }
 };

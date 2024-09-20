@@ -115,6 +115,8 @@ void WaitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
     std::this_thread::sleep_for(std::chrono::seconds(1));
     if (ClientResources::clientsKeyContents.size() > 1)
     {
+      if (Send::SendMessage<LINE>(clientSocket, std::to_string(ClientResources::clientUsernames.size()), FILE))
+        return;
       std::cout << "Another user connected, proceeding..." << std::endl;
       Send::SendKey(clientSocket, 1, clientIndex);
       break;
@@ -187,10 +189,9 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       std::string clientUsername = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
+      // first check if their cleaned up and clean if not
       if (clientUsername.empty())
-      { // first check if their cleaned up and clean if not
         return;
-      }
 
       if (HandleClient::ClientUsernameValidity(clientSocketSSL, clientIndex, clientUsername) != 0)
         return;
@@ -323,6 +324,7 @@ int main()
     std::cout << "\b\b\b\b"; // backspace to remove ^C when pressing ctrl+c
     CleanUp::CleanUpServer(serverCtx, serverSocket);
     std::cout << "Server has been shutdown" << std::endl;
+    std::cout << fmt::format("Total server pings: {}", ServerSettings::pingCount) << std::endl;
     exit(signal);
   };
 
@@ -349,6 +351,8 @@ int main()
 
   EVP_PKEY_free(serverPrivateKey);
   std::cout << "Server's private key has been loaded" << std::endl;
+
+  LoadKey::extractPubKey(ServerCertPath, ServerPublicKeyPath);
 
   TlsSetup::LoadSSLAlgs();
   serverCtx = TlsSetup::CreateCtx();

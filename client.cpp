@@ -30,11 +30,11 @@
 #include "headers/header-files/Client/Encryption.hpp"
 
 long int lineTrack = 0;
-short leavePlace;
+short usersConnected;
 
 std::mutex mut;
 
-std::string trimWhitespaces(std::string strIp) // trim whitespaces
+std::string TrimWhitespaces(std::string strIp) // trim whitespaces
 {
     strIp.erase(strIp.begin(), find_if(strIp.begin(), strIp.end(), [](unsigned char ch)
                                        { return !isspace(ch); }));
@@ -81,25 +81,13 @@ int main()
     {
         windowCleaning(sig);
         EVP_PKEY *receivedPublicKey = valuePasser(sig);
-        std::lock_guard<std::mutex> lock(mut);
         // std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
-        CleanUp::cleanUpOpenssl(tlsSock, startSock, receivedPublicKey, ctx);
+        CleanUp::cleanUpOpenssl(clientSocketSSL, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
         Delete::DeletePath(KeysReceivedFromServerPath);
         Delete::DeletePath(YourKeysPath);
-        Delete::DeletePath(TxtDirectoryPath);
 
-        switch (leavePlace)
-        {
-        case 0:
-            std::cout << "You have disconnected from the empty chat." << std::endl;
-            break;
-        case 1:
-            std::cout << "You have left the chat" << std::endl;
-            break;
-        default:
-            std::cout << "You have disconnected" << std::endl;
-        }
+        std::cout << "You have disconnected" << std::endl;
 
         exit(sig);
     };
@@ -114,28 +102,11 @@ int main()
         return nullptr;
     };
 
-    std::string serverIp;
-    unsigned int port;
-
-    std::cout << "Enter the server ip to connect to (Leave empty for local ip): ";
-    std::getline(std::cin, serverIp);
-
-    if (serverIp.empty())
-        serverIp = "127.0.0.1";
-
-    serverIp = trimWhitespaces(serverIp);
-
-    std::cout << "Enter the port to connect to: ";
-    std::string tmpPort;
-    std::getline(std::cin, tmpPort);
-    port = atoi(tmpPort.c_str());
-
-    std::string serverPubKeyPath = fmt::format("{}{}-pubkey.pem", KeysReceivedFromServerPath, "server");
-    std::string certPath = fmt::format("{}server-cert.pem", KeysReceivedFromServerPath);
+    std::string serverIp = HandleClient::GetServerIp();
+    unsigned int port = HandleClient::GetPort();
 
     // create directories
     Create::createDirectory(KeysReceivedFromServerPath);
-    Create::createDirectory(TxtDirectoryPath);
     Create::createDirectory(YourKeysPath);
 
     // start connection to server using tls
@@ -145,32 +116,32 @@ int main()
     std::thread(http::serverMake).detach();
     std::thread(http::pingServer, serverIp.c_str(), port).detach();
 
-    HandleClient::initCheck(tlsSock);
+    Authentication::ServerValidation(clientSocketSSL);
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
-    std::string passwordNeeded = Receive::ReceiveMessageSSL(tlsSock);
+    std::string passwordNeeded = Receive::ReceiveMessageSSL(clientSocketSSL);
 
-    HandleClient::handlePassword(serverPubKeyPath, tlsSock, passwordNeeded);
+    Authentication::HandlePassword(serverPubKeyPath, clientSocketSSL, passwordNeeded);
 
     std::cout << "Enter your username: ";
-    std::string user;
-    std::getline(std::cin, user); // username length limit 4-12
+    std::string username;
+    std::getline(std::cin, username);
 
     // send username to server
-    if (user.empty())
+    if (username.empty())
         raise(SIGINT);
 
-    Send::SendMessage(tlsSock, user);
+    Send::SendMessage(clientSocketSSL, username);
 
-    std::string checkErrorsWithUsername = Receive::ReceiveMessageSSL(tlsSock);
+    std::string checkErrorsWithUsername = Receive::ReceiveMessageSSL(clientSocketSSL);
 
     // signal to check if name already exists on server
-    SignalType UsernameValiditySignal = SignalHandling::getSignalType(checkErrorsWithUsername);
-    SignalHandling::handleSignal(UsernameValiditySignal, checkErrorsWithUsername);
+    SignalType usernameValiditySignal = SignalHandling::getSignalType(checkErrorsWithUsername);
+    SignalHandling::handleSignal(usernameValiditySignal, checkErrorsWithUsername);
 
-    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, user);
-    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, user);
+    std::string publicKeyPath = fmt::format("{}{}-pubkey.pem", YourKeysPath, username);
+    std::string privateKeyPath = fmt::format("{}{}-privkey.pem", YourKeysPath, username);
 
     GenerateKeys makeKeys(privateKeyPath, publicKeyPath);
 
@@ -181,16 +152,17 @@ int main()
         raise(SIGINT);
     }
 
-    // receive and save users active file
-    std::string usersActiveAmount = Receive::ReceiveMessageSSL(tlsSock);
-    SaveFile::saveFile(usersActivePath, usersActiveAmount);
+    // receive users amount connected
+    std::istringstream(Receive::ReceiveMessageSSL(clientSocketSSL)) >> usersConnected;
+
+    std::cout << "Users active: " << usersConnected << std::endl;
 
     if (std::filesystem::is_regular_file(publicKeyPath))
     {
         std::cout << fmt::format("Sending public key ({}) to server", publicKeyPath) << std::endl;
         std::string publicKeyData = ReadFile::readPemKeyContents(publicKeyPath);
         publicKeyData = Encode::Base64Encode(publicKeyData);
-        Send::SendMessage(tlsSock, publicKeyData); // send your encoded key data to server
+        Send::SendMessage(clientSocketSSL, publicKeyData); // send your encoded key data to server
         std::cout << "Public key sent to server" << std::endl;
     }
     else
@@ -199,9 +171,7 @@ int main()
         raise(SIGINT);
     }
 
-    int activeUsers = ReadFile::readActiveUsers(usersActivePath);
-
-    std::thread(Ncurses::startUserMenu, tlsSock, user, privateKeyPath, std::ref(activeUsers)).join();
+    std::thread(Ncurses::startUserMenu, clientSocketSSL, username, privateKeyPath).join();
 
     return 0;
 }
