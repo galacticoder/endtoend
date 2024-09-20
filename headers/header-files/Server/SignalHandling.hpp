@@ -87,7 +87,7 @@ enum class SignalType
     UNKNOWN
 };
 
-enum class Errors
+enum class ErrorTypes
 {
     ERROR,
     EXCEPTION
@@ -116,15 +116,15 @@ public:
 class Error
 {
 public:
-    constexpr static void LOGERROR(Errors errorType, const std::string message, const char *file, unsigned int line, auto func)
+    constexpr static void LOGERROR(ErrorTypes errorType, const std::string message, const char *file, unsigned int line, auto func)
     {
-        (errorType == Errors::ERROR) ? std::cout << fmt::format("[{}:{}] Error caught [{}]: {}", file, line, func, message) << std::endl : std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, func, message) << std::endl;
+        (errorType == ErrorTypes::ERROR) ? std::cout << fmt::format("[{}:{}] Error caught [{}]: {}", file, line, func, message) << std::endl : std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, func, message) << std::endl;
     }
 
-    static void CaughtERROR(SignalType ERRORTYPE, unsigned int &clientIndex, const std::string &message)
+    static void CaughtERROR(SignalType errorType, unsigned int &clientIndex, const std::string &message)
     {
         std::cout << message << std::endl;
-        const std::string errorMessage = ServerSetMessage::GetMessageBySignal(ERRORTYPE, 1);
+        const std::string errorMessage = ServerSetMessage::GetMessageBySignal(errorType, 1);
 
         Send::SendMessage<__LINE__>(ClientResources::clientSocketsSSL[clientIndex], errorMessage, __FILE__);
 

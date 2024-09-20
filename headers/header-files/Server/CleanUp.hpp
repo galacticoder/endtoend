@@ -87,18 +87,16 @@ public:
             if ((unsigned)clientIndex < ClientResources::passwordVerifiedClients.size())
                 ClientResources::passwordVerifiedClients.erase(ClientResources::passwordVerifiedClients.begin() + clientIndex);
 
-            if ((unsigned)clientIndex < ClientResources::clientUsernames.size())
+            auto findClientUsername = std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), ClientResources::clientUsernames[clientIndex]);
+
+            if (findClientUsername != ClientResources::clientUsernames.end())
             {
-                auto deleteClientUsername = std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), ClientResources::clientUsernames[clientIndex]);
+                ClientResources::clientUsernames.erase(findClientUsername);
 
-                if (deleteClientUsername != ClientResources::clientUsernames.end())
-                    ClientResources::clientUsernames.erase(deleteClientUsername);
+                auto findClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
 
-                if ((unsigned)clientIndex < ClientResources::clientsKeyContents.size())
-                {
-                    auto deleteClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
+                if (findClientKeyContents != ClientResources::clientsKeyContents.end())
                     ClientResources::clientsKeyContents.erase(deleteClientKeyContents);
-                }
                 // delete client key file if exists
                 if (std::filesystem::is_regular_file(PublicPath(ClientResources::clientUsernames[clientIndex])))
                     Delete::DeletePath(PublicPath(ClientResources::clientUsernames[clientIndex]));
@@ -108,7 +106,7 @@ public:
         }
         catch (const std::exception &e)
         {
-            std::cout << "Exception caught in leaveCl: " << e.what() << std::endl;
+            Error::LOGERROR(Errors::EXCEPTION, e.what(), FILE, LINE, FUNC);
         }
     }
 };
