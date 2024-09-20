@@ -26,6 +26,7 @@
 #include "headers/header-files/Server/ServerSettings.hpp"
 
 #define LINE __LINE__
+#define FUNC __func__
 #define FILE __FILE__
 
 std::mutex clientsMutex;
@@ -302,7 +303,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
   }
   catch (const std::exception &e)
   {
-    LOGEXCEPTION(e.what(), FILE, LINE);
+    Error::LOGERROR(Errors::EXCEPTION, e.what(), FILE, LINE, FUNC);
     raise(SIGINT);
   }
 }

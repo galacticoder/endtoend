@@ -7,20 +7,6 @@
 #include "CleanUp.hpp"
 #include "SendAndReceive.hpp"
 
-#define LOGERROR(message, file, line) std::cout << fmt::format("[{}:{}] Error caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl
-#define LOGEXCEPTION(message, file, line) std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, __func__, message) << std::endl
-
-/*
-tried this i dont think itll work ill have to test it on my terminal when i get home since i didnt power on my pc at home
-maybe use a template to give the line number and file where the function is being function
-tion {}]: {}", file, line, __func__, message)
-                            --^ this
-
-
-constexpr auto LOGERROR = [](const std::string message, const char* file, unsigned int line){std::cout << fmt::format("[{}:{}] Error caught [{}:{}]: {}", file, line, __func__, line, message) << std::endl;};
-constexpr auto LOGEXCEPTION = [](const std::string message, const char* file, unsigned int line){std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, __func__, message) << std::endl;};
-*/
-
 std::vector<std::string> signalStringsVector = {
     "KEYLOADERROR",
     "KEYEXISTERR",
@@ -101,6 +87,11 @@ enum class SignalType
     UNKNOWN
 };
 
+enum class Errors
+{
+    ERROR,
+    EXCEPTION
+};
 class ServerSetMessage
 {
 public:
@@ -125,6 +116,11 @@ public:
 class Error
 {
 public:
+    constexpr static void LOGERROR(Errors errorType, const std::string message, const char *file, unsigned int line, auto func)
+    {
+        (errorType == Errors::ERROR) ? std::cout << fmt::format("[{}:{}] Error caught [{}]: {}", file, line, func, message) << std::endl : std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", file, line, func, message) << std::endl;
+    }
+
     static void CaughtERROR(SignalType ERRORTYPE, unsigned int &clientIndex, const std::string &message)
     {
         std::cout << message << std::endl;

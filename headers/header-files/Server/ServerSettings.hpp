@@ -20,6 +20,7 @@ public:
     inline static bool requestNeeded;
     inline static unsigned int minimumNameLength = 4;
     inline static unsigned int maximumNameLength = 12;
+    inline static unsigned int minimumPasswordLength = 6;
 };
 
 class ClientResources
