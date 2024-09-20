@@ -64,6 +64,9 @@ private:
 
     static std::string GetFormattedMessage(const std::string &decryptedMessage, const std::string username /*, const std::string time*/, bool clientMessage = true)
     {
+        if (username.empty())
+            return fmt::format("{}", decryptedMessage /*, time*/);
+
         return (clientMessage == false) ? fmt::format("{}(You): {}", username, decryptedMessage /*, time*/) : fmt::format("{}: {}", username, decryptedMessage /*, time*/);
     }
 
@@ -92,9 +95,10 @@ public:
                 std::string decodedMessage = Decode::Base64Decode(receivedMessage);
                 std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
 
-                const std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "Server");
+                const std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "");
 
                 clientInfo.clear();
+                messageType = '\0';
                 printAndRefreshWindow(subwin, inputWindow, message);
             }
         }
@@ -114,7 +118,11 @@ public:
             character = wgetch(inputWindow);
             if (character == 13) // enter button
             {
-                if (!message.empty() && TrimWhitespaces(message) != SignalHandling::GetSignalAsString(SignalType::QUIT))
+                if (message.empty())
+                {
+                    continue;
+                }
+                if (TrimWhitespaces(message) != SignalHandling::GetSignalAsString(SignalType::QUIT))
                 {
                     lineTrack++;
 

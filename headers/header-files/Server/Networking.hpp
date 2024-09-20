@@ -128,7 +128,12 @@ public:
                     std::cout << "Client disconnected. Cannot reach client server" << std::endl;
 
                     if (ClientResources::cleanUpInPing != false)
+                    {
+                        if (ClientResources::clientUsernames.size() > 1)
+                            Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
+
                         ClientResources::clientSocketsTcp.size() > (unsigned)clientIndex ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
+                    }
                     else
                     {
                         std::cout << "cleanUpInPing is false. Clean up occuring somewhere else." << std::endl;
@@ -148,7 +153,7 @@ public:
             }
             catch (const std::exception &e)
             {
-                std::cout << "Exception caught in clStat function: " << e.what() << std::endl; //replace
+                std::cout << "Exception caught in clStat function: " << e.what() << std::endl; // replace
                 break;
             }
         }

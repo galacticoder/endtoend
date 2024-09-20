@@ -272,6 +272,10 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         if (receivedData.empty() || receivedData.length() > 4096)
         {
           std::cout << exitMsg << std::endl;
+
+          if (receivedData.empty()) // check properly for if they are cleaned up or not
+            return;
+
           ClientResources::cleanUpInPing = false;
           isConnected = false;
 

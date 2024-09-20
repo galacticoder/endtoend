@@ -89,19 +89,20 @@ public:
             if (socket != senderSocket && reverse != true)
             {
                 std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
-                SendMessage<__LINE__>(socket, message, __FILE__);
+                if (SendMessage<__LINE__>(socket, message, __FILE__) != 0)
+                    return;
             }
             else if (socket == senderSocket && reverse == true)
             {
                 std::cout << "Sending message to tls sock [" << socket << "]" << std::endl;
-                SendMessage<__LINE__>(socket, message, __FILE__);
+                if (SendMessage<__LINE__>(socket, message, __FILE__) != 0)
+                    return;
             }
         }
     }
 
     static void BroadcastEncryptedExitMessage(unsigned int &clientIndex, int clientToSendMsgIndex)
     {
-        std::cout << "Broadcasting exit message of user " << ClientResources::clientUsernames[clientIndex] << "to " << ClientResources::clientUsernames[clientToSendMsgIndex] << std::endl;
         std::string UserExitMessage = fmt::format("{} has left the chat", ClientResources::clientUsernames[clientIndex]);
         EVP_PKEY *LoadedUserPublicKey = LoadKey::LoadPublicKey(PublicPath(ClientResources::clientUsernames[clientToSendMsgIndex])); // load other user public key
         if (!LoadedUserPublicKey)
