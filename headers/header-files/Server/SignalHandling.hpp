@@ -113,7 +113,7 @@ public:
     }
 };
 
-class Error
+class ErrorCatching
 {
 public:
     constexpr static void LOGERROR(ErrorTypes errorType, const std::string message, const char *file, unsigned int line, auto func)
@@ -126,7 +126,8 @@ public:
         std::cout << message << std::endl;
         const std::string errorMessage = ServerSetMessage::GetMessageBySignal(errorType, 1);
 
-        Send::SendMessage<__LINE__>(ClientResources::clientSocketsSSL[clientIndex], errorMessage, __FILE__);
+        if (Send::SendMessage<__LINE__>(ClientResources::clientSocketsSSL[clientIndex], errorMessage, __FILE__) != 0)
+            return;
 
         ClientResources::cleanUpInPing = false;
         CleanUp::CleanUpClient(clientIndex);

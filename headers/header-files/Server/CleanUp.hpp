@@ -15,6 +15,7 @@
 #include "ServerSettings.hpp"
 
 std::mutex ClientMutex;
+extern void GetUsersConnected();
 
 class CleanUp
 {
@@ -43,6 +44,7 @@ public:
         try
         {
             std::lock_guard<std::mutex> lock(ClientMutex);
+            std::cout << "Client index in clean up: " << clientIndex << std::endl;
             if (clientSocketTcp != -1)
                 close(clientSocketTcp);
             else if (clientIndex != -1 && ClientResources::clientSocketsTcp.size() > (unsigned)clientIndex)
@@ -78,11 +80,11 @@ public:
             }
             std::cout << "ClientResources::clientSocketsTcp size after: " << ClientResources::clientSocketsTcp.size() << std::endl;
 
-            if (clientIndex == -1)
-            {
-                std::cout << "Client clean up finished" << std::endl;
-                return;
-            }
+            // if (clientIndex == -1)
+            // {
+            //     std::cout << "Client clean up finished" << std::endl;
+            //     return;
+            // }
 
             if ((unsigned)clientIndex < ClientResources::passwordVerifiedClients.size())
                 ClientResources::passwordVerifiedClients.erase(ClientResources::passwordVerifiedClients.begin() + clientIndex);
@@ -91,22 +93,36 @@ public:
 
             if (findClientUsername != ClientResources::clientUsernames.end())
             {
-                ClientResources::clientUsernames.erase(findClientUsername);
-
-                auto findClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
-
-                if (findClientKeyContents != ClientResources::clientsKeyContents.end())
-                    ClientResources::clientsKeyContents.erase(deleteClientKeyContents);
                 // delete client key file if exists
                 if (std::filesystem::is_regular_file(PublicPath(ClientResources::clientUsernames[clientIndex])))
                     Delete::DeletePath(PublicPath(ClientResources::clientUsernames[clientIndex]));
+
+                std::cout << "Client usernames before: " << ClientResources::clientUsernames.size() << std::endl;
+                ClientResources::clientUsernames.erase(findClientUsername);
+                std::cout << "Client usernames after: " << ClientResources::clientUsernames.size() << std::endl;
+
+                auto findClientKeyContents = std::find(ClientResources::clientsKeyContents.begin(), ClientResources::clientsKeyContents.end(), ClientResources::clientsKeyContents[clientIndex]);
+
+                std::cout << "Client keys before: " << ClientResources::clientsKeyContents.size() << std::endl;
+
+                if (findClientKeyContents != ClientResources::clientsKeyContents.end())
+                    ClientResources::clientsKeyContents.erase(findClientKeyContents);
+
+                std::cout << "Client keys after: " << ClientResources::clientsKeyContents.size() << std::endl;
             }
 
             std::cout << "Client clean up finished" << std::endl;
+            GetUsersConnected();
+
+            if (ClientResources::clientUsernames.size() <= 0)
+            {
+                std::cout << "Server shutting down due to no users connected" << std::endl;
+                raise(SIGINT);
+            }
         }
         catch (const std::exception &e)
         {
-            Error::LOGERROR(Errors::EXCEPTION, e.what(), FILE, LINE, FUNC);
+            std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", __FILE__, __LINE__, __func__, e.what()) << std::endl;
         }
     }
 };

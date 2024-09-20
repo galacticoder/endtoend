@@ -18,6 +18,7 @@ public:
     inline static unsigned long pingCount = 0;
     inline static bool passwordNeeded;
     inline static bool requestNeeded;
+    inline static bool handleClientIndexChanges = false;
     inline static unsigned int minimumNameLength = 4;
     inline static unsigned int maximumNameLength = 12;
     inline static unsigned int minimumPasswordLength = 6;

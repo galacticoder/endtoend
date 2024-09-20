@@ -112,6 +112,13 @@ public:
         {
             try
             {
+                if (ClientResources::clientUsernames.size() == clientIndex && clientIndex != 0 && ServerSettings::handleClientIndexChanges == true)
+                {
+                    std::cout << fmt::format("Updated client index from {} ", clientIndex);
+                    clientIndex--;
+                    std::cout << fmt::format("to {}", clientIndex) << std::endl;
+                }
+
                 int pingingSocket = socket(AF_INET, SOCK_STREAM, 0);
 
                 sockaddr_in serverAddress;

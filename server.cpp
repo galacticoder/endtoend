@@ -95,6 +95,12 @@ std::string GetTime()
 
 void GetUsersConnected()
 {
+  if (ClientResources::clientUsernames.size() <= 0)
+  {
+    std::cout << "No clients connected" << std::endl;
+    return;
+  }
+
   std::string clientUsernamesString;
   for (std::string clientUsername : ClientResources::clientUsernames)
   {
@@ -206,6 +212,9 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         ClientResources::clientUsernames.push_back(clientUsername);
       }
 
+      std::cout << "Client Index: " << clientIndex << std::endl;
+      std::cout << "Client usernames vector: " << ClientResources::clientUsernames.size() << std::endl;
+
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
       std::cout << "Sending usersactive amount" << std::endl;
@@ -228,11 +237,11 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       SaveFile::saveFile(userPublicKeyPath, decodedUserPublicKey, std::ios::binary);
 
       if (!std::filesystem::is_regular_file(userPublicKeyPath))
-        Error::CaughtERROR(SignalType::KEYEXISTERR, clientIndex, fmt::format("User [{}] public key file on server does not exist", clientUsername));
+        ErrorCatching::CaughtERROR(SignalType::KEYEXISTERR, clientIndex, fmt::format("User [{}] public key file on server does not exist", clientUsername));
 
       EVP_PKEY *testLoadKey = LoadKey::LoadPublicKey(userPublicKeyPath);
 
-      !testLoadKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
+      !testLoadKey ? ErrorCatching::CaughtERROR(SignalType::LOADERR, clientIndex, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
       ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex])));
 
@@ -251,7 +260,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       EVP_PKEY *loadedUserPubKey = LoadKey::LoadPublicKey(PublicPath(clientUsername));
 
-      !loadedUserPubKey ? Error::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
+      !loadedUserPubKey ? ErrorCatching::CaughtERROR(SignalType::LOADERR, clientIndex, "Cannot load user key for sending join message") : (void)0;
 
       // send base 64 encoded and encrypted user join message
       if (Send::SendMessage<LINE>(clientSocketSSL, Encode::Base64Encode(Encrypt::EncryptData(loadedUserPubKey, userJoinMessage)), FILE) != 0)
@@ -263,6 +272,8 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       GetUsersConnected();
 
       bool isConnected = true;
+
+      ServerSettings::handleClientIndexChanges = true;
 
       while (isConnected)
       {
@@ -308,7 +319,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
   }
   catch (const std::exception &e)
   {
-    Error::LOGERROR(Errors::EXCEPTION, e.what(), FILE, LINE, FUNC);
+    ErrorCatching::LOGERROR(ErrorTypes::EXCEPTION, e.what(), FILE, LINE, FUNC);
     raise(SIGINT);
   }
 }
