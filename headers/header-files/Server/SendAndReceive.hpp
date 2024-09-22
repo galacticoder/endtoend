@@ -18,6 +18,24 @@ class Send
 {
 public:
     Send() = default;
+    static void BroadcastKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int clientIndex)
+    {
+        std::lock_guard<std::mutex> lock(mut);
+
+        std::cout << fmt::format("Broadcasting Client {}'s key to Client {}", ClientResources::clientUsernames[clientIndex], ClientResources::clientUsernames[clientSendIndex]) << std::endl;
+        const std::string publicKeyPath = PublicPath(ClientResources::clientUsernames[clientSendIndex]); // set the path for key to send
+
+        // send path so client can get username of client
+        Send::BroadcastMessage(clientSocket, publicKeyPath);
+
+        const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
+
+        if (keyContents.empty())
+            return;
+
+        Send::BroadcastMessage(clientSocket, keyContents);
+    }
+
     static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int &clientIndex)
     {
         std::lock_guard<std::mutex> lock(mut);
@@ -34,7 +52,7 @@ public:
         if (keyContents.empty())
             return;
 
-        std::cout << fmt::format("Key contents sending to client {}: {}", ClientResources::clientUsernames[clientSendIndex], keyContents) << std::endl;
+        // std::cout << fmt::format("Key contents sending to client {}: {}", ClientResources::clientUsernames[clientSendIndex], keyContents) << std::endl;
         // send the encoded key
         if (Send::SendMessage<__LINE__>(clientSocket, keyContents, __FILE__) != 0)
             return;

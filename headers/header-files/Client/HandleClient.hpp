@@ -80,7 +80,7 @@ public:
                 std::string receivedMessage = Receive::ReceiveMessageSSL(clientSocketSSL);
                 char messageType;
 
-                SignalType anySignalReceive = SignalHandling::getSignalType(receivedMessage);
+                SignalType anySignalReceive = SignalHandling::getSignalType(Decode::Base64Decode(receivedMessage));
                 SignalHandling::handleSignal(anySignalReceive, receivedMessage, clientSocketSSL, receivedPublicKey);
 
                 lineTrack++;
@@ -95,7 +95,10 @@ public:
                 std::string decodedMessage = Decode::Base64Decode(receivedMessage);
                 std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
 
-                const std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "");
+                std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "");
+
+                message.append(fmt::format(" signal is {} | ", (int)anySignalReceive));
+                message += Decode::Base64Decode(receivedMessage).size() > 20 ? "" : Decode::Base64Decode(receivedMessage);
 
                 clientInfo.clear();
                 messageType = '\0';

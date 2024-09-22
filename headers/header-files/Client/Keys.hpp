@@ -132,7 +132,7 @@ public:
         }
 
         if (echo == 1)
-            std::cout << "Loaded RSA Private key file (" << privateKeyFile << ") successfuly" << std::endl;
+            std::cout << "Loaded RSA Private key file (" << privateKeyFile << ") successfully" << std::endl;
 
         return pkey;
     }
@@ -157,7 +157,7 @@ public:
         }
 
         if (echo != 0)
-            std::cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfuly" << std::endl;
+            std::cout << "Loaded RSA Public key file (" << publicKeyFile << ") successfully" << std::endl;
 
         return pkey;
     }

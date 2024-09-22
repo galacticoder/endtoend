@@ -126,7 +126,7 @@ public:
             return nullptr;
         }
 
-        std::cout << fmt::format("Loaded PEM Private key file ({}) successfuly", privateKeyFile) << std::endl;
+        std::cout << fmt::format("Loaded PEM Private key file ({}) successfully", privateKeyFile) << std::endl;
 
         return pkey;
     }
@@ -151,7 +151,7 @@ public:
             ERR_print_errors_fp(stderr);
             return nullptr;
         }
-        std::cout << fmt::format("Loaded PEM Public key file ({}) successfuly", publicKeyFile) << std::endl;
+        std::cout << fmt::format("Loaded PEM Public key file ({}) successfully", publicKeyFile) << std::endl;
 
         return pkey;
     }

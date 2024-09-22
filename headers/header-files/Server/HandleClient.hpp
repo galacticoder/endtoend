@@ -192,13 +192,20 @@ public:
 class CheckClientConnectValidity
 {
 private:
-    static int CheckUserLimitReached(SSL *clientSocketSSL)
+    static void CleanUpUserSocks(SSL *clientSocketSSL, int &clientSocketTCP)
+    {
+        SSL_shutdown(clientSocketSSL);
+        SSL_free(clientSocketSSL);
+        close(clientSocketTCP);
+    }
+
+    static int CheckUserLimitReached(SSL *clientSocketSSL, int &clientSocketTCP)
     {
         if (ClientResources::clientUsernames.size() == ServerSettings::limitOfUsers)
         {
             const std::string userLimitReachedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERLIMIT, 1);
             Send::SendMessage<__LINE__>(clientSocketSSL, userLimitReachedMessage, __FILE__);
-            CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
+            CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
             std::cout << "Kicked user that tried to join over users limit" << std::endl;
             return -1;
         }
@@ -206,22 +213,22 @@ private:
         return 0;
     }
 
-    static int CheckUserRatelimited(SSL *clientSocketSSL, const std::string &clientHashedIp)
+    static int CheckUserRatelimited(SSL *clientSocketSSL, int &clientSocketTCP, const std::string &clientHashedIp)
     {
         // check for timeout on ip
-        if (ClientResources::amountOfTriesFromIP[clientHashedIp] >= 3) // also check the time with the condition later
-        {
-            std::cout << fmt::format("Client [{}] is rate limited", TrimmedHashedIp(clientHashedIp)) << std::endl;
-            if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
-                std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
+        // if (ClientResources::amountOfTriesFromIP[clientHashedIp] >= 3) // also check the time with the condition later
+        // {
+        //     std::cout << fmt::format("Client [{}] is rate limited", TrimmedHashedIp(clientHashedIp)) << std::endl;
+        //     if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
+        //         std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
 
-            const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
+        //     const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
 
-            Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
-            CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
-            std::cout << "Client kicked for attempting to join too frequently" << std::endl;
-            return -1;
-        }
+        //     Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
+        //     CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
+        //     std::cout << "Client kicked for attempting to join too frequently" << std::endl;
+        //     return -1;
+        // }
 
         const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)
@@ -230,19 +237,19 @@ private:
         return 0;
     }
 
-    static int CheckRequestNeededForServer(SSL *userSSLsocket, const std::string &clientHashedIp)
+    static int CheckRequestNeededForServer(SSL *clientSocketSSL, int &clientSocketTCP, const std::string &clientHashedIp)
     { // checks if users need to send a request to the server to join
         if (ServerSettings::requestNeeded != true)
         {
             const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
-            if (Send::SendMessage<__LINE__>(userSSLsocket, userOkaySignal, __FILE__) != 0)
+            if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)
                 return -1;
             return 0;
         }
 
         // send user needs to request message
         const std::string serverRequestMessage = ServerSetMessage::GetMessageBySignal(SignalType::REQUESTNEEDED, 1);
-        if (Send::SendMessage<__LINE__>(userSSLsocket, serverRequestMessage, __FILE__) != 0)
+        if (Send::SendMessage<__LINE__>(clientSocketSSL, serverRequestMessage, __FILE__) != 0)
             return -1;
 
         ClientResources::serverJoinRequests.push(clientHashedIp);
@@ -250,32 +257,26 @@ private:
 
         const char answer = toupper(getchar());
 
-        if (answer == 'Y')
-        {
-            const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTACCEPTED, 1);
-            if (Send::SendMessage<__LINE__>(userSSLsocket, userAcceptedMessage, __FILE__) != 0)
-                return -1;
-            ClientResources::serverJoinRequests.pop();
-            std::cout << "\nUser has been allowed in server" << std::endl;
-            return 0;
-        }
-
-        const std::string userNotAcceptedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERJOINREQUESTDENIED, 1);
-        Send::SendMessage<__LINE__>(userSSLsocket, userNotAcceptedMessage, __FILE__);
+        const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal((answer == 'Y') ? SignalType::SERVERJOINREQUESTACCEPTED : SignalType::SERVERJOINREQUESTDENIED, 1);
+        if (Send::SendMessage<__LINE__>(clientSocketSSL, userAcceptedMessage, __FILE__) != 0)
+            return -1;
         ClientResources::serverJoinRequests.pop();
-        std::cout << "\nUser has been not been allowed in server" << std::endl;
-        CleanUp::CleanUpClient(-1, -1, userSSLsocket);
-        return -1;
+
+        (answer == 'Y') ? std::cout << "\nUser has been allowed in server" << std::endl : std::cout << "\nUser has been not been allowed in server" << std::endl;
+
+        (answer != 'Y') ? CleanUpUserSocks(clientSocketSSL, clientSocketTCP) : (void)0;
+        return (answer == 'Y') ? 0 : -1;
     }
 
 public:
-    static int CheckUserValidity(SSL *clientSocketSSL, const std::string &clientHashedIp)
+    static int
+    CheckUserValidity(SSL *clientSocketSSL, int &clientSocketTCP, const std::string &clientHashedIp)
     {
-        if (CheckUserRatelimited(clientSocketSSL, clientHashedIp) != 0)
+        if (CheckUserRatelimited(clientSocketSSL, clientSocketTCP, clientHashedIp) != 0)
             return -1;
-        if (CheckUserLimitReached(clientSocketSSL) != 0)
+        if (CheckUserLimitReached(clientSocketSSL, clientSocketTCP) != 0)
             return -1;
-        if (CheckRequestNeededForServer(clientSocketSSL, clientHashedIp) != 0)
+        if (CheckRequestNeededForServer(clientSocketSSL, clientSocketTCP, clientHashedIp) != 0)
             return -1;
 
         return 0;

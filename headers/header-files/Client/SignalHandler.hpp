@@ -38,28 +38,28 @@ std::vector<std::string> signalsVector = {
 
 enum class SignalType
 {
-    KEYLOADERROR,
-    EXISTERR,
-    VERIFIED,
-    NOTVERIFIED,
-    NAMEEXISTSERR,
-    REQUESTNEEDED,
-    RATELIMITED,
-    SERVERLIMIT,
-    ACCEPTED,
-    NOTACCEPTED,
-    CLIENTREJOIN,
-    PASSWORDNEEDED,
-    PASSWORDNOTNEEDED,
-    INVALIDNAME,
-    INVALIDNAMELENGTH,
-    OKAYSIGNAL,
-    SERVERJOINREQUESTDENIED,
-    SERVERJOINREQUESTACCEPTED,
-    CONNECTIONSIGNAL,
-    BLACKLISTED,
-    QUIT,
-    UNKNOWN
+    KEYLOADERROR,              // 0
+    EXISTERR,                  // 1
+    VERIFIED,                  // 2
+    NOTVERIFIED,               // 3
+    NAMEEXISTSERR,             // 4
+    REQUESTNEEDED,             // 5
+    RATELIMITED,               // 6
+    SERVERLIMIT,               // 7
+    ACCEPTED,                  // 8
+    NOTACCEPTED,               // 9
+    CLIENTREJOIN,              // 10
+    PASSWORDNEEDED,            // 11
+    PASSWORDNOTNEEDED,         // 12
+    INVALIDNAME,               // 13
+    INVALIDNAMELENGTH,         // 14
+    OKAYSIGNAL,                // 15
+    SERVERJOINREQUESTDENIED,   // 16
+    SERVERJOINREQUESTACCEPTED, // 17
+    CONNECTIONSIGNAL,          // 18
+    BLACKLISTED,               // 19
+    QUIT,                      // 20
+    UNKNOWN                    // 21
 };
 
 auto CheckBase64 = [](const std::string &message)
@@ -95,10 +95,10 @@ public:
 
         else if (signal == SignalType::CLIENTREJOIN)
         {
+            std::cout << "Signal here rejoin" << std::endl;
             std::string userPublicKey = Receive::ReceiveMessageSSL(clientSocketSSL);
 
             std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
-
             // receive and save user public key
             std::string encodedKeyData = Receive::ReceiveMessageSSL(clientSocketSSL);
             std::string DecodedKeyData = Decode::Base64Decode(encodedKeyData);
@@ -113,9 +113,10 @@ public:
 
     static SignalType getSignalType(const std::string &msg)
     {
-        const std::string decodedMessage = Decode::Base64Decode(msg); // encrypted stuff
+        const std::string decodedMessage = Decode::Base64Decode(msg);
 
-        if (CheckBase64(decodedMessage) != 0)
+        // set it to test if the size is greater than the greatest size in signals vector later
+        if (decodedMessage.size() > 20)
         {
             return SignalType::UNKNOWN;
         }

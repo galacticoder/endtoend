@@ -212,9 +212,6 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         ClientResources::clientUsernames.push_back(clientUsername);
       }
 
-      std::cout << "Client Index: " << clientIndex << std::endl;
-      std::cout << "Client usernames vector: " << ClientResources::clientUsernames.size() << std::endl;
-
       std::cout << "Client username added to clientUsernames vector" << std::endl;
 
       std::cout << "Sending usersactive amount" << std::endl;
@@ -248,7 +245,15 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), FILE) != 0)
         return;
 
-      if (ClientResources::clientUsernames.size() == 2 || ServerSettings::totalClientJoins > 2)
+      if (ServerSettings::totalClientJoins > 2)
+      {
+        std::cout << "rejoin" << std::endl;
+        Send::BroadcastMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::CLIENTREJOIN));
+        Send::SendKey(clientSocketSSL, 0, clientIndex);
+        Send::BroadcastKey(clientSocketSSL, clientIndex, 1);
+      }
+
+      else if (ClientResources::clientUsernames.size() == 2 && ServerSettings::totalClientJoins <= 2)
         Send::SendKey(clientSocketSSL, 0, clientIndex);
       else
         std::thread(WaitForAnotherClient, clientSocketSSL, std::ref(clientIndex)).join();
@@ -434,7 +439,7 @@ int main()
 
       std::cout << "Client hashed ip amount of tries: " << ClientResources::amountOfTriesFromIP[clientHashedIp] << std::endl;
 
-      if (CheckClientConnectValidity::CheckUserValidity(clientSocketSSL, clientHashedIp) != 0)
+      if (CheckClientConnectValidity::CheckUserValidity(clientSocketSSL, clientSocketTCP, clientHashedIp) != 0)
         continue;
 
       std::thread(handleClient, clientSocketSSL, std::ref(clientSocketTCP), std::ref(clientHashedIp)).detach();
