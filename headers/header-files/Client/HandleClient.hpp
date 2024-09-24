@@ -80,29 +80,30 @@ public:
                 std::string receivedMessage = Receive::ReceiveMessageSSL(clientSocketSSL);
                 char messageType;
 
-                SignalType anySignalReceive = SignalHandling::getSignalType(Decode::Base64Decode(receivedMessage));
+                SignalType anySignalReceive = SignalHandling::getSignalType(receivedMessage);
                 SignalHandling::handleSignal(anySignalReceive, receivedMessage, clientSocketSSL, receivedPublicKey);
+                // when it looks like a random exit its cuz it didnt receive a key properly so pause the other client from sending messages till after this guy receives the key
 
-                lineTrack++;
-
-                if (receivedMessage.find('|') != std::string::npos)
+                if (anySignalReceive != SignalType::CLIENTREJOIN)
                 {
-                    messageType = 'C';
-                    ClientMessageExtract(receivedMessage);
-                    receivedMessage = clientInfo[0]; // set to the extracted cipher text in vector
+                    lineTrack++;
+
+                    if (receivedMessage.find('|') != std::string::npos)
+                    {
+                        messageType = 'C';
+                        ClientMessageExtract(receivedMessage);
+                        receivedMessage = clientInfo[0]; // set to the extracted cipher text in vector
+                    }
+
+                    std::string decodedMessage = Decode::Base64Decode(receivedMessage);
+                    std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
+
+                    std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "");
+
+                    clientInfo.clear();
+                    messageType = '\0';
+                    printAndRefreshWindow(subwin, inputWindow, message);
                 }
-
-                std::string decodedMessage = Decode::Base64Decode(receivedMessage);
-                std::string decryptedMessage = Decrypt::DecryptData(privateKey, decodedMessage);
-
-                std::string message = GetFormattedMessage(decryptedMessage, (messageType == 'C') ? clientInfo[2] : "");
-
-                message.append(fmt::format(" signal is {} | ", (int)anySignalReceive));
-                message += Decode::Base64Decode(receivedMessage).size() > 20 ? "" : Decode::Base64Decode(receivedMessage);
-
-                clientInfo.clear();
-                messageType = '\0';
-                printAndRefreshWindow(subwin, inputWindow, message);
             }
         }
         catch (const std::exception &e)

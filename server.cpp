@@ -185,7 +185,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       std::cout << "Sending password signal to thread [" << std::this_thread::get_id() << "]" << std::endl;
 
-      const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNEEDED, 1) : ServerSetMessage::GetMessageBySignal(SignalType::PASSWORDNOTNEEDED, 1);
+      const std::string passwordNeededSignal = ServerSettings::passwordNeeded == true ? ServerSetMessage::PreLoadedSignalMessages(SignalType::PASSWORDNEEDED) : ServerSetMessage::PreLoadedSignalMessages(SignalType::PASSWORDNOTNEEDED);
 
       if (Send::SendMessage<LINE>(clientSocketSSL, passwordNeededSignal, FILE) != 0)
         return;
@@ -203,7 +203,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         return;
 
       // send the user an okay signal if their username is validated
-      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), FILE) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL), FILE) != 0)
         return;
 
       {
@@ -240,17 +240,17 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
       !testLoadKey ? ErrorCatching::CaughtERROR(SignalType::LOADERR, clientIndex, fmt::format("Cannot load user [{}] public key", clientUsername)) : EVP_PKEY_free(testLoadKey);
 
-      ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientIndex])));
+      ClientResources::clientsKeyContents.push_back(ReadFile::ReadPemKeyContents(PublicPath(clientUsername)));
 
-      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL), FILE) != 0)
+      if (Send::SendMessage<LINE>(clientSocketSSL, ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL), FILE) != 0)
         return;
 
       if (ServerSettings::totalClientJoins > 2)
       {
-        std::cout << "rejoin" << std::endl;
-        Send::BroadcastMessage(clientSocketSSL, ServerSetMessage::GetMessageBySignal(SignalType::CLIENTREJOIN));
-        Send::SendKey(clientSocketSSL, 0, clientIndex);
-        Send::BroadcastKey(clientSocketSSL, clientIndex, 1);
+        Send::BroadcastMessage(clientSocketSSL, ServerSetMessage::PreLoadedSignalMessages(SignalType::CLIENTREJOIN));
+        Send::SendKey(clientSocketSSL, (clientIndex + 1) % ClientResources::clientUsernames.size(), clientIndex);
+        // Send::SendKey(clientSocketSSL, clientIndex, );
+        // Send::BroadcastKey(clientSocketSSL, clientIndex, 1);
       }
 
       else if (ClientResources::clientUsernames.size() == 2 && ServerSettings::totalClientJoins <= 2)
@@ -387,6 +387,7 @@ int main()
   std::cout << "Started hosting server cert key" << std::endl;
 
   signal(SIGPIPE, SIG_IGN);
+  ServerSetMessage loadServerMessages;
 
   while (true)
   {
@@ -395,7 +396,7 @@ int main()
 
     std::string getClientConnectionSignal = Receive::ReceiveMessageTcp(clientSocketTCP);
 
-    if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::CONNECTIONSIGNAL))
+    if (getClientConnectionSignal == ServerSetMessage::PreLoadedSignalMessages(SignalType::CONNECTIONSIGNAL))
     {
       std::cout << "User sent the connection signal. Continuing with connection" << std::endl;
       // get the hashed client ip
@@ -403,13 +404,12 @@ int main()
 
       if (HandleClient::isBlackListed(clientHashedIp))
       {
-        const std::string blackListedMessage = ServerSetMessage::GetMessageBySignal(SignalType::BLACKLISTED, 1);
-        send(clientSocketTCP, blackListedMessage.c_str(), blackListedMessage.length(), 0);
+        send(clientSocketTCP, ServerSetMessage::PreLoadedSignalMessages(SignalType::BLACKLISTED).c_str(), ServerSetMessage::PreLoadedSignalMessages(SignalType::BLACKLISTED).length(), 0);
         close(clientSocketTCP);
         continue;
       }
 
-      send(clientSocketTCP, (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).c_str(), (ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL)).length(), 0); // send the user an okay signal when connecting and not blacklisted
+      send(clientSocketTCP, (ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL)).c_str(), (ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL)).length(), 0); // send the user an okay signal when connecting and not blacklisted
 
       SSL *clientSocketSSL = SSL_new(serverCtx);
       SSL_set_fd(clientSocketSSL, clientSocketTCP);
@@ -431,7 +431,7 @@ int main()
 
       if (HandleClient::IncrementUserTries(clientHashedIp) != 0) // client is blacklisted
       {
-        const std::string blackListedMessage = ServerSetMessage::GetMessageBySignal(SignalType::BLACKLISTED, 1);
+        const std::string blackListedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::BLACKLISTED);
         Send::SendMessage<LINE>(clientSocketSSL, blackListedMessage, FILE);
         CleanUpUserSocks();
         continue;
@@ -445,9 +445,9 @@ int main()
       std::thread(handleClient, clientSocketSSL, std::ref(clientSocketTCP), std::ref(clientHashedIp)).detach();
     }
 
-    else if (getClientConnectionSignal == ServerSetMessage::GetMessageBySignal(SignalType::PING))
+    else if (getClientConnectionSignal == ServerSetMessage::PreLoadedSignalMessages(SignalType::PING))
     {
-      const std::string pingBackMessage = ServerSetMessage::GetMessageBySignal(SignalType::PINGBACK);
+      const std::string pingBackMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::PINGBACK);
       send(clientSocketTCP, pingBackMessage.c_str(), pingBackMessage.length(), 0);
       close(clientSocketTCP);
       ServerSettings::pingCount++;

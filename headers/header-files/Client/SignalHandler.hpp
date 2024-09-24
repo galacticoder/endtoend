@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <csignal>
+#include <fstream>
 #include "Keys.hpp"
 #include "SendAndReceive.hpp"
 #include "FileHandling.hpp"
@@ -95,14 +96,20 @@ public:
 
         else if (signal == SignalType::CLIENTREJOIN)
         {
-            std::cout << "Signal here rejoin" << std::endl;
+            std::ofstream file("testing-folder/clientrejoin.txt", std::ios::app);
             std::string userPublicKey = Receive::ReceiveMessageSSL(clientSocketSSL);
 
-            std::string userName = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
+            file << "User received public key: " << userPublicKey << std::endl;
+
+            std::string username = userPublicKey.substr(userPublicKey.find_first_of("/") + 1, (userPublicKey.find_last_of("-") - userPublicKey.find_first_of("/")) - 1);
+
+            file << fmt::format("Received {}'s public key", username) << std::endl;
+
             // receive and save user public key
             std::string encodedKeyData = Receive::ReceiveMessageSSL(clientSocketSSL);
-            std::string DecodedKeyData = Decode::Base64Decode(encodedKeyData);
-            SaveFile::saveFile(userPublicKey, DecodedKeyData, std::ios::binary);
+            std::string decodedKeyData = Decode::Base64Decode(encodedKeyData);
+            file << fmt::format("Decoded {}'s public key: {}", username, decodedKeyData) << std::endl;
+            SaveFile::saveFile(userPublicKey, decodedKeyData, std::ios::binary);
 
             receivedPublicKey = LoadKey::LoadPublicKey(userPublicKey, 0);
 
@@ -113,15 +120,17 @@ public:
 
     static SignalType getSignalType(const std::string &msg)
     {
-        const std::string decodedMessage = Decode::Base64Decode(msg);
+        std::string decodedMessage = Decode::Base64Decode(msg);
+
+        std::ofstream file("testing-folder/signals.txt", std::ios::app);
+        file << "Received signal: " << msg;
+        file << "\n";
+        file << "Decoded signal: " << decodedMessage;
+        file << "\n---------------------------\n";
+        file.close();
 
         // set it to test if the size is greater than the greatest size in signals vector later
-        if (decodedMessage.size() > 20)
-        {
-            return SignalType::UNKNOWN;
-        }
-
-        for (unsigned int i = 0; i <= signalsVector.size(); i++)
+        for (unsigned int i = 0; i < signalsVector.size(); i++)
         {
             if (decodedMessage.find(signalsVector[i]) < decodedMessage.size())
                 return (SignalType)i;

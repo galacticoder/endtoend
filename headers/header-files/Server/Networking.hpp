@@ -151,7 +151,7 @@ public:
                     break;
                 }
 
-                const std::string statusCheckMsg = ServerSetMessage::GetMessageBySignal(SignalType::STATUSCHECKSIGNAL);
+                const std::string statusCheckMsg = ServerSetMessage::PreLoadedSignalMessages(SignalType::STATUSCHECKSIGNAL);
                 send(pingingSocket, statusCheckMsg.c_str(), statusCheckMsg.length(), 0);
 
                 std::string readStr = Receive::ReceiveMessageTcp(pingingSocket);

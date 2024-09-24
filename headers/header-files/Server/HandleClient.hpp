@@ -64,7 +64,7 @@ public:
         if (bcrypt::validatePassword(receivedPasswordCipher, serverHashedPassword) != 1)
         {
             std::cout << "Password not validated" << std::endl;
-            const std::string passwordNotVerifiedMessage = ServerSetMessage::GetMessageBySignal(SignalType::NOTVERIFIED, 1);
+            const std::string passwordNotVerifiedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::NOTVERIFIED);
             // sends them the not VerifiedMessage message // assuming its always sending the message successfully change this later
             if (Send::SendMessage<__LINE__>(clientSSLSocket, passwordNotVerifiedMessage, __FILE__) != 0)
             {
@@ -79,7 +79,7 @@ public:
             return -1;
         }
 
-        const std::string passwordVerifiedMessage = ServerSetMessage::GetMessageBySignal(SignalType::VERIFIED, 1);
+        const std::string passwordVerifiedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::VERIFIED);
 
         if (Send::SendMessage<__LINE__>(clientSSLSocket, passwordVerifiedMessage, __FILE__) != 0)
         {
@@ -105,7 +105,7 @@ public:
         if (clientUsername.size() <= 3 || clientUsername.size() > 12)
         {
             std::cout << "Client with invalid username length has attempted to join. kicking.." << std::endl;
-            const std::string InvalidUsernameLengthMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAMELENGTH, 1);
+            const std::string InvalidUsernameLengthMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::INVALIDNAMELENGTH);
 
             if (Send::SendMessage<__LINE__>(clientSSLSocket, InvalidUsernameLengthMessage, __FILE__) != 0)
                 return -1;
@@ -124,7 +124,7 @@ public:
         if (std::find(ClientResources::clientUsernames.begin(), ClientResources::clientUsernames.end(), clientUsername) != ClientResources::clientUsernames.end())
         {
             std::cout << "Client with the same username detected has attempted to join. kicking.." << std::endl;
-            const std::string nameAlreadyExistsMessage = ServerSetMessage::GetMessageBySignal(SignalType::NAMEEXISTSERR, 1);
+            const std::string nameAlreadyExistsMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::NAMEEXISTSERR);
             if (Send::SendMessage<__LINE__>(clientSSLSocket, nameAlreadyExistsMessage, __FILE__) != 0)
                 return -1;
 
@@ -145,7 +145,7 @@ public:
             {
                 (std::isspace(i)) ? std::cout << "Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [Character was: <space>]" << std::endl : std::cout << fmt::format("Client username includes invalid character[s] from unallowedCharacters variable. Kicking. [Character was: {}]", i) << std::endl;
 
-                const std::string InvalidUsernameMessage = ServerSetMessage::GetMessageBySignal(SignalType::INVALIDNAME, 1);
+                const std::string InvalidUsernameMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::INVALIDNAME);
 
                 if (Send::SendMessage<__LINE__>(clientSSLSocket, InvalidUsernameMessage, __FILE__) != 0)
                     return -1;
@@ -203,7 +203,7 @@ private:
     {
         if (ClientResources::clientUsernames.size() == ServerSettings::limitOfUsers)
         {
-            const std::string userLimitReachedMessage = ServerSetMessage::GetMessageBySignal(SignalType::SERVERLIMIT, 1);
+            const std::string userLimitReachedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::SERVERLIMIT);
             Send::SendMessage<__LINE__>(clientSocketSSL, userLimitReachedMessage, __FILE__);
             CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
             std::cout << "Kicked user that tried to join over users limit" << std::endl;
@@ -222,7 +222,7 @@ private:
         //     if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
         //         std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
 
-        //     const std::string userRatelimitedMessage = ServerSetMessage::GetMessageBySignal(SignalType::RATELIMITED, 1);
+        //     const std::string userRatelimitedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::RATELIMITED);
 
         //     Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
         //     CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
@@ -230,7 +230,7 @@ private:
         //     return -1;
         // }
 
-        const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
+        const std::string userOkaySignal = ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)
             return -1;
 
@@ -241,14 +241,14 @@ private:
     { // checks if users need to send a request to the server to join
         if (ServerSettings::requestNeeded != true)
         {
-            const std::string userOkaySignal = ServerSetMessage::GetMessageBySignal(SignalType::OKAYSIGNAL);
+            const std::string userOkaySignal = ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL);
             if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)
                 return -1;
             return 0;
         }
 
         // send user needs to request message
-        const std::string serverRequestMessage = ServerSetMessage::GetMessageBySignal(SignalType::REQUESTNEEDED, 1);
+        const std::string serverRequestMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::REQUESTNEEDED);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, serverRequestMessage, __FILE__) != 0)
             return -1;
 
@@ -257,7 +257,7 @@ private:
 
         const char answer = toupper(getchar());
 
-        const std::string userAcceptedMessage = ServerSetMessage::GetMessageBySignal((answer == 'Y') ? SignalType::SERVERJOINREQUESTACCEPTED : SignalType::SERVERJOINREQUESTDENIED, 1);
+        const std::string userAcceptedMessage = ServerSetMessage::PreLoadedSignalMessages((answer == 'Y') ? SignalType::SERVERJOINREQUESTACCEPTED : SignalType::SERVERJOINREQUESTDENIED);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, userAcceptedMessage, __FILE__) != 0)
             return -1;
         ClientResources::serverJoinRequests.pop();

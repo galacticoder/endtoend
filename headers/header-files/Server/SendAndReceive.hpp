@@ -14,6 +14,7 @@
 #include "CleanUp.hpp"
 
 std::mutex mut;
+
 class Send
 {
 public:
@@ -28,7 +29,7 @@ public:
         // send path so client can get username of client
         Send::BroadcastMessage(clientSocket, publicKeyPath);
 
-        const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
+        const std::string keyContents = ReadFile::ReadPemKeyContents(publicKeyPath);
 
         if (keyContents.empty())
             return;
@@ -36,7 +37,7 @@ public:
         Send::BroadcastMessage(clientSocket, keyContents);
     }
 
-    static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int &clientIndex)
+    static void SendKey(SSL *clientSocket, int &&clientSendIndex /*index of client to send the key to*/, unsigned int clientIndex)
     {
         std::lock_guard<std::mutex> lock(mut);
 
@@ -47,7 +48,7 @@ public:
         if (Send::SendMessage<__LINE__>(clientSocket, publicKeyPath, __FILE__) != 0)
             return;
 
-        const std::string keyContents = ReadFile::ReadPemKeyContents(PublicPath(ClientResources::clientUsernames[clientSendIndex]));
+        const std::string keyContents = ReadFile::ReadPemKeyContents(publicKeyPath);
 
         if (keyContents.empty())
             return;

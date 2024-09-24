@@ -7,6 +7,8 @@
 #include "CleanUp.hpp"
 #include "SendAndReceive.hpp"
 
+std::vector<std::string> preloadedSignalMessages;
+
 std::vector<std::string> signalStringsVector = {
     "KEYLOADERROR",
     "KEYEXISTERR",
@@ -33,7 +35,7 @@ std::vector<std::string> signalStringsVector = {
     "BLACKLISTED",
 };
 
-std::vector<std::string> ServerMessages = {
+std::vector<std::string> serverMessages = {
     "Public key that you sent to server cannot be loaded on server",
     "Username already exists. You have been kicked.",
     "You have entered the correct password",
@@ -44,18 +46,18 @@ std::vector<std::string> ServerMessages = {
     "The limit of users has been reached for this chat. Exiting..",
     "You request to join the server has been accepted",
     "You request to join the server has not been accepted",
-    "N/A" /*client rejoin signal has no message*/,
+    "" /*client rejoin signal has no message*/,
     "This server is password protected enter the password to join: ",
     "You have entered the server", /*if server isnt password protected then they just join*/
     "Username contains invalid character[s]",
     fmt::format("Your username is over the allowed user length by the server [{}-{}]", ServerSettings::minimumNameLength, ServerSettings::maximumNameLength),
-    "N/A", /*Okay signal has no message*/
+    "", /*Okay signal has no message*/
     "Your request to join the server has been denied",
     "Your request to join the server has been accepted",
-    "N/A" /*connection signal is never sent appended to a message*/,
-    "N/A" /*status check signal is never sent appended to a message*/,
-    "N/A" /*ping back signal is never sent appended to a message*/,
-    "N/A" /*ping signal is never sent appended to a message*/,
+    "" /*connection signal is never sent appended to a message*/,
+    "" /*status check signal is never sent appended to a message*/,
+    "" /*ping back signal is never sent appended to a message*/,
+    "" /*ping signal is never sent appended to a message*/,
     "You have been blacklisted and cannot join the server again" /*ping signal is never sent appended to a message*/,
 };
 
@@ -92,23 +94,46 @@ enum class ErrorTypes
     ERROR,
     EXCEPTION
 };
+
 class ServerSetMessage
 {
-public:
-    static std::string GetMessageBySignal(SignalType signalType, int appendSignal = 0, const std::string &hashedIp = "N/A")
+private:
+    static std::string GetMessageBySignal(SignalType signalType, bool appendSignal = false, const std::string &hashedIp = "N/A")
     {
         if (signalType == SignalType::RATELIMITED)
-            ServerMessages[(int)SignalType::RATELIMITED] = fmt::format("Rate limit reached. Try again in {} seconds", ClientResources::clientTimeLimits[hashedIp]); // add the rate limited message to vector every time function called since cant format string in vector
+            serverMessages[(int)SignalType::RATELIMITED] = fmt::format("Rate limit reached. Try again in {} seconds", ClientResources::clientTimeLimits[hashedIp]); // add the rate limited message to vector every time function called since cant format string in vector
 
-        if ((unsigned int)signalType <= ServerMessages.size() && appendSignal == 0)
-            return Encode::Base64Encode(signalStringsVector[(int)signalType]);
-
-        else if ((unsigned int)signalType <= ServerMessages.size() && appendSignal == 1)
-            return Encode::Base64Encode(ServerMessages[(int)signalType].append(signalStringsVector[(int)signalType]));
-
+        if ((unsigned int)signalType < serverMessages.size())
+            return Encode::Base64Encode((appendSignal == false) ? signalStringsVector[(int)signalType] : serverMessages[(int)signalType].append(signalStringsVector[(int)signalType]));
         else
             std::cout << fmt::format("Signal passed to {} is not a valid signal", __func__) << std::endl;
 
+        return "";
+    }
+
+public:
+    ServerSetMessage()
+    {
+        for (int i = 0; i < serverMessages.size(); i++)
+        {
+            preloadedSignalMessages.push_back(GetMessageBySignal((SignalType)i, 1)); // work on rate limited message since probably wont work
+        }
+        std::cout << "Server messages are now loaded. preloadedServerMessages vector size: " << preloadedSignalMessages.size() << std::endl;
+        std::cout << "Printed preloadedServerMessages vector{\n";
+
+        for (int i = 0; i < preloadedSignalMessages.size(); i++)
+        {
+            std::cout << "\t " << i << ". " << preloadedSignalMessages[i] << std::endl;
+        }
+        std::cout << "}" << std::endl;
+    }
+
+    static std::string PreLoadedSignalMessages(SignalType signalType)
+    {
+        if ((int)signalType < preloadedSignalMessages.size())
+            return preloadedSignalMessages[(int)signalType];
+
+        std::cout << "Signal passed is not valid: " << (int)signalType << std::endl;
         return "";
     }
 };
@@ -124,7 +149,7 @@ public:
     static void CaughtERROR(SignalType errorType, unsigned int &clientIndex, const std::string &message)
     {
         std::cout << message << std::endl;
-        const std::string errorMessage = ServerSetMessage::GetMessageBySignal(errorType, 1);
+        const std::string errorMessage = ServerSetMessage::PreLoadedSignalMessages(errorType);
 
         if (Send::SendMessage<__LINE__>(ClientResources::clientSocketsSSL[clientIndex], errorMessage, __FILE__) != 0)
             return;
