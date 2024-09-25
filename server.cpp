@@ -157,6 +157,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       }
       catch (const std::exception &e)
       {
+        ErrorCatching::LOGERROR(ErrorTypes::EXCEPTION, e.what(), FILE, LINE, FUNC);
         std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
         std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
         CleanUp::CleanUpClient(clientIndex, clientTcpSocket, clientSocketSSL);
@@ -276,7 +277,6 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       printUsersConnected();
 
       bool isConnected = true;
-
       ServerSettings::handleClientIndexChanges = true;
 
       while (isConnected)
