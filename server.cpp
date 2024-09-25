@@ -96,7 +96,7 @@ void printUsersConnected()
 {
   if (ClientResources::clientUsernames.size() <= 0)
   {
-    std::cout << "No clients connected" << std::endl;
+    std::cout << (ClientResources::clientSocketsTcp.size() > 0 ? "No clients with username connected but user socket[s] is connected" : "No connected clients") << std::endl;
     return;
   }
 
@@ -107,17 +107,6 @@ void printUsersConnected()
     clientUsernamesString.append(",");
   }
   clientUsernamesString.pop_back();
-
-  if (clientUsernamesString.size() <= 0 && ClientResources::clientSocketsTcp.size() > 0)
-  {
-    std::cout << "No clients with username connected but user socket[s] is connected" << std::endl;
-    return;
-  }
-  else if (clientUsernamesString.size() <= 0 && ClientResources::clientSocketsTcp.size() <= 0)
-  {
-    std::cout << "No connected clients" << std::endl;
-    return;
-  }
 
   std::cout << fmt::format("Connected clients: {}", clientUsernamesString) << std::endl;
 };
