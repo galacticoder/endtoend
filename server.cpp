@@ -50,8 +50,7 @@ void RateLimitTimer(const std::string hashedClientIp)
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ClientResources::clientTimeLimits[hashedClientIp]--;
     std::cout << fmt::format("Hashed ip [{}] time remaining: {}", TrimmedHashedIp(hashedClientIp), ClientResources::clientTimeLimits[hashedClientIp]) << std::endl;
-    std::cout << "\x1b[A";
-    std::cout << eraseLine;
+    std::cout << "\x1b[A" << eraseLine;
   }
 
   ClientResources::amountOfTriesFromIP[hashedClientIp] = 0;
@@ -93,7 +92,7 @@ std::string GetTime()
   return "";
 }
 
-void GetUsersConnected()
+void printUsersConnected()
 {
   if (ClientResources::clientUsernames.size() <= 0)
   {
@@ -109,7 +108,18 @@ void GetUsersConnected()
   }
   clientUsernamesString.pop_back();
 
-  clientUsernamesString.size() <= 0 ? std::cout << "No connected clients" << std::endl : std::cout << fmt::format("Connected clients: {}", clientUsernamesString) << std::endl;
+  if (clientUsernamesString.size() <= 0 && ClientResources::clientSocketsTcp.size() > 0)
+  {
+    std::cout << "No clients with username connected but user socket[s] is connected" << std::endl;
+    return;
+  }
+  else if (clientUsernamesString.size() <= 0 && ClientResources::clientSocketsTcp.size() <= 0)
+  {
+    std::cout << "No connected clients" << std::endl;
+    return;
+  }
+
+  std::cout << fmt::format("Connected clients: {}", clientUsernamesString) << std::endl;
 };
 
 void WaitForAnotherClient(SSL *clientSocket, unsigned int &clientIndex)
@@ -274,7 +284,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       EVP_PKEY_free(loadedUserPubKey);
 
       std::cout << NameJoinFormat(clientUsername) << std::endl;
-      GetUsersConnected();
+      printUsersConnected();
 
       bool isConnected = true;
 
@@ -303,7 +313,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
           if (receivedData.length() > 4096)
             std::cout << "User kicked for invalid message length" << std::endl;
 
-          GetUsersConnected();
+          printUsersConnected();
           return;
         }
 

@@ -15,7 +15,7 @@
 #include "ServerSettings.hpp"
 
 std::mutex ClientMutex;
-extern void GetUsersConnected();
+extern void printUsersConnected();
 
 class CleanUp
 {
@@ -112,13 +112,14 @@ public:
             }
 
             std::cout << "Client clean up finished" << std::endl;
-            GetUsersConnected();
 
-            if (ClientResources::clientUsernames.size() <= 0)
+            if (ClientResources::clientUsernames.size() <= 0 && ClientResources::clientSocketsTcp.size() <= 0)
             {
                 std::cout << "Server shutting down due to no users connected" << std::endl;
                 raise(SIGINT);
             }
+
+            printUsersConnected();
         }
         catch (const std::exception &e)
         {

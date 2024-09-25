@@ -119,13 +119,6 @@ public:
             preloadedSignalMessages.push_back(GetMessageBySignal((SignalType)i, 1)); // work on rate limited message since probably wont work
         }
         std::cout << "Server messages are now loaded. preloadedServerMessages vector size: " << preloadedSignalMessages.size() << std::endl;
-        std::cout << "Printed preloadedServerMessages vector{\n";
-
-        for (int i = 0; i < preloadedSignalMessages.size(); i++)
-        {
-            std::cout << "\t " << i << ". " << preloadedSignalMessages[i] << std::endl;
-        }
-        std::cout << "}" << std::endl;
     }
 
     static std::string PreLoadedSignalMessages(SignalType signalType)
