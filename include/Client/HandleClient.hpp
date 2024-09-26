@@ -10,6 +10,7 @@
 #include "Decryption.hpp"
 #include "SignalHandler.hpp"
 #include "FileHandling.hpp"
+#include "httpCl.h"
 
 #define FILE __FILE__
 #define LINE __LINE__

@@ -93,16 +93,6 @@ struct SaveFile
 struct ReadFile
 {
     ReadFile() = default;
-    static int readActiveUsers(const std::string &filepath)
-    {
-        std::string active;
-        int activeInt;
-
-        std::ifstream opent(filepath);
-        std::getline(opent, active);
-        std::istringstream(active) >> activeInt;
-        return activeInt;
-    }
     static std::string readPemKeyContents(const std::string &pemKeyPath)
     {
         std::ifstream keyFile(pemKeyPath);

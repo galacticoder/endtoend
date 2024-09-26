@@ -61,20 +61,6 @@ public:
 class StartTLS
 {
 private:
-    void fetchAndSaveCertAndKey(const char *serverIp, const std::string &certPath, const std::string &serverPubKeyPath) // get server certPath and extract public key
-    {
-        const std::string get = fmt::format("http://{}:{}/", serverIp, 81);
-        std::cout << fmt::format("Fetching server cert file from: {}", get) << std::endl;
-
-        if (http::fetchAndSave(get, certPath) != 0)
-        {
-            std::cout << "Could not fetch server cert" << std::endl;
-            raise(SIGINT);
-        }
-        std::cout << "Extracting server public key from cert" << std::endl;
-        LoadKey::extractPubKey(certPath, serverPubKeyPath);
-        std::cout << "Extracted server public key from cert and stored in: " << serverPubKeyPath << std::endl;
-    }
     void connectUsingTcpSocket(const char *serverIp, unsigned int &port) // connect to the server
     {
         sockaddr_in serverAddress;
@@ -137,9 +123,6 @@ public:
         // initialize open clientSocketSSL and create ctx
         initOpenSSL::InitOpenssl();
         ctx = SSL_CTX_new(TLS_client_method());
-
-        fetchAndSaveCertAndKey(serverIp.c_str(), certPath, serverPubKeyPath);
-        initOpenSSL::configureContext(ctx, certPath);
 
         startSock = socket(AF_INET, SOCK_STREAM, 0);
 

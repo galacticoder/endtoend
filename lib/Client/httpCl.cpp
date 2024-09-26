@@ -21,7 +21,7 @@ namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
 
 int clientServerSocket = 0;
-int clientPort = 8080;
+extern int clientPort;
 
 bool isPortAvailable(int port)
 {
@@ -65,40 +65,10 @@ size_t writeCallBack(void *contents, size_t size, size_t nmemb, void *userp)
 
 size_t writePing(void *contents, size_t size, size_t nmemb, void *userp)
 {
-    std::string *result = static_cast<std::string *>(userp);
+    std::string *result = static_cast<std::string *>(userp); // lib/Client/httpCl.cpp
     size_t totalSize = size * nmemb;
     result->append(static_cast<char *>(contents), totalSize);
     return totalSize;
-}
-
-int http::fetchAndSave(const std::string &site, const std::string &outfile)
-{
-    CURL *curl;
-    CURLcode request;
-    std::ofstream outFile(outfile, std::ios::binary);
-
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init(); // init libcurl
-
-    if (curl)
-    {
-        std::cout << "Curl has started" << std::endl;
-        curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBack);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outFile);
-        request = curl_easy_perform(curl);
-
-        if (request != CURLE_OK)
-        {
-            curl_easy_strerror(request);
-            return 1;
-        }
-        curl_easy_cleanup(curl);
-        outFile.close();
-        return 0;
-    }
-    curl_global_cleanup();
-    return 0;
 }
 
 void http::pingServer(const char *host, unsigned short port)

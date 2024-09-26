@@ -66,52 +66,7 @@ public:
 class LoadKey
 {
 public:
-    static void extractPubKey(const std::string certFile, const std::string &pubKey)
-    {
-        FILE *certFileOpen = fopen(certFile.c_str(), "r");
-        if (!certFileOpen)
-        {
-            std::cerr << "Error opening cert file: " << certFile << std::endl;
-            return;
-        }
-
-        X509 *cert = PEM_read_X509(certFileOpen, nullptr, nullptr, nullptr);
-        fclose(certFileOpen);
-        if (!cert)
-        {
-            std::cerr << "Error reading certificate" << std::endl;
-            return;
-        }
-
-        EVP_PKEY *pubkey = X509_get_pubkey(cert);
-        if (!pubkey)
-        {
-            std::cerr << "Error extracting pubkey from cert" << std::endl;
-            X509_free(cert);
-            return;
-        }
-
-        FILE *pubkeyfile = fopen(pubKey.c_str(), "w");
-        if (!pubkeyfile)
-        {
-            std::cerr << "Error opening pub key file: " << pubKey << std::endl;
-            EVP_PKEY_free(pubkey);
-            X509_free(cert);
-            return;
-        }
-
-        if (PEM_write_PUBKEY(pubkeyfile, pubkey) != 1)
-        {
-            std::cerr << "Error writing public key to file" << std::endl;
-        }
-
-        fclose(pubkeyfile);
-        EVP_PKEY_free(pubkey);
-        X509_free(cert);
-        ERR_free_strings();
-    }
-
-    static EVP_PKEY *LoadPrivateKey(const std::string &privateKeyFile, const short echo = 1 /*Echo output or not. On by default. Off is 0 */)
+    static EVP_PKEY *LoadPrivateKey(const std::string &privateKeyFile, const bool echo = 1 /*Echo output or not. On by default. Off is 0 */)
     {
         BIO *bio = BIO_new_file(privateKeyFile.c_str(), "r");
         if (!bio)
@@ -137,7 +92,7 @@ public:
         return pkey;
     }
 
-    static EVP_PKEY *LoadPublicKey(const std::string &publicKeyFile, const short echo = 1 /*Echo output or not. On by default. Off is 0 */)
+    static EVP_PKEY *LoadPublicKey(const std::string &publicKeyFile, const bool echo = 1 /*Echo output or not. On by default. Off is 0 */)
     {
         BIO *bio = BIO_new_file(publicKeyFile.c_str(), "r");
         if (!bio)

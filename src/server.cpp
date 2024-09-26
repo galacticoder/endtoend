@@ -1,6 +1,7 @@
 // https://github.com/galacticoder
 #include <iostream>
 #include <boost/asio.hpp>
+#include <boost/beast.hpp>
 #include <chrono>
 #include <cstring>
 #include <ctime>
@@ -23,7 +24,6 @@
 #include "../include/Server/Networking.hpp"
 #include "../include/Server/SignalHandling.hpp"
 #include "../include/Server/TLS.hpp"
-#include "../include/Server/hostHttp.h"
 #include "../include/Server/ServerSettings.hpp"
 
 #define LINE __LINE__
@@ -150,6 +150,11 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 
     // find Client index to use for deleting and managing client
     unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
+
+    std::cout << "Sending server public key to user" << std::endl;
+    if (Send::SendMessage<LINE>(clientSocketSSL, ReadFile::ReadPemKeyContents("server-keys/server-pubkey.pem"), FILE) != 0)
+      return;
+    std::cout << "Sent server public key to user" << std::endl;
 
     const std::string clientServerPort = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
@@ -385,9 +390,6 @@ int main()
   std::cout << "Done configuring server ctx" << std::endl;
 
   std::cout << "Server is now accepting connections" << std::endl;
-
-  std::thread(startHost).detach();
-  std::cout << "Started hosting server cert key" << std::endl;
 
   signal(SIGPIPE, SIG_IGN);
   ServerSetMessage loadServerMessages;

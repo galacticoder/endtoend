@@ -31,6 +31,7 @@
 
 long int lineTrack = 0;
 short usersConnected;
+int clientPort = 8080;
 
 std::mutex mut;
 
@@ -84,8 +85,8 @@ int main()
         // std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
         CleanUp::cleanUpOpenssl(clientSocketSSL, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
-        Delete::DeletePath(KeysReceivedFromServerPath);
-        Delete::DeletePath(YourKeysPath);
+        // Delete::DeletePath(KeysReceivedFromServerPath);
+        // Delete::DeletePath(YourKeysPath);
 
         std::cout << "You have disconnected" << std::endl;
 
@@ -119,6 +120,11 @@ int main()
     Authentication::ServerValidation(clientSocketSSL);
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
+
+    exit(1);
+
+    const std::string serverPublicKeyReceive = Receive::ReceiveMessageSSL(clientSocketSSL);
+    SaveFile::saveFile(serverPubKeyPath, serverPublicKeyReceive, std::ios::binary);
 
     std::string passwordNeeded = Receive::ReceiveMessageSSL(clientSocketSSL);
 
