@@ -5,7 +5,6 @@
 #include <algorithm>
 #include "Encryption.hpp"
 #include "CleanUp.hpp"
-#include "SendAndReceive.hpp"
 
 std::vector<std::string> preloadedSignalMessages;
 
@@ -89,12 +88,6 @@ enum class SignalType
     UNKNOWN
 };
 
-enum class ErrorTypes
-{
-    ERROR,
-    EXCEPTION
-};
-
 class ServerSetMessage
 {
 private:
@@ -114,7 +107,7 @@ private:
 public:
     ServerSetMessage()
     {
-        for (int i = 0; i < serverMessages.size(); i++)
+        for (unsigned int i = 0; i < serverMessages.size(); i++)
         {
             preloadedSignalMessages.push_back(GetMessageBySignal((SignalType)i, 1)); // work on rate limited message since probably wont work
         }
@@ -123,12 +116,18 @@ public:
 
     static std::string PreLoadedSignalMessages(SignalType signalType)
     {
-        if ((int)signalType < preloadedSignalMessages.size())
+        if ((unsigned int)signalType < preloadedSignalMessages.size())
             return preloadedSignalMessages[(int)signalType];
 
         std::cout << "Signal passed is not valid: " << (int)signalType << std::endl;
         return "";
     }
+};
+
+enum class ErrorTypes
+{
+    ERROR,
+    EXCEPTION
 };
 
 class ErrorCatching

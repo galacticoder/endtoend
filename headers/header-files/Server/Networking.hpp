@@ -104,7 +104,7 @@ public:
         return ClientHashedIp;
     }
 
-    static void pingClient(SSL *clientSocketSSL, unsigned int &clientIndex, const std::string clientHashedIp)
+    static void pingClient(unsigned int &clientIndex, const std::string clientHashedIp)
     {
         std::cout << "Started thread for pinging client" << std::endl;
         int clientServerPort = ClientResources::clientServerPorts[clientHashedIp];

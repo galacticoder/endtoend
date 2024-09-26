@@ -8,10 +8,10 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include "CleanUp.hpp"
 #include "Keys.hpp"
 #include "Encryption.hpp"
 #include "ServerSettings.hpp"
-#include "CleanUp.hpp"
 
 std::mutex mut;
 

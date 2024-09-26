@@ -216,19 +216,19 @@ private:
     static int CheckUserRatelimited(SSL *clientSocketSSL, int &clientSocketTCP, const std::string &clientHashedIp)
     {
         // check for timeout on ip
-        // if (ClientResources::amountOfTriesFromIP[clientHashedIp] >= 3) // also check the time with the condition later
-        // {
-        //     std::cout << fmt::format("Client [{}] is rate limited", TrimmedHashedIp(clientHashedIp)) << std::endl;
-        //     if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
-        //         std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
+        if (ClientResources::amountOfTriesFromIP[clientHashedIp] >= 3) // also check the time with the condition later
+        {
+            std::cout << fmt::format("Client [{}] is rate limited", TrimmedHashedIp(clientHashedIp)) << std::endl;
+            if (ClientResources::amountOfTriesFromIP[clientHashedIp] < 4)
+                std::thread(RateLimitTimer, clientHashedIp).detach(); // run the timer if not running already
 
-        //     const std::string userRatelimitedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::RATELIMITED);
+            const std::string userRatelimitedMessage = ServerSetMessage::PreLoadedSignalMessages(SignalType::RATELIMITED);
 
-        //     Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
-        //     CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
-        //     std::cout << "Client kicked for attempting to join too frequently" << std::endl;
-        //     return -1;
-        // }
+            Send::SendMessage<__LINE__>(clientSocketSSL, userRatelimitedMessage, __FILE__);
+            CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
+            std::cout << "Client kicked for attempting to join too frequently" << std::endl;
+            return -1;
+        }
 
         const std::string userOkaySignal = ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, userOkaySignal, __FILE__) != 0)

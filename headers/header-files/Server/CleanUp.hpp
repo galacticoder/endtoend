@@ -9,9 +9,6 @@
 #include <vector>
 #include <unordered_map>
 #include "FileHandler.hpp"
-#include "Keys.hpp"
-#include "Encryption.hpp"
-#include "SendAndReceive.hpp"
 #include "ServerSettings.hpp"
 
 std::mutex clientCleanUpMutex;
@@ -103,43 +100,45 @@ private:
     }
 
 public:
-    static void CleanUpServer(SSL_CTX *serverCtx, int &serverSocket)
-    {
-        SSL_CTX_free(serverCtx);
-        close(serverSocket);
-
-        Delete::DeletePath(ServerKeysPath);
-        Delete::DeletePath(ServerReceivedKeysPath);
-
-        CleanUpOpenSSL();
-    }
-
-    static void CleanUpClient(unsigned int clientIndex)
-    {
-        try
-        {
-            std::lock_guard<std::mutex> lock(clientCleanUpMutex);
-            std::cout << "Client index in clean up: " << clientIndex << std::endl;
-
-            close(ClientResources::clientSocketsTcp[clientIndex]);
-
-            SSL_shutdown(ClientResources::clientSocketsSSL[clientIndex]);
-            SSL_free(ClientResources::clientSocketsSSL[clientIndex]);
-
-            std::cout << "Starting clean up of client resources" << std::endl;
-
-            FreeAndDelSSL(ClientResources::clientSocketsSSL[clientIndex]);
-            FreeAndDelTCP(ClientResources::clientSocketsTcp[clientIndex]);
-            FindAndDelPassword(clientIndex);
-            DeleteClientKeys(clientIndex);
-            FindAndDelUsername(clientIndex);
-
-            std::cout << "Client clean up finished" << std::endl;
-            printUsersConnected();
-        }
-        catch (const std::exception &e)
-        {
-            std::cout << fmt::format("[{}:{}] Exception caught [in function {}]: {}", __FILE__, __LINE__, __func__, e.what()) << std::endl;
-        }
-    }
+    static void CleanUpServer(SSL_CTX *serverCtx, int &serverSocket);
+    static void CleanUpClient(unsigned int clientIndex);
 };
+
+void CleanUp::CleanUpServer(SSL_CTX *serverCtx, int &serverSocket)
+{
+    SSL_CTX_free(serverCtx);
+    close(serverSocket);
+
+    Delete::DeletePath(ServerKeysPath);
+    Delete::DeletePath(ServerReceivedKeysPath);
+
+    CleanUpOpenSSL();
+}
+
+void CleanUp::CleanUpClient(unsigned int clientIndex)
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(clientCleanUpMutex);
+        std::cout << "Client index in clean up: " << clientIndex << std::endl;
+
+        close(ClientResources::clientSocketsTcp[clientIndex]);
+        SSL_shutdown(ClientResources::clientSocketsSSL[clientIndex]);
+        SSL_free(ClientResources::clientSocketsSSL[clientIndex]);
+
+        std::cout << "Starting clean up of client resources" << std::endl;
+
+        FreeAndDelSSL(ClientResources::clientSocketsSSL[clientIndex]);
+        FreeAndDelTCP(ClientResources::clientSocketsTcp[clientIndex]);
+        FindAndDelPassword(clientIndex);
+        DeleteClientKeys(clientIndex);
+        FindAndDelUsername(clientIndex);
+
+        std::cout << "Client clean up finished" << std::endl;
+        printUsersConnected();
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << fmt::format("[{}:{}] Error caught [{}]: {}", __FILE__, __LINE__, __func__, e.what()) << std::endl;
+    }
+}

@@ -13,6 +13,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include "headers/header-files/Server/CleanUp.hpp"
 #include "headers/header-files/Server/SendAndReceive.hpp"
 #include "headers/header-files/Server/Decryption.hpp"
 #include "headers/header-files/Server/Encryption.hpp"
@@ -176,7 +177,7 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
         return;
       }
 
-      std::thread(Networking::pingClient, clientSocketSSL, std::ref(clientIndex), clientHashedIp).detach();
+      std::thread(Networking::pingClient, std::ref(clientIndex), clientHashedIp).detach();
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);
