@@ -224,7 +224,7 @@ public:
     {
         SignalType passwordNeededSignal = SignalHandling::getSignalType(message);
 
-        if (passwordNeededSignal == SignalType::PASSWORDNOTNEEDED)
+        if (passwordNeededSignal != SignalType::PASSWORDNEEDED)
         {
             SignalHandling::handleSignal(passwordNeededSignal, message);
             return;
