@@ -7,8 +7,8 @@ CLIENT=client
 SERVER_SRC=server.cpp
 CLIENT_SRC=client.cpp
 
-FILE_LINKING_SERVER=headers/cpp-files/Server/bcrypt.cpp headers/cpp-files/Server/blowfish.cpp headers/cpp-files/Server/hostHttp.cpp 
-FILE_LINKING_CLIENT=headers/cpp-files/Client/httpCl.cpp
+FILE_LINKING_SERVER=../lib/Server/bcrypt.cpp ../lib/Server/blowfish.cpp ../lib/Server/hostHttp.cpp
+FILE_LINKING_CLIENT=../lib/Client/httpCl.cpp
 
 LIBS=-lcryptopp -lfmt -lncurses -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl
 LIBS_CLIENT=-lcryptopp -lfmt -lssl -lcrypto -lboost_system -lboost_thread -lpthread -lcurl -lncurses

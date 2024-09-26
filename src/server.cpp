@@ -13,18 +13,18 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
-#include "headers/header-files/Server/CleanUp.hpp"
-#include "headers/header-files/Server/SendAndReceive.hpp"
-#include "headers/header-files/Server/Decryption.hpp"
-#include "headers/header-files/Server/Encryption.hpp"
-#include "headers/header-files/Server/HandleClient.hpp"
-#include "headers/header-files/Server/Keys.hpp"
-#include "headers/header-files/Server/NcursesMenu.hpp"
-#include "headers/header-files/Server/Networking.hpp"
-#include "headers/header-files/Server/SignalHandling.hpp"
-#include "headers/header-files/Server/TLS.hpp"
-#include "headers/header-files/Server/hostHttp.h"
-#include "headers/header-files/Server/ServerSettings.hpp"
+#include "../include/Server/CleanUp.hpp"
+#include "../include/Server/SendAndReceive.hpp"
+#include "../include/Server/Decryption.hpp"
+#include "../include/Server/Encryption.hpp"
+#include "../include/Server/HandleClient.hpp"
+#include "../include/Server/Keys.hpp"
+#include "../include/Server/NcursesMenu.hpp"
+#include "../include/Server/Networking.hpp"
+#include "../include/Server/SignalHandling.hpp"
+#include "../include/Server/TLS.hpp"
+#include "../include/Server/hostHttp.h"
+#include "../include/Server/ServerSettings.hpp"
 
 #define LINE __LINE__
 #define FUNC __func__

@@ -1,5 +1,4 @@
-#ifndef SENDANDRECEIVEMESSAGE
-#define SENDANDRECEIVEMESSAGE
+#pragma once
 
 #include <iostream>
 #include <cstring>
@@ -76,5 +75,3 @@ struct Receive
         return "";
     }
 };
-
-#endif

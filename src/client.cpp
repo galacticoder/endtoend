@@ -19,15 +19,15 @@
 #include <memory>
 #include <ncurses.h>
 #include <openssl/evp.h>
-#include "headers/header-files/Client/SendAndReceive.hpp"
-#include "headers/header-files/Client/FileHandling.hpp"
-#include "headers/header-files/Client/httpCl.h"
-#include "headers/header-files/Client/Clean.hpp"
-#include "headers/header-files/Client/Ncurses.hpp"
-#include "headers/header-files/Client/SignalHandler.hpp"
-#include "headers/header-files/Client/TlsSetup.hpp"
-#include "headers/header-files/Client/HandleClient.hpp"
-#include "headers/header-files/Client/Encryption.hpp"
+#include "../include/Client/SendAndReceive.hpp"
+#include "../include/Client/FileHandling.hpp"
+#include "../include/Client/httpCl.h"
+#include "../include/Client/Clean.hpp"
+#include "../include/Client/Ncurses.hpp"
+#include "../include/Client/SignalHandler.hpp"
+#include "../include/Client/TlsSetup.hpp"
+#include "../include/Client/HandleClient.hpp"
+#include "../include/Client/Encryption.hpp"
 
 long int lineTrack = 0;
 short usersConnected;

@@ -37,10 +37,9 @@
 #include <sys/types.h>
 #include <string.h>
 
-#include "../../header-files/Server/node_blf.h"
-
-#include "../../header-files/Server/bcrypt.h"
-#include "../..//header-files/Server/openbsd.h"
+#include "../../include/Server/node_blf.h"
+#include "../../include/Server/bcrypt.h"
+#include "../../include/Server/openbsd.h"
 
 #ifdef _WIN32
 #define snprintf _snprintf

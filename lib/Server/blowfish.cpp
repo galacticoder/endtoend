@@ -39,7 +39,7 @@
  * Bruce Schneier.
  */
 
-#include "../../header-files/Server/node_blf.h"
+#include "../../include/Server/node_blf.h"
 
 #undef inline
 #ifdef __GNUC__
