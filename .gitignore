@@ -1,10 +1,8 @@
 .vscode/
 testing-folder/
-client
-server
-txt-files/
-keys-from-server/
-server-recieved-client-keys/
-server-keys/
-your-keys/
-clientdummy.cpp
+src/client
+src/server
+src/keys-from-server/
+src/server-recieved-client-keys/
+src/server-keys/
+src/your-keys/
