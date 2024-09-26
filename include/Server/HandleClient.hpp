@@ -255,14 +255,16 @@ private:
         ClientResources::serverJoinRequests.push(clientHashedIp);
         std::cout << fmt::format("User from hashed ip [{}] is requesting to join the server. Accept or not?(y/n): ", TrimmedHashedIp(clientHashedIp));
 
-        const char answer = toupper(getchar());
+        char answer;
+        std::cin >> answer;
+        answer = toupper(answer);
 
         const std::string userAcceptedMessage = ServerSetMessage::PreLoadedSignalMessages((answer == 'Y') ? SignalType::SERVERJOINREQUESTACCEPTED : SignalType::SERVERJOINREQUESTDENIED);
         if (Send::SendMessage<__LINE__>(clientSocketSSL, userAcceptedMessage, __FILE__) != 0)
             return -1;
         ClientResources::serverJoinRequests.pop();
 
-        (answer == 'Y') ? std::cout << "\nUser has been allowed in server" << std::endl : std::cout << "\nUser has been not been allowed in server" << std::endl;
+        (answer == 'Y') ? std::cout << "User has been allowed in server" << std::endl : std::cout << "User has been not been allowed in server" << std::endl;
 
         (answer != 'Y') ? CleanUpUserSocks(clientSocketSSL, clientSocketTCP) : (void)0;
         return (answer == 'Y') ? 0 : -1;
