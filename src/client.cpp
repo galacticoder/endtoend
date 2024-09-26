@@ -121,8 +121,6 @@ int main()
 
     std::cout << fmt::format("Connected to server on port {}", port) << std::endl;
 
-    exit(1);
-
     const std::string serverPublicKeyReceive = Receive::ReceiveMessageSSL(clientSocketSSL);
     SaveFile::saveFile(serverPubKeyPath, serverPublicKeyReceive, std::ios::binary);
 
