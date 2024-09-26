@@ -94,9 +94,15 @@ std::string GetTime()
 
 void printUsersConnected()
 {
+  if (ClientResources::clientSocketsTcp.size() <= 0)
+  {
+    std::cout << "Server shutting down due to no users connected" << std::endl;
+    raise(SIGINT);
+  }
+
   if (ClientResources::clientUsernames.size() <= 0)
   {
-    std::cout << (ClientResources::clientSocketsTcp.size() > 0 ? "No clients with username connected but user socket[s] is connected" : "No connected clients") << std::endl;
+    std::cout << (ClientResources::clientSocketsTcp.size() > 0 ? "No clients with username connected but user socket[s] is connected" : "No connected clients" /*will never reach*/) << std::endl;
     return;
   }
 
@@ -135,14 +141,20 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
 {
   try
   {
+    {
+      std::lock_guard<std::mutex> lock(clientsMutex);
+      ClientResources::clientSocketsTcp.push_back(clientTcpSocket);
+      ClientResources::clientSocketsSSL.push_back(clientSocketSSL);
+    }
+
+    // find Client index to use for deleting and managing client
+    unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
+
     const std::string clientServerPort = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
-    unsigned int clientIndex = -1;
 
     if (clientServerPort.empty())
     {
-      SSL_shutdown(clientSocketSSL);
-      SSL_free(clientSocketSSL);
-      close(clientTcpSocket);
+      CleanUp::CleanUpClient(clientIndex);
       std::cout << "Client port received empty. Kicked client." << std::endl;
       return;
     }
@@ -158,20 +170,11 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       catch (const std::exception &e)
       {
         ErrorCatching::LOGERROR(ErrorTypes::EXCEPTION, e.what(), FILE, LINE, FUNC);
+        CleanUp::CleanUpClient(clientIndex);
         std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
         std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
-        CleanUp::CleanUpClient(clientIndex, clientTcpSocket, clientSocketSSL);
         return;
       }
-
-      {
-        std::lock_guard<std::mutex> lock(clientsMutex);
-        ClientResources::clientSocketsTcp.push_back(clientTcpSocket);
-        ClientResources::clientSocketsSSL.push_back(clientSocketSSL);
-      }
-
-      // find Client index to use for deleting and managing client
-      clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
 
       std::thread(Networking::pingClient, clientSocketSSL, std::ref(clientIndex), clientHashedIp).detach();
 

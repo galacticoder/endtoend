@@ -139,7 +139,7 @@ public:
                         if (ClientResources::clientUsernames.size() > 1)
                             Send::BroadcastEncryptedExitMessage(clientIndex, (clientIndex + 1) % ClientResources::clientUsernames.size());
 
-                        ClientResources::clientSocketsTcp.size() > (unsigned)clientIndex ? CleanUp::CleanUpClient(clientIndex) : CleanUp::CleanUpClient(-1, -1, clientSocketSSL);
+                        ClientResources::clientSocketsTcp.size() == (unsigned)clientIndex ? CleanUp::CleanUpClient(clientIndex - 1) : CleanUp::CleanUpClient(clientIndex);
                     }
                     else
                     {
