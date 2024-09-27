@@ -151,11 +151,6 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
     // find Client index to use for deleting and managing client
     unsigned int clientIndex = (std::find(ClientResources::clientSocketsTcp.begin(), ClientResources::clientSocketsTcp.end(), clientTcpSocket)) - ClientResources::clientSocketsTcp.begin();
 
-    std::cout << "Sending server public key to user" << std::endl;
-    if (Send::SendMessage<LINE>(clientSocketSSL, ReadFile::ReadPemKeyContents("server-keys/server-pubkey.pem"), FILE) != 0)
-      return;
-    std::cout << "Sent server public key to user" << std::endl;
-
     const std::string clientServerPort = Receive::ReceiveMessageSSL<LINE>(clientSocketSSL, FILE);
 
     if (clientServerPort.empty())
@@ -165,24 +160,30 @@ void handleClient(SSL *clientSocketSSL, int &clientTcpSocket, const std::string 
       return;
     }
 
+    std::cout << "Client server port: " << clientServerPort << std::endl;
+
+    try
+    {
+      ClientResources::clientServerPorts[clientHashedIp] = atoi(clientServerPort.c_str());
+    }
+    catch (const std::exception &e)
+    {
+      ErrorCatching::LOGERROR(ErrorTypes::EXCEPTION, e.what(), FILE, LINE, FUNC);
+      CleanUp::CleanUpClient(clientIndex);
+      std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
+      std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
+      return;
+    }
+
+    std::thread(Networking::pingClient, std::ref(clientIndex), clientHashedIp).detach();
+
+    std::cout << "Sending server public key to user" << std::endl;
+    if (Send::SendMessage<LINE>(clientSocketSSL, ReadFile::ReadPemKeyContents("server-keys/server-pubkey.pem"), FILE) != 0)
+      return;
+    std::cout << "Sent server public key to user" << std::endl;
+
     while (ServerSettings::exitSignal != true)
     {
-      std::cout << "Client server port: " << clientServerPort << std::endl;
-
-      try
-      {
-        ClientResources::clientServerPorts[clientHashedIp] = atoi(clientServerPort.c_str());
-      }
-      catch (const std::exception &e)
-      {
-        ErrorCatching::LOGERROR(ErrorTypes::EXCEPTION, e.what(), FILE, LINE, FUNC);
-        CleanUp::CleanUpClient(clientIndex);
-        std::cout << "Cannot use atoi on clientServerPort: " << e.what() << std::endl;
-        std::cout << "Kicked thread: " << std::this_thread::get_id() << std::endl;
-        return;
-      }
-
-      std::thread(Networking::pingClient, std::ref(clientIndex), clientHashedIp).detach();
 
       {
         std::lock_guard<std::mutex> lock(clientsMutex);

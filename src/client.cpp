@@ -80,13 +80,13 @@ int main()
 
     shutdownHandler = [&](int sig)
     {
+        Delete::DeletePath(KeysReceivedFromServerPath);
+        Delete::DeletePath(YourKeysPath);
         windowCleaning(sig);
         EVP_PKEY *receivedPublicKey = valuePasser(sig);
         // std::cout << "\b\b\b\b"; // deletes the ^C output after ctrl-c is pressed
         CleanUp::cleanUpOpenssl(clientSocketSSL, startSock, receivedPublicKey, ctx);
         EVP_cleanup();
-        // Delete::DeletePath(KeysReceivedFromServerPath);
-        // Delete::DeletePath(YourKeysPath);
 
         std::cout << "You have disconnected" << std::endl;
 
