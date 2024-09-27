@@ -256,7 +256,18 @@ private:
         std::cout << fmt::format("User from hashed ip [{}] is requesting to join the server. Accept or not?(y/n): ", TrimmedHashedIp(clientHashedIp));
 
         char answer;
-        std::cin >> answer;
+
+        while (true)
+        {
+            std::cin >> answer;
+
+            if (!std::cin.fail())
+                break;
+
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+
         answer = toupper(answer);
 
         const std::string userAcceptedMessage = ServerSetMessage::PreLoadedSignalMessages((answer == 'Y') ? SignalType::SERVERJOINREQUESTACCEPTED : SignalType::SERVERJOINREQUESTDENIED);
@@ -264,10 +275,15 @@ private:
             return -1;
         ClientResources::serverJoinRequests.pop();
 
-        (answer == 'Y') ? std::cout << "User has been allowed in server" << std::endl : std::cout << "User has been not been allowed in server" << std::endl;
+        if (answer != 'Y')
+        {
+            std::cout << "User has been not been allowed in server" << std::endl;
+            CleanUpUserSocks(clientSocketSSL, clientSocketTCP);
+            return -1;
+        }
 
-        (answer != 'Y') ? CleanUpUserSocks(clientSocketSSL, clientSocketTCP) : (void)0;
-        return (answer == 'Y') ? 0 : -1;
+        std::cout << "User has been allowed in server" << std::endl;
+        return 0;
     }
 
 public:

@@ -68,7 +68,7 @@ private:
 
         if (password.length() < ServerSettings::minimumPasswordLength)
         {
-            std::cout << fmt::format("\nServer password must be at least {} characters long.", ServerSettings::minimumPasswordLength) << std::endl;
+            std::cout << fmt::format("Server password must be at least {} characters long.", ServerSettings::minimumPasswordLength) << std::endl;
             raise(SIGINT);
         }
 
