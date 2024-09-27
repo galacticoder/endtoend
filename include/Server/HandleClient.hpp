@@ -7,6 +7,7 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <thread>
+#include <mutex>
 #include "SendAndReceive.hpp"
 #include "ServerSettings.hpp"
 #include "FileHandler.hpp"
@@ -20,6 +21,8 @@
 #define FindInVec(vectorName, value) (std::find(vectorName.begin(), vectorName.end(), value)) - vectorName.begin()
 
 extern void RateLimitTimer(const std::string hashedClientIp);
+
+std::mutex handleClientMutex;
 
 class HandleClient
 {
@@ -239,6 +242,7 @@ private:
 
     static int CheckRequestNeededForServer(SSL *clientSocketSSL, int &clientSocketTCP, const std::string &clientHashedIp)
     { // checks if users need to send a request to the server to join
+        std::lock_guard<std::mutex> lock(handleClientMutex);
         if (ServerSettings::requestNeeded != true)
         {
             const std::string userOkaySignal = ServerSetMessage::PreLoadedSignalMessages(SignalType::OKAYSIGNAL);
