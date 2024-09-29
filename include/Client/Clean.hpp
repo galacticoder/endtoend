@@ -37,7 +37,7 @@ public:
             startSock = 0;
             std::cout << "Closed start sock" << std::endl;
         }
-        if (receivedPublicKey)
+        if (receivedPublicKey != nullptr)
         {
             std::cout << "Freeing received public key " << std::endl;
             EVP_PKEY_free(receivedPublicKey);
