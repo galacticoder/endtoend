@@ -16,8 +16,8 @@ LIBS_CLIENT=-lcryptopp -lfmt -lssl -lcrypto -lboost_system -lboost_thread -lpthr
 PACKAGES=libboost-all-dev libcrypto++-dev libfmt-dev g++ libncurses5-dev libncursesw5-dev libboost-all-dev libcurl4-openssl-dev libssl-dev
 
 packages:
-	sudo apt update
-	sudo apt install $(PACKAGES) -y
+	apt update
+	apt install $(PACKAGES) -y
 
 all: $(SERVER) $(CLIENT)
 
